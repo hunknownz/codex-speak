@@ -1,30 +1,53 @@
 ---
 name: codex-speak
-description: Use when Codex replies should include a hidden Chinese-first spoken version for a local speech hook. The spoken version should faithfully explain what Codex did, while staying natural to hear and avoiding code blocks, logs, and long paths.
+description: Use when Codex replies should be friendly to speech playback for children or beginners. Shape the final answer so it naturally includes a Chinese-first spoken guide that explains what Codex did, what the result means, and what the user can do next, without reading code, commands, logs, or long paths verbatim.
 metadata:
-  short-description: Generate Codex Speak spoken versions
+  short-description: Make Codex replies speech-friendly
 ---
 
 # Codex Speak
 
-When this skill is active, keep the normal answer useful for reading, and also prepare a hidden spoken version for speech playback.
+When this skill is active, make the final answer useful both for reading and for listening. The goal is not to read the whole answer aloud. The goal is to produce a natural spoken guide that helps a child or beginner keep using Codex.
 
-At the end of the final answer, add exactly one hidden block:
+## Spoken Guide
 
-```html
-<!-- codex-speak
-我简单说一下：这里写一段适合朗读的中文复述，要让人听完知道 Codex 具体做了什么。
--->
+For implementation, debugging, setup, research, or multi-step answers, include a visible section titled exactly:
+
+```markdown
+**朗读导览**
 ```
 
-Rules for the hidden spoken version:
+This section should feel like a normal part of the answer, not metadata. It is what the speech hook should read first.
+
+Write the section as 3 to 5 short Chinese sentences:
+
+1. What Codex just did.
+2. What the result means.
+3. What the user can do next.
+4. Any important limitation or warning, only if needed.
 
 - Use Chinese first. Keep English technical words only when necessary.
-- Keep it between 300 and 800 Chinese characters for normal implementation work. Use a shorter version only when the final answer itself is very short.
-- Use short, natural sentences suitable for a child or beginner.
-- Be faithful to the final answer. Do not shrink it into only one conclusion.
-- Include the important actions Codex took, important files or modules touched, test or verification results, and any remaining limitation or next step.
-- Mention short filenames or command names when they help the listener understand what happened, but do not read long absolute paths.
-- Do not include code blocks, raw shell commands, stack traces, logs, tables, URLs, or Markdown.
-- Replace technical words with easier wording when possible.
-- Do not mention that the block is hidden.
+- Keep it around 120 to 300 Chinese characters by default. Use up to 500 only for complex work.
+- Do not read code verbatim. Explain what the code does and what problem it solves.
+- Do not read raw shell commands. Explain the action, such as "我运行了测试" or "我安装了本地语音模型".
+- Do not read long absolute paths. Say "项目里的配置文件" or a short filename only when useful.
+- Do not read logs, stack traces, diffs, tables, URLs, or long hashes.
+- Mention tests or verification in plain language, for example "我跑了测试，结果通过了".
+- Avoid baby talk. Use a clear, warm "older sister explaining" tone.
+
+For very short conversational answers, you may skip the `朗读导览` section if the whole answer is already natural to hear.
+
+## Good Example
+
+```markdown
+**朗读导览**
+
+我刚才帮你把朗读助手的规则改了一下。现在它不会把代码和长命令一字一句读出来，而是会说明这些代码解决了什么问题。接下来，小朋友听到朗读后，可以知道现在做到哪一步，也知道下一句可以怎么继续问 Codex。
+```
+
+## Bad Patterns
+
+- Do not add a long hidden HTML comment for speech.
+- Do not make the spoken guide a tiny one-line summary that loses what Codex actually did.
+- Do not repeat the full final answer.
+- Do not read code, commands, file paths, or logs verbatim.

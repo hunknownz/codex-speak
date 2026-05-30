@@ -12,6 +12,9 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
     if let Some(block) = extract_speak_block(text) {
         return truncate_chars(&block, max_chars);
     }
+    if let Some(guide) = extract_spoken_guide(text) {
+        return truncate_chars(&guide, max_chars);
+    }
 
     let without_code = strip_fenced_code(text);
     let mut lines = Vec::new();
@@ -32,6 +35,37 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
 
     let joined = normalize_space(&lines.join("。"));
     truncate_chars(&joined, max_chars)
+}
+
+pub fn extract_spoken_guide(text: &str) -> Option<String> {
+    let heading =
+        Regex::new(r"^\s*(?:#{1,6}\s*)?\*\*朗读导览\*\*\s*$|^\s*#{1,6}\s*朗读导览\s*$").ok()?;
+    let next_heading = Regex::new(r"^\s*(?:#{1,6}\s+|\*\*[^*]+?\*\*\s*$)").ok()?;
+    let mut in_guide = false;
+    let mut lines = Vec::new();
+
+    for line in text.lines() {
+        if !in_guide && heading.is_match(line) {
+            in_guide = true;
+            continue;
+        }
+        if in_guide {
+            if next_heading.is_match(line) && !line.trim().is_empty() {
+                break;
+            }
+            let cleaned = strip_markdown(line);
+            if !cleaned.trim().is_empty() && !should_skip_line(&cleaned) {
+                lines.push(simplify_terms(&cleaned));
+            }
+        }
+    }
+
+    let guide = normalize_space(&lines.join(""));
+    if guide.is_empty() {
+        None
+    } else {
+        Some(guide)
+    }
 }
 
 fn strip_fenced_code(text: &str) -> String {
@@ -128,6 +162,15 @@ mod tests {
     fn extracts_hidden_speak_block() {
         let text = "hello\n<!-- codex-speak\n我简单说一下：做好了。\n-->";
         assert_eq!(extract_speak_block(text).unwrap(), "我简单说一下：做好了。");
+    }
+
+    #[test]
+    fn extracts_visible_spoken_guide() {
+        let text = "**朗读导览**\n\n我改了规则。\n现在不会朗读代码。\n\n**验证**\n测试通过。";
+        assert_eq!(
+            extract_spoken_guide(text).unwrap(),
+            "我改了规则。现在不会朗读代码。"
+        );
     }
 
     #[test]
