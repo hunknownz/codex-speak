@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -u
+"$HOME/.codex/codex-speak/bin/codex-speak" speak >/dev/null 2>&1 || true
+exit 0
+

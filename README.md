@@ -27,7 +27,7 @@ speak-engine
 
 ## 当前阶段
 
-项目正在产品设计和原型准备阶段。
+项目已经进入 Rust CLI 原型阶段，macOS 端到端链路已跑通。
 
 已完成：
 
@@ -35,14 +35,61 @@ speak-engine
 - 技术选型文档
 - 商业价值分析
 - 初始项目目录
+- Rust CLI
+- Codex Skill 模板
+- Codex Hook wrapper
+- macOS 安装/卸载脚本
+- Sherpa-ONNX + MeloTTS 中文模型接入
 
 下一步：
 
-- 实现 `codex-speak` CLI 原型。
-- 实现 Codex Skill 模板。
-- 实现 Hook wrapper。
-- 增加 macOS 安装脚本。
-- 增加 Windows 安装脚本。
+- 完善 Windows 安装脚本。
+- 增加 GitHub Actions 跨平台构建。
+- 增加模型 manifest 和校验。
+- 增加 Plugin 或图形化设置界面。
+
+## 开发安装
+
+macOS:
+
+```bash
+./installers/install-macos.sh
+```
+
+如果已经下载过 TTS 工具和模型，只想更新 CLI/Hook/Skill：
+
+```bash
+./installers/install-macos.sh --skip-tts-download
+```
+
+卸载：
+
+```bash
+./installers/uninstall-macos.sh
+```
+
+## CLI
+
+```bash
+codex-speak extract
+codex-speak speak
+codex-speak stop
+codex-speak doctor
+codex-speak install
+codex-speak uninstall
+```
+
+测试朗读：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak speak --text "你好，这是 Codex Speak 的中文本地朗读测试。"
+```
+
+自检：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak doctor
+```
 
 ## 文档
 
@@ -61,5 +108,6 @@ codex-speak/
   installers/
   skills/
   models/
+  src/
+  tests/
 ```
-
