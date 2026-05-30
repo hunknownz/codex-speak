@@ -4,7 +4,7 @@
 
 ## 一句话介绍
 
-Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，自动朗读一段由 Codex 自己生成的、儿童也能听懂的语音概要。
+Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，自动朗读一段由 Codex 自己生成的、儿童也能听懂的语音复述。
 
 ## 为什么做
 
@@ -14,7 +14,7 @@ Codex 的原始回复常常包含代码、命令、路径和技术词，直接�
 
 ```text
 Codex Skill
-  -> 生成适合朗读的中文概要
+  -> 生成适合朗读的中文复述
 Codex Hook
   -> 回复结束后自动触发
 speak-engine

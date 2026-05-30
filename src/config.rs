@@ -25,7 +25,7 @@ impl Default for Config {
             enabled: true,
             language: "zh".to_string(),
             child_mode: true,
-            max_read_chars: 300,
+            max_read_chars: 800,
             provider: "sherpa_melo".to_string(),
             speed: 1.0,
             fallback_provider: "system".to_string(),

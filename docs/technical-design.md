@@ -6,7 +6,7 @@
 
 ```text
 Codex Skill
-  -> 生成朗读概要
+  -> 生成朗读复述
 Codex Hook
   -> 回复结束后自动触发
 speak-engine
@@ -40,36 +40,36 @@ Plugin 暂不作为必需组件，后续用于设置界面和手动控制。
 
 | 组件 | 是否第一阶段需要 | 职责 |
 | --- | --- | --- |
-| Skill | 是 | 让 Codex 每次生成适合朗读的中文概要 |
+| Skill | 是 | 让 Codex 每次生成适合朗读的中文复述 |
 | Hook | 是 | Codex 回复结束后触发朗读流程 |
-| 本地 TTS | 是 | 把概要变成声音 |
+| 本地 TTS | 是 | 把复述变成声音 |
 | Plugin | 否，第二阶段 | 做设置界面、重读、暂停、声音选择 |
 
 Skill 生成示例：
 
 ```html
 <!-- codex-speak
-我简单说一下：这次我们要做一个本地朗读助手。Codex 会先准备一小段容易听懂的话，Hook 再把这段话交给本地语音工具读出来。
+我简单说一下：这次 Codex 会用一段适合朗读的话，把它具体做了什么讲清楚。它会保留关键修改、验证结果和下一步，但不会朗读代码块、长路径和日志。
 -->
 ```
 
 Hook 提取策略：
 
 ```text
-优先读取 codex-speak 块
+优先读取 codex-speak 复述块
 找不到 -> 规则清洗最后一条回复
 清洗失败 -> 系统朗读兜底
 ```
 
 ## 文本处理方案
 
-### 第一层：Codex 生成朗读概要
+### 第一层：Codex 生成朗读复述
 
 由 Skill 约束 Codex：
 
 - 用中文。
-- 不超过 200 到 300 字。
-- 只说结论、做了什么、下一步。
+- 通常 300 到 800 字，短回答可以更短。
+- 忠实说明结论、做了什么、验证结果、限制和下一步。
 - 不包含代码、命令、日志、长路径。
 - 技术词转成更容易听懂的说法。
 
@@ -266,7 +266,7 @@ sha256 = "..."
 enabled = true
 language = "zh"
 child_mode = true
-max_read_chars = 300
+max_read_chars = 800
 
 tts_provider = "sherpa_melo"
 fallback_providers = ["sherpa_kokoro", "piper", "system"]
@@ -298,8 +298,8 @@ skip_code_blocks = true
 
 ### M1：可用原型
 
-- Skill 生成 `codex-speak` 概要。
-- Hook 提取概要。
+- Skill 生成 `codex-speak` 朗读复述。
+- Hook 提取朗读复述。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 
