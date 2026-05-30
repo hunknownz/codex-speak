@@ -12,11 +12,11 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
     if let Some(guide) = extract_html_protocol_guide(text) {
         return truncate_chars(&guide, max_chars);
     }
-    if let Some(block) = extract_speak_block(text) {
-        return truncate_chars(&block, max_chars);
-    }
     if let Some(guide) = extract_spoken_guide(text) {
         return truncate_chars(&guide, max_chars);
+    }
+    if let Some(block) = extract_speak_block(text) {
+        return truncate_chars(&block, max_chars);
     }
 
     let without_code = strip_fenced_code(text);
@@ -97,6 +97,9 @@ pub fn extract_spoken_guide(text: &str) -> Option<String> {
         }
         if in_guide {
             if next_heading.is_match(line) && !line.trim().is_empty() {
+                break;
+            }
+            if line.trim_start().starts_with("<!--") {
                 break;
             }
             let cleaned = strip_markdown(line);
@@ -230,16 +233,30 @@ mod tests {
     #[test]
     fn extracts_html_protocol_guide() {
         let text = r#"
-<aside data-codex-speak="guide" data-version="1">
-  <p data-role="did">我改了规则。</p>
-  <p data-role="code-summary">代码会跳过长路径。</p>
-  <p data-role="next">下一步可以接插件。</p>
+<aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" lang="zh-CN">
+  <p class="codex-speak-did" data-role="did">我改了规则。</p>
+  <p class="codex-speak-code-summary" data-role="code-summary">代码会跳过长路径。</p>
+  <p class="codex-speak-next" data-role="next">下一步可以接插件。</p>
 </aside>
 "#;
         assert_eq!(
             extract_html_protocol_guide(text).unwrap(),
             "我改了规则。代码会跳过长路径。下一步可以接插件。"
         );
+    }
+
+    #[test]
+    fn prefers_visible_guide_before_legacy_hidden_block() {
+        let text = r#"
+**朗读导览**
+
+我会读这一段。
+
+<!-- codex-speak
+不要优先读这里。
+-->
+"#;
+        assert_eq!(clean_for_speech(text, 300), "我会读这一段。");
     }
 
     #[test]

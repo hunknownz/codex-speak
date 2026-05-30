@@ -80,7 +80,7 @@ codex-speak doctor
 当 Codex 回复中存在：
 
 ```html
-<aside data-codex-speak="guide">
+<aside class="codex-speak-guide" data-codex-speak="guide">
 ```
 
 Plugin 可以识别并显示为“朗读导览卡片”：
@@ -98,7 +98,9 @@ Plugin 可以识别并显示为“朗读导览卡片”：
 Plugin 可以检查当前回答是否符合协议：
 
 - 是否有 `aside[data-codex-speak="guide"]`
+- 是否有 `class="codex-speak-guide"`
 - 是否有 `data-version`
+- 是否有 `lang`
 - 是否包含 `did`
 - 是否包含 `next`
 - 是否出现代码块、命令、长路径或日志
@@ -157,7 +159,7 @@ Hook 触发后，Rust CLI 优先读 `latest.json`。
 
 ```text
 1. side-channel latest.json
-2. HTML protocol aside
+2. HTML microformat protocol aside
 3. Markdown 朗读导览
 4. HTML comment 调试块
 5. 清洗最终回答
@@ -218,7 +220,7 @@ Plugin 负责：
 ### P1：协议落地
 
 - Rust CLI 支持解析 HTML Protocol v1。
-- Skill 改为输出 `<aside data-codex-speak="guide">`。
+- Skill 改为输出 `<aside class="codex-speak-guide" data-codex-speak="guide">`。
 - 保留 Markdown 和 HTML 注释兼容。
 
 ### P2：Plugin 控制面板
@@ -233,4 +235,3 @@ Plugin 负责：
 - 增加 `codex_speak_prepare` 工具。
 - Rust CLI 支持读取 spool。
 - Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
-

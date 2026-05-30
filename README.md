@@ -14,11 +14,11 @@ Codex 的原始回复常常包含代码、命令、路径和技术词，直接�
 
 ```text
 Codex Skill
-  -> 让最终回答自然包含朗读导览
+  -> 让最终回答自然包含 Codex Speak Protocol 朗读导览
 Codex Hook
   -> 回复结束后自动触发
 speak-engine
-  -> 提取、清洗、配置、调度
+  -> 提取协议、清洗兜底、配置、调度
 本地 TTS
   -> MeloTTS / Kokoro / Piper / 系统兜底
 安装器
@@ -40,6 +40,7 @@ speak-engine
 - Codex Hook wrapper
 - macOS 安装/卸载脚本
 - Sherpa-ONNX + MeloTTS 中文模型接入
+- HTML 微格式风格的 Codex Speak Protocol v1
 
 下一步：
 

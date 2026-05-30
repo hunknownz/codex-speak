@@ -47,17 +47,20 @@ Plugin 暂不作为必需组件，后续用于设置界面和手动控制。
 
 Skill 生成示例：
 
-```markdown
-**朗读导览**
-
-我刚才帮你把朗读助手的规则改好了。现在它不会把代码、命令和长路径一个字一个字读出来，而是会说明这些内容解决了什么问题。接下来，小朋友听完就能知道现在做到哪一步，也知道可以怎么继续问 Codex。
+```html
+<aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
+  <p class="codex-speak-did" data-role="did">我刚才帮你把朗读助手的规则改好了。</p>
+  <p class="codex-speak-code-summary" data-role="code-summary">现在它不会把代码、命令和长路径一个字一个字读出来，而是会说明这些内容解决了什么问题。</p>
+  <p class="codex-speak-next" data-role="next">接下来，小朋友听完就能知道现在做到哪一步，也知道可以怎么继续问 Codex。</p>
+</aside>
 ```
 
 Hook 提取策略：
 
 ```text
-优先读取“朗读导览”段落
-找不到 -> 读取短 codex-speak 调试块
+优先读取 HTML 微格式协议 aside[data-codex-speak="guide"]
+找不到 -> 读取旧版 Markdown 朗读导览
+找不到 -> 读取旧版 codex-speak 调试块
 找不到 -> 规则清洗最后一条回复
 清洗失败 -> 系统朗读兜底
 ```
@@ -73,6 +76,8 @@ Hook 提取策略：
 - 说明做了什么、结果是什么意思、下一步可以怎么继续。
 - 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
 - 技术词转成更容易听懂的说法。
+
+导览使用 [Codex Speak Protocol v1](protocol-v1.md)。协议采用 HTML 微格式风格：`aside` 和 `p` 保持可见可读，`data-*` 供 Rust CLI 稳定解析，`class` 供 Plugin 后续渲染和校验。
 
 ### 第二层：规则清洗兜底
 
@@ -303,8 +308,8 @@ skip_code_blocks = true
 
 ### M1：可用原型
 
-- Skill 生成 `朗读导览`。
-- Hook 提取朗读导览。
+- Skill 生成 Codex Speak Protocol 朗读导览。
+- Hook 提取 HTML 微格式协议或旧版导览。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 
