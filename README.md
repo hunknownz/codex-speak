@@ -85,6 +85,8 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak speak --text "你好，这是 Codex Speak 的中文本地朗读测试。"
 ```
 
+默认中文声音使用 MeloTTS 的中英混读女声。当前模型只有一个中文音色，所以第一版通过略微放慢语速、减少 VITS 随机噪声、增加推理线程来优化“口齿清晰、声音明亮、像姐姐在讲”的效果；后续会通过 Kokoro 或 ZipVoice 增加更多可选音色。
+
 自检：
 
 ```bash

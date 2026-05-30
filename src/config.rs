@@ -15,6 +15,10 @@ pub struct Config {
     pub max_read_chars: usize,
     pub provider: String,
     pub speed: f32,
+    pub num_threads: usize,
+    pub vits_noise_scale: f32,
+    pub vits_noise_scale_w: f32,
+    pub tts_silence_scale: f32,
     pub fallback_provider: String,
     pub previous_notify: Option<Vec<String>>,
 }
@@ -27,7 +31,11 @@ impl Default for Config {
             child_mode: true,
             max_read_chars: 800,
             provider: "sherpa_melo".to_string(),
-            speed: 1.0,
+            speed: 0.9,
+            num_threads: 4,
+            vits_noise_scale: 0.45,
+            vits_noise_scale_w: 0.6,
+            tts_silence_scale: 0.25,
             fallback_provider: "system".to_string(),
             previous_notify: None,
         }

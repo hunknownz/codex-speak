@@ -30,7 +30,7 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     Ok(())
 }
 
-fn speak_with_sherpa(_cfg: &Config, text: &str, no_play: bool) -> Result<()> {
+fn speak_with_sherpa(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     let sherpa = config::sherpa_bin()?;
     let model = config::model_dir()?;
     require_file(&sherpa)?;
@@ -40,6 +40,12 @@ fn speak_with_sherpa(_cfg: &Config, text: &str, no_play: bool) -> Result<()> {
 
     let wav = config::cache_dir()?.join("last.wav");
     let output = Command::new(&sherpa)
+        .arg(format!("--num-threads={}", cfg.num_threads))
+        .arg(format!("--speed={}", cfg.speed))
+        .arg(format!("--vits-noise-scale={}", cfg.vits_noise_scale))
+        .arg(format!("--vits-noise-scale-w={}", cfg.vits_noise_scale_w))
+        .arg(format!("--tts-silence-scale={}", cfg.tts_silence_scale))
+        .arg("--print-args=false")
         .arg(format!(
             "--vits-model={}",
             model.join("model.onnx").display()

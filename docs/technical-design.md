@@ -272,6 +272,10 @@ tts_provider = "sherpa_melo"
 fallback_providers = ["sherpa_kokoro", "piper", "system"]
 
 speed = 0.9
+num_threads = 4
+vits_noise_scale = 0.45
+vits_noise_scale_w = 0.6
+tts_silence_scale = 0.25
 voice = "default"
 skip_code_blocks = true
 ```
