@@ -98,6 +98,8 @@ codex-speak uninstall
 - [需求文档](docs/requirements.md)
 - [技术文档](docs/technical-design.md)
 - [商业价值分析](docs/business-value.md)
+- [Codex Speak Protocol v1](docs/protocol-v1.md)
+- [Plugin 设计](docs/plugin-design.md)
 
 ## 项目结构
 

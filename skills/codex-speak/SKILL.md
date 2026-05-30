@@ -11,15 +11,20 @@ When this skill is active, make the final answer useful both for reading and for
 
 ## Spoken Guide
 
-For implementation, debugging, setup, research, or multi-step answers, include a visible section titled exactly:
+For implementation, debugging, setup, research, or multi-step answers, include a Codex Speak Protocol block:
 
-```markdown
-**朗读导览**
+```html
+<aside data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright">
+  <p data-role="did">我刚才帮你改了朗读助手的规则。</p>
+  <p data-role="code-summary">代码部分的作用是：让程序先找到适合朗读的导览，而不是直接朗读整段技术回答。</p>
+  <p data-role="result">我运行了测试，结果通过了。</p>
+  <p data-role="next">接下来，你可以让我继续把这个协议接进插件通道。</p>
+</aside>
 ```
 
-This section should feel like a normal part of the answer, not metadata. It is what the speech hook should read first.
+This block should feel like a normal visible part of the answer, not hidden metadata. It is what the speech hook should read first.
 
-Write the section as 3 to 5 short Chinese sentences:
+Write 3 to 5 short Chinese paragraphs:
 
 1. What Codex just did.
 2. What the result means.
@@ -40,9 +45,11 @@ For very short conversational answers, you may skip the `朗读导览` section i
 ## Good Example
 
 ```markdown
-**朗读导览**
-
-我刚才帮你把朗读助手的规则改了一下。现在它不会把代码和长命令一字一句读出来，而是会说明这些代码解决了什么问题。接下来，小朋友听到朗读后，可以知道现在做到哪一步，也知道下一句可以怎么继续问 Codex。
+<aside data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright">
+  <p data-role="did">我刚才帮你把朗读助手的规则改了一下。</p>
+  <p data-role="code-summary">现在它不会把代码和长命令一字一句读出来，而是会说明这些代码解决了什么问题。</p>
+  <p data-role="next">接下来，小朋友听到朗读后，可以知道现在做到哪一步，也知道下一句可以怎么继续问 Codex。</p>
+</aside>
 ```
 
 ## Bad Patterns

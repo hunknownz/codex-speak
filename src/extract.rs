@@ -9,6 +9,9 @@ pub fn extract_speak_block(text: &str) -> Option<String> {
 }
 
 pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
+    if let Some(guide) = extract_html_protocol_guide(text) {
+        return truncate_chars(&guide, max_chars);
+    }
     if let Some(block) = extract_speak_block(text) {
         return truncate_chars(&block, max_chars);
     }
@@ -35,6 +38,49 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
 
     let joined = normalize_space(&lines.join("。"));
     truncate_chars(&joined, max_chars)
+}
+
+pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
+    let aside_re =
+        Regex::new(r#"(?is)<aside\b[^>]*data-codex-speak\s*=\s*["']guide["'][^>]*>(.*?)</aside>"#)
+            .ok()?;
+    let p_re =
+        Regex::new(r#"(?is)<p\b[^>]*(?:data-role\s*=\s*["']([^"']+)["'])?[^>]*>(.*?)</p>"#).ok()?;
+    let tag_re = Regex::new(r"(?is)<[^>]+>").ok()?;
+
+    let aside = aside_re
+        .captures(text)
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str())?;
+
+    let mut parts = Vec::new();
+    for caps in p_re.captures_iter(aside) {
+        let role = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+        if !is_allowed_protocol_role(role) {
+            continue;
+        }
+        let raw = caps.get(2).map(|m| m.as_str()).unwrap_or_default();
+        let without_tags = tag_re.replace_all(raw, "");
+        let text = html_unescape(&without_tags);
+        let text = normalize_space(&text);
+        if !text.is_empty() && !should_skip_line(&text) {
+            parts.push(text);
+        }
+    }
+
+    let guide = normalize_space(&parts.join(""));
+    if guide.is_empty() {
+        None
+    } else {
+        Some(guide)
+    }
+}
+
+fn is_allowed_protocol_role(role: &str) -> bool {
+    matches!(
+        role,
+        "" | "did" | "why" | "code-summary" | "command-summary" | "result" | "next" | "warning"
+    )
 }
 
 pub fn extract_spoken_guide(text: &str) -> Option<String> {
@@ -154,6 +200,14 @@ fn normalize_space(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn html_unescape(text: &str) -> String {
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,6 +224,21 @@ mod tests {
         assert_eq!(
             extract_spoken_guide(text).unwrap(),
             "我改了规则。现在不会朗读代码。"
+        );
+    }
+
+    #[test]
+    fn extracts_html_protocol_guide() {
+        let text = r#"
+<aside data-codex-speak="guide" data-version="1">
+  <p data-role="did">我改了规则。</p>
+  <p data-role="code-summary">代码会跳过长路径。</p>
+  <p data-role="next">下一步可以接插件。</p>
+</aside>
+"#;
+        assert_eq!(
+            extract_html_protocol_guide(text).unwrap(),
+            "我改了规则。代码会跳过长路径。下一步可以接插件。"
         );
     }
 
