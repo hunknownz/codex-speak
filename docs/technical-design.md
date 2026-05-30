@@ -25,7 +25,7 @@ installer
 Skill + Hook + 本地 TTS
 ```
 
-Plugin 暂不作为必需组件，后续用于设置界面和手动控制。
+Plugin 不作为 Hook 朗读的必需组件，但第一版已经可以提供 MCP 工具，用于状态查询、试听、停止朗读、开关配置和 side-channel 写入。
 
 ## 设计原则
 
@@ -58,7 +58,8 @@ Skill 生成示例：
 Hook 提取策略：
 
 ```text
-优先读取 HTML 微格式协议 aside[data-codex-speak="guide"]
+优先读取新鲜的 Plugin side-channel latest.json
+找不到 -> 读取 HTML 微格式协议 aside[data-codex-speak="guide"]
 找不到 -> 读取旧版 Markdown 朗读导览
 找不到 -> 读取旧版 codex-speak 调试块
 找不到 -> 规则清洗最后一条回复
@@ -78,6 +79,8 @@ Hook 提取策略：
 - 技术词转成更容易听懂的说法。
 
 导览使用 [Codex Speak Protocol v1](protocol-v1.md)。协议采用 HTML 微格式风格：`aside` 和 `p` 保持可见可读，`data-*` 供 Rust CLI 稳定解析，`class` 供 Plugin 后续渲染和校验。
+
+当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。这样 Hook 触发后可以直接读本地结构化内容，Chat Session 里只需要保留自然的最终回答。
 
 ### 第二层：规则清洗兜底
 
@@ -227,6 +230,8 @@ codex-speak
   speak
   stop
   doctor
+  status
+  mcp
   install
   uninstall
   config

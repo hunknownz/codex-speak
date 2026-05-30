@@ -10,6 +10,11 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责产品体�
 - 提供重读、停止、试听。
 - 后续提供 side-channel，避免朗读内容必须出现在最终回答里。
 
+需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
+
+- 可靠方案：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里。
+- 渐进增强：协议块可以外包一层 HTML `details`，如果 Codex 渲染器支持，就折叠显示；如果不支持，也不影响解析和朗读。
+
 核心分工：
 
 ```text
@@ -180,6 +185,7 @@ Plugin 不负责：
 - 替代 Rust CLI 的跨平台核心逻辑。
 - 替代 Hook 的回复结束自动触发。
 - 替代 Codex 的内容理解。
+- 强行改写、隐藏或折叠 Codex Chat Session 中已经渲染出来的消息。
 
 ## 推荐插件目录
 
@@ -191,7 +197,7 @@ plugins/codex-speak/
   skills/
     codex-speak/SKILL.md
   scripts/
-    codex-speak-control
+    codex-speak-mcp
   assets/
   .mcp.json
 ```
@@ -229,6 +235,7 @@ Plugin 负责：
 - 开关朗读。
 - 重读/停止/试听。
 - 运行 doctor。
+- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`。
 
 ### P3：Plugin Side-Channel
 

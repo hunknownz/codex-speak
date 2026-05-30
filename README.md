@@ -41,13 +41,14 @@ speak-engine
 - macOS 安装/卸载脚本
 - Sherpa-ONNX + MeloTTS 中文模型接入
 - HTML 微格式风格的 Codex Speak Protocol v1
+- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入
 
 下一步：
 
 - 完善 Windows 安装脚本。
 - 增加 GitHub Actions 跨平台构建。
 - 增加模型 manifest 和校验。
-- 增加 Plugin 或图形化设置界面。
+- 完善 Plugin 安装流程和图形化设置界面。
 
 ## 开发安装
 
@@ -76,6 +77,8 @@ codex-speak extract
 codex-speak speak
 codex-speak stop
 codex-speak doctor
+codex-speak status
+codex-speak mcp
 codex-speak install
 codex-speak uninstall
 ```
@@ -102,6 +105,18 @@ codex-speak uninstall
 - [Codex Speak Protocol v1](docs/protocol-v1.md)
 - [Plugin 设计](docs/plugin-design.md)
 
+## Plugin
+
+第一版插件在 [plugins/codex-speak](/Users/sherry/Documents/啦啦啦%202/codex-speak/plugins/codex-speak)。
+
+它提供：
+
+- Codex Speak Skill。
+- MCP 工具：状态、提取预览、停止、试听、开关、side-channel 写入。
+- `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容。
+
+当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 Plugin side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。
+
 ## 项目结构
 
 ```text
@@ -111,6 +126,7 @@ codex-speak/
   bin/
   hooks/
   installers/
+  plugins/
   skills/
   models/
   src/

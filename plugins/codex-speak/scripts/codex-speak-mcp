@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+if command -v codex-speak >/dev/null 2>&1; then
+  exec codex-speak mcp
+fi
+
+if [ -x "$HOME/.codex/codex-speak/bin/codex-speak" ]; then
+  exec "$HOME/.codex/codex-speak/bin/codex-speak" mcp
+fi
+
+echo "codex-speak CLI is not installed. Run the Codex Speak installer first." >&2
+exit 127

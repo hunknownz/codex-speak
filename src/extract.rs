@@ -246,6 +246,23 @@ mod tests {
     }
 
     #[test]
+    fn extracts_html_protocol_inside_details() {
+        let text = r#"
+<details class="codex-speak-fold">
+  <summary>朗读导览</summary>
+  <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" lang="zh-CN">
+    <p class="codex-speak-did" data-role="did">我整理了插件。</p>
+    <p class="codex-speak-next" data-role="next">下一步可以测试。</p>
+  </aside>
+</details>
+"#;
+        assert_eq!(
+            extract_html_protocol_guide(text).unwrap(),
+            "我整理了插件。下一步可以测试。"
+        );
+    }
+
+    #[test]
     fn prefers_visible_guide_before_legacy_hidden_block() {
         let text = r#"
 **朗读导览**

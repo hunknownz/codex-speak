@@ -91,6 +91,10 @@ pub fn state_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("state"))
 }
 
+pub fn spool_dir() -> Result<PathBuf> {
+    Ok(app_home()?.join("spool"))
+}
+
 pub fn bin_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("bin"))
 }

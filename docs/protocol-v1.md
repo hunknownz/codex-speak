@@ -41,6 +41,27 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 </aside>
 ```
 
+## 可折叠显示
+
+如果不希望朗读导览在 Chat Session 中占太多位置，可以把协议块外面包一层原生 HTML `details`：
+
+```html
+<details class="codex-speak-fold">
+  <summary>朗读导览</summary>
+  <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
+    <p class="codex-speak-did" data-role="did">我刚才帮你整理了协议。</p>
+    <p class="codex-speak-result" data-role="result">新的规则已经可以被朗读程序识别。</p>
+    <p class="codex-speak-next" data-role="next">下一步可以继续做插件的 side-channel。</p>
+  </aside>
+</details>
+```
+
+这是渐进增强，不是强依赖：
+
+- 如果 Codex 渲染器支持 `details`，用户会看到一个可展开的“朗读导览”。
+- 如果 Codex 渲染器不支持，Rust CLI 仍然能从里面找到 `aside[data-codex-speak="guide"]`。
+- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 Plugin side-channel。
+
 ## 结构解释
 
 ### aside
@@ -123,10 +144,11 @@ Rust CLI 以 `data-role` 为准，Plugin 可以用 `class` 做展示。
 
 Rust CLI 的提取顺序：
 
-1. `aside[data-codex-speak="guide"]`
-2. 旧版 Markdown `朗读导览`
-3. 旧版 `<!-- codex-speak -->` 调试块
-4. 清洗后的最终回答
+1. 新鲜的 Plugin side-channel `spool/latest.json`
+2. `aside[data-codex-speak="guide"]`
+3. 旧版 Markdown `朗读导览`
+4. 旧版 `<!-- codex-speak -->` 调试块
+5. 清洗后的最终回答
 
 在 HTML 协议块内：
 
@@ -150,7 +172,28 @@ Plugin 加入后主要做三件事：
 - 校验协议是否合格，并提示为什么用了兜底朗读。
 - 提供 side-channel，让 Codex 以后可以把朗读导览直接交给本地插件，而不是一定显示在最终回答里。
 
+第一版 side-channel 文件：
+
+```json
+{
+  "version": 1,
+  "audience": "beginner",
+  "style": "clear-bright",
+  "lang": "zh-CN",
+  "source": "codex-speak-plugin",
+  "items": [
+    {"role": "did", "text": "我刚才帮你修改了插件。"},
+    {"role": "result", "text": "我运行了测试，结果通过了。"},
+    {"role": "next", "text": "下一步可以继续做设置界面。"}
+  ]
+}
+```
+
+Rust CLI 只读取最近几分钟内写入的 `latest.json`，避免很久以前的朗读稿误触发。
+
 Plugin 不负责理解内容。理解发生在 Codex 生成协议块的那一刻。
+
+当前 Plugin 也不承诺直接隐藏或改写已经渲染的 Chat Session 消息；如果未来 Codex 提供消息渲染扩展点，再把协议块升级成真正的折叠卡片。
 
 ## 与 SSML 的关系
 

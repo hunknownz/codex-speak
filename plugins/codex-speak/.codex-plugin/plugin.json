@@ -1,0 +1,28 @@
+{
+  "name": "codex-speak",
+  "version": "0.1.0",
+  "description": "Control Codex Speak and prepare child-friendly spoken guides for local TTS playback.",
+  "author": {
+    "name": "hunknownz"
+  },
+  "homepage": "https://github.com/hunknownz/codex-speak",
+  "repository": "https://github.com/hunknownz/codex-speak",
+  "license": "MIT",
+  "keywords": ["codex", "speech", "tts", "accessibility", "chinese"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Codex Speak",
+    "shortDescription": "Read Codex replies aloud with local TTS.",
+    "longDescription": "Codex Speak helps Codex create a short, Chinese-first spoken guide for children and beginners, then lets a local Rust CLI extract it, preview it, stop playback, and feed the next hook run through a side-channel.",
+    "developerName": "hunknownz",
+    "category": "Productivity",
+    "capabilities": ["Read", "Interactive"],
+    "defaultPrompt": [
+      "检查 Codex Speak 的朗读状态",
+      "为这次回答准备儿童友好的朗读导览",
+      "试听一句 Codex Speak 的中文朗读"
+    ],
+    "brandColor": "#16A085"
+  }
+}

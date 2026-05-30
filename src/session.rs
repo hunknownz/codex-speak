@@ -6,11 +6,17 @@ use serde_json::Value;
 use walkdir::WalkDir;
 
 use crate::config::{self, Config};
-use crate::extract;
+use crate::{extract, side_channel};
 
 pub fn resolve_text(text: Option<String>, fixture: Option<&Path>, cfg: &Config) -> Result<String> {
     if let Some(text) = text {
         return Ok(extract::clean_for_speech(&text, cfg.max_read_chars));
+    }
+
+    if fixture.is_none() {
+        if let Some(text) = side_channel::read_fresh_latest(cfg.max_read_chars)? {
+            return Ok(text);
+        }
     }
 
     let raw = if let Some(path) = fixture {

@@ -2,8 +2,11 @@ mod config;
 mod doctor;
 mod extract;
 mod install;
+mod mcp;
 mod process;
 mod session;
+mod side_channel;
+mod status;
 mod tts;
 
 use std::path::PathBuf;
@@ -41,6 +44,10 @@ enum Command {
     Stop,
     /// Check installation, model, player, and Codex hook state.
     Doctor,
+    /// Print machine-readable status for plugins and scripts.
+    Status,
+    /// Run the Codex Speak MCP server for the Codex plugin.
+    Mcp,
     /// Install Codex Speak into the current user's Codex home.
     Install {
         #[arg(long)]
@@ -73,6 +80,11 @@ fn main() -> Result<()> {
         }
         Command::Stop => process::stop_speech()?,
         Command::Doctor => doctor::run()?,
+        Command::Status => {
+            let cfg = config::Config::load_or_default()?;
+            println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
+        }
+        Command::Mcp => mcp::run()?,
         Command::Install { skip_tts_download } => install::install(skip_tts_download)?,
         Command::Uninstall { remove_models } => install::uninstall(remove_models)?,
     }
