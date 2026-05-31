@@ -14,11 +14,13 @@ Codex 的原始回复常常包含代码、命令、路径和技术词，直接�
 
 ```text
 Codex Skill
-  -> 让最终回答自然包含 Codex Speak Protocol 朗读导览
+  -> 让 Codex 生成儿童/初学者友好的朗读导览
+Codex Speak Plugin / MCP
+  -> 优先把朗读导览写入 side-channel
 Codex Hook
   -> 回复结束后自动触发
 speak-engine
-  -> 提取协议、清洗兜底、配置、调度
+  -> 消费 side-channel、提取 fallback 协议、清洗兜底、配置、调度
 本地 TTS
   -> MeloTTS / Kokoro / Piper / 系统兜底
 安装器
@@ -40,8 +42,8 @@ speak-engine
 - Codex Hook wrapper
 - macOS 安装/卸载脚本
 - Sherpa-ONNX + MeloTTS 中文模型接入
-- HTML 微格式风格的 Codex Speak Protocol v1
-- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入
+- Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
+- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路
 
 下一步：
 
@@ -113,9 +115,9 @@ codex-speak uninstall
 
 - Codex Speak Skill。
 - MCP 工具：状态、提取预览、停止、试听、开关、side-channel 写入。
-- `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容。
+- `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容，成功读取后移动为 `last-consumed.json`。
 
-当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 Plugin side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。
+当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 MCP side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。
 
 ## 项目结构
 

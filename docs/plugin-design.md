@@ -2,33 +2,71 @@
 
 ## 插件定位
 
-Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责产品体验层：
+Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex 的理解结果交给本地朗读系统：
 
-- 设置朗读开关。
-- 管理朗读协议和 Skill。
-- 展示朗读状态。
-- 提供重读、停止、试听。
-- 后续提供 side-channel，避免朗读内容必须出现在最终回答里。
+- 通过 Skill 要求 Codex 生成儿童友好的朗读导览。
+- 通过 MCP `codex_speak_prepare` 写入 side-channel。
+- 通过 MCP 工具展示状态、停止、试听、改开关。
+- 让朗读内容尽量不必出现在最终回答里。
 
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
 
-- 可靠方案：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里。
-- 渐进增强：协议块可以外包一层 HTML `details`，如果 Codex 渲染器支持，就折叠显示；如果不支持，也不影响解析和朗读。
+- 主路径：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里。
+- 兜底路径：协议块外包一层 HTML `details`，如果 Codex 渲染器支持，就折叠显示；如果不支持，也不影响解析和朗读。
 
 核心分工：
 
 ```text
 Skill：让 Codex 生成符合协议的朗读导览
-Plugin：提供控制面板、状态展示、工具入口
-Hook：回复结束后触发朗读
-Rust CLI：解析协议、调用本地 TTS、播放声音
+Plugin/MCP：把导览写入 side-channel，或提供状态/控制工具
+Hook：回复结束后触发朗读，并优先消费 side-channel
+Rust CLI：读取 side-channel、解析兜底协议、调用本地 TTS、播放声音
 ```
 
-## 第一阶段插件功能
+## 第一阶段插件功能：Side-Channel 主路径
 
-第一阶段 Plugin 做轻量控制，不改变主链路。
+第一阶段 Plugin 已经进入主链路：Codex 优先调用 MCP 写入 side-channel，Hook 在回复结束后消费它。
 
-### 1. 状态面板
+### 1. Side-Channel 写入
+
+工具：
+
+```text
+codex_speak_prepare
+```
+
+输入：
+
+```json
+{
+  "version": 1,
+  "audience": "beginner",
+  "style": "clear-bright",
+  "lang": "zh-CN",
+  "items": [
+    {"role": "did", "text": "我刚才帮你修改了朗读规则。"},
+    {"role": "result", "text": "我运行了测试，结果通过了。"},
+    {"role": "next", "text": "接下来可以继续做插件控制面板。"}
+  ]
+}
+```
+
+Plugin/MCP 写入：
+
+```text
+~/.codex/codex-speak/spool/latest.json
+```
+
+Hook 触发后，Rust CLI 会：
+
+```text
+1. 读取新鲜的 latest.json
+2. 提取 items 中允许的 role
+3. 成功后把 latest.json 移到 last-consumed.json
+4. 朗读纯文本
+```
+
+### 2. 状态面板
 
 展示：
 
@@ -39,7 +77,7 @@ Rust CLI：解析协议、调用本地 TTS、播放声音
 - 最近一次 TTS 生成耗时。
 - `doctor` 自检结果。
 
-### 2. 快捷操作
+### 3. 快捷操作
 
 提供按钮：
 
@@ -58,7 +96,7 @@ codex-speak speak --text "这是一段试听文本"
 codex-speak doctor
 ```
 
-### 3. 配置管理
+### 4. 配置管理
 
 可调整：
 
@@ -76,7 +114,7 @@ codex-speak doctor
 ~/.codex/codex-speak/config.toml
 ```
 
-## 第二阶段插件功能
+## 第二阶段插件功能：显示和校验
 
 第二阶段开始承担更强的产品能力。
 
@@ -125,42 +163,7 @@ Plugin 可以提供：
 - 查看当前 Skill 版本。
 - 恢复默认 Skill。
 
-## 第三阶段插件功能
-
-第三阶段做 side-channel，但不作为第一版强依赖。
-
-### Tool/Side-Channel
-
-如果 Codex Plugin 支持工具调用，可以提供：
-
-```text
-codex_speak_prepare
-```
-
-输入：
-
-```json
-{
-  "version": 1,
-  "audience": "beginner",
-  "style": "clear-bright",
-  "items": [
-    {"role": "did", "text": "我刚才帮你修改了朗读规则。"},
-    {"role": "result", "text": "我运行了测试，结果通过了。"},
-    {"role": "next", "text": "接下来可以继续做插件控制面板。"}
-  ]
-}
-```
-
-Plugin 写入：
-
-```text
-~/.codex/codex-speak/spool/latest.json
-```
-
-Hook 触发后，Rust CLI 优先读 `latest.json`。
-
-读取顺序变成：
+读取顺序：
 
 ```text
 1. side-channel latest.json
@@ -175,6 +178,14 @@ Hook 触发后，Rust CLI 优先读 `latest.json`。
 - Chat 中自然显示导览，或不显示导览。
 - Rust CLI 始终有稳定结构化输入。
 - Hook 不需要理解内容。
+
+## 第三阶段插件功能：控制面板协作
+
+第三阶段不再把 side-channel 当作未来功能，而是继续围绕它做产品体验：
+
+- 与 Tauri App 共享同一份配置。
+- 提供更细的配置工具，例如儿童模式、语速、声音档位。
+- 当 Codex Plugin 未来支持消息渲染扩展时，把 HTML fallback 渲染成折叠卡片。
 
 ## 插件不负责什么
 
@@ -229,16 +240,14 @@ Plugin 负责：
 - Skill 改为输出 `<aside class="codex-speak-guide" data-codex-speak="guide">`。
 - 保留 Markdown 和 HTML 注释兼容。
 
-### P2：Plugin 控制面板
-
-- 展示状态。
-- 开关朗读。
-- 重读/停止/试听。
-- 运行 doctor。
-- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`。
-
-### P3：Plugin Side-Channel
+### P2：Plugin MCP Side-Channel
 
 - 增加 `codex_speak_prepare` 工具。
-- Rust CLI 支持读取 spool。
+- Rust CLI 支持读取并消费 spool。
 - Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
+- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`。
+
+### P3：Tauri 控制面板
+
+- 用按钮控制儿童模式、开关、语速、试听和停止。
+- 与 Plugin MCP 共享 Rust CLI 和配置文件。

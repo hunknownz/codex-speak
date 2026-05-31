@@ -49,7 +49,7 @@ pub fn write_latest(spool: &SpeakSpool, max_chars: usize) -> Result<WrittenSpool
     })
 }
 
-pub fn read_fresh_latest(max_chars: usize) -> Result<Option<String>> {
+pub fn read_fresh_latest(max_chars: usize, consume: bool) -> Result<Option<String>> {
     let path = config::spool_dir()?.join("latest.json");
     if !path.exists() {
         return Ok(None);
@@ -68,6 +68,9 @@ pub fn read_fresh_latest(max_chars: usize) -> Result<Option<String>> {
     if text.is_empty() {
         Ok(None)
     } else {
+        if consume {
+            consume_latest(&path)?;
+        }
         Ok(Some(text))
     }
 }
@@ -96,6 +99,20 @@ fn is_allowed_role(role: &str) -> bool {
         role,
         "did" | "why" | "code-summary" | "command-summary" | "result" | "next" | "warning"
     )
+}
+
+fn consume_latest(path: &std::path::Path) -> Result<()> {
+    let consumed_path = config::spool_dir()?.join("last-consumed.json");
+    if consumed_path.exists() {
+        fs::remove_file(&consumed_path)?;
+    }
+    fs::rename(path, &consumed_path)
+        .or_else(|_| {
+            fs::copy(path, &consumed_path)?;
+            fs::remove_file(path)
+        })
+        .with_context(|| format!("failed to consume {}", path.display()))?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 
 ## 一句话
 
-Codex Speak Protocol 是一套给 Codex 朗读助手使用的“可显示、可解析、可朗读”的结构化导览协议，让 Codex 在完成回答时顺手生成一段适合小朋友和初学者听的说明。
+Codex Speak Protocol 是一套给 Codex 朗读助手使用的“可传递、可解析、可朗读”的结构化导览协议，让 Codex 在完成回答时顺手生成一段适合小朋友和初学者听的说明。
 
 ## 为什么需要协议
 
@@ -28,9 +28,48 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 - Schema.org Microdata：用 HTML 属性表达可抽取的结构化内容，说明“可见内容 + 机器语义”是成熟路线。参考 [Schema.org item](https://schema.org/item)。
 - SSML：语音合成领域已有专门的朗读标记语言，但它更适合 TTS 内部，不适合直接放在 Chat Session 里。参考 [W3C SSML](https://www.w3.org/TR/speech-synthesis/)。
 
-结论：Chat Session 中使用 HTML 微格式，TTS 内部未来可以转换为 SSML。
+结论：主路径使用 MCP side-channel；Chat Session 中的 HTML 微格式只作为 fallback；TTS 内部未来可以转换为 SSML。
 
-## 推荐格式
+## 主路径：MCP Side-Channel
+
+当 Codex Speak Plugin 可用时，Codex 应优先调用 MCP 工具：
+
+```text
+codex_speak_prepare
+```
+
+输入结构：
+
+```json
+{
+  "version": 1,
+  "audience": "beginner",
+  "style": "clear-bright",
+  "lang": "zh-CN",
+  "items": [
+    {"role": "did", "text": "我刚才帮你修改了朗读规则。"},
+    {"role": "code-summary", "text": "代码部分的作用是：让自动触发器优先读取本地朗读稿。"},
+    {"role": "result", "text": "我运行了测试，结果通过了。"},
+    {"role": "next", "text": "下一步可以继续做控制面板。"}
+  ]
+}
+```
+
+工具写入：
+
+```text
+~/.codex/codex-speak/spool/latest.json
+```
+
+Hook 在 Codex 回复结束后触发 Rust CLI。Rust CLI 优先读取这份文件；读取成功后把它移动为：
+
+```text
+~/.codex/codex-speak/spool/last-consumed.json
+```
+
+这样可以保证 side-channel 是一次性消费的，避免下一轮回复误读上一轮朗读稿。
+
+## Fallback：HTML 微格式
 
 ```html
 <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
@@ -41,7 +80,7 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 </aside>
 ```
 
-## 可折叠显示
+## Fallback 可折叠显示
 
 如果不希望朗读导览在 Chat Session 中占太多位置，可以把协议块外面包一层原生 HTML `details`：
 
@@ -60,7 +99,7 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 
 - 如果 Codex 渲染器支持 `details`，用户会看到一个可展开的“朗读导览”。
 - 如果 Codex 渲染器不支持，Rust CLI 仍然能从里面找到 `aside[data-codex-speak="guide"]`。
-- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 Plugin side-channel。
+- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 MCP side-channel。
 
 ## 结构解释
 
@@ -144,7 +183,7 @@ Rust CLI 以 `data-role` 为准，Plugin 可以用 `class` 做展示。
 
 Rust CLI 的提取顺序：
 
-1. 新鲜的 Plugin side-channel `spool/latest.json`
+1. 新鲜的 MCP side-channel `spool/latest.json`
 2. `aside[data-codex-speak="guide"]`
 3. 旧版 Markdown `朗读导览`
 4. 旧版 `<!-- codex-speak -->` 调试块
@@ -160,7 +199,7 @@ Rust CLI 的提取顺序：
 
 ## 与 Plugin 的关系
 
-第一阶段可以没有 Plugin：
+没有 Plugin 时：
 
 ```text
 Skill 生成协议块 -> Hook 触发 -> Rust CLI 提取 -> 本地 TTS 朗读
@@ -168,9 +207,9 @@ Skill 生成协议块 -> Hook 触发 -> Rust CLI 提取 -> 本地 TTS 朗读
 
 Plugin 加入后主要做三件事：
 
-- 把协议块显示成更好看的“朗读导览卡片”。
+- 通过 MCP side-channel 传递朗读导览。
 - 校验协议是否合格，并提示为什么用了兜底朗读。
-- 提供 side-channel，让 Codex 以后可以把朗读导览直接交给本地插件，而不是一定显示在最终回答里。
+- 后续把 fallback 协议块显示成更好看的“朗读导览卡片”。
 
 第一版 side-channel 文件：
 
@@ -189,7 +228,7 @@ Plugin 加入后主要做三件事：
 }
 ```
 
-Rust CLI 只读取最近几分钟内写入的 `latest.json`，避免很久以前的朗读稿误触发。
+Rust CLI 只读取最近几分钟内写入的 `latest.json`，并在成功读取后消费掉它，避免很久以前或上一轮的朗读稿误触发。
 
 Plugin 不负责理解内容。理解发生在 Codex 生成协议块的那一刻。
 

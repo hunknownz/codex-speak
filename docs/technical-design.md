@@ -7,10 +7,12 @@
 ```text
 Codex Skill
   -> 让回答自然包含朗读导览
+Codex Speak Plugin / MCP
+  -> 优先写入 side-channel
 Codex Hook
   -> 回复结束后自动触发
 speak-engine
-  -> 提取、清洗、配置、调度
+  -> 消费 side-channel、提取 fallback 协议、清洗、配置、调度
 本地 TTS
   -> MeloTTS / Kokoro / Piper / 系统兜底
 播放器
@@ -58,7 +60,7 @@ Skill 生成示例：
 Hook 提取策略：
 
 ```text
-优先读取新鲜的 Plugin side-channel latest.json
+优先读取并消费新鲜的 MCP side-channel latest.json
 找不到 -> 读取 HTML 微格式协议 aside[data-codex-speak="guide"]
 找不到 -> 读取旧版 Markdown 朗读导览
 找不到 -> 读取旧版 codex-speak 调试块
@@ -78,9 +80,9 @@ Hook 提取策略：
 - 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
 - 技术词转成更容易听懂的说法。
 
-导览使用 [Codex Speak Protocol v1](protocol-v1.md)。协议采用 HTML 微格式风格：`aside` 和 `p` 保持可见可读，`data-*` 供 Rust CLI 稳定解析，`class` 供 Plugin 后续渲染和校验。
+导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；HTML 微格式 `aside` 是 Plugin 不可用时的 fallback，`data-*` 供 Rust CLI 稳定解析，`class` 供未来 Plugin 渲染和校验。
 
-当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。这样 Hook 触发后可以直接读本地结构化内容，Chat Session 里只需要保留自然的最终回答。
+当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
 
 ### 第二层：规则清洗兜底
 
@@ -314,7 +316,8 @@ skip_code_blocks = true
 ### M1：可用原型
 
 - Skill 生成 Codex Speak Protocol 朗读导览。
-- Hook 提取 HTML 微格式协议或旧版导览。
+- Plugin/MCP 优先写入 side-channel。
+- Hook 优先消费 side-channel，其次提取 HTML 微格式协议或旧版导览。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 

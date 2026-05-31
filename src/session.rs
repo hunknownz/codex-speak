@@ -9,12 +9,31 @@ use crate::config::{self, Config};
 use crate::{extract, side_channel};
 
 pub fn resolve_text(text: Option<String>, fixture: Option<&Path>, cfg: &Config) -> Result<String> {
+    resolve_text_with_options(text, fixture, cfg, false)
+}
+
+pub fn resolve_text_for_speech(
+    text: Option<String>,
+    fixture: Option<&Path>,
+    cfg: &Config,
+) -> Result<String> {
+    resolve_text_with_options(text, fixture, cfg, true)
+}
+
+fn resolve_text_with_options(
+    text: Option<String>,
+    fixture: Option<&Path>,
+    cfg: &Config,
+    consume_side_channel: bool,
+) -> Result<String> {
     if let Some(text) = text {
         return Ok(extract::clean_for_speech(&text, cfg.max_read_chars));
     }
 
     if fixture.is_none() {
-        if let Some(text) = side_channel::read_fresh_latest(cfg.max_read_chars)? {
+        if let Some(text) =
+            side_channel::read_fresh_latest(cfg.max_read_chars, consume_side_channel)?
+        {
             return Ok(text);
         }
     }

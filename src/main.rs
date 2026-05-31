@@ -75,7 +75,7 @@ fn main() -> Result<()> {
             no_play,
         } => {
             let cfg = config::Config::load_or_default()?;
-            let extracted = session::resolve_text(text, fixture.as_deref(), &cfg)?;
+            let extracted = session::resolve_text_for_speech(text, fixture.as_deref(), &cfg)?;
             tts::speak(&cfg, &extracted, no_play)?;
         }
         Command::Stop => process::stop_speech()?,

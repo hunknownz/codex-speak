@@ -35,13 +35,14 @@ Codex 的回复经常包含代码、路径、命令和技术词，直接朗读�
 ## MVP 范围
 
 1. Codex 回复结束后自动触发 Hook。
-2. Codex Skill 让回答自然包含 Codex Speak Protocol 朗读导览。
-3. Hook 优先提取 HTML 微格式协议；找不到时用旧版导览或规则清洗兜底。
-4. 本地 TTS 生成音频并播放。
-5. 支持开关、语速、最大朗读长度、儿童模式配置。
-6. macOS 和 Windows 都有可行的播放路径。
-7. 提供一键安装脚本或安装器，自动完成 Skill、Hook、TTS 引擎和模型部署。
-8. 提供卸载和恢复能力，不破坏用户原有 Codex 配置。
+2. Codex Skill 让回答自然产生 Codex Speak Protocol 朗读导览。
+3. Plugin/MCP 优先把朗读导览写入本地 side-channel。
+4. Hook 优先消费 side-channel；找不到时提取 HTML 微格式协议、旧版导览或规则清洗兜底。
+5. 本地 TTS 生成音频并播放。
+6. 支持开关、语速、最大朗读长度、儿童模式配置。
+7. macOS 和 Windows 都有可行的播放路径。
+8. 提供一键安装脚本或安装器，自动完成 Skill、Hook、TTS 引擎和模型部署。
+9. 提供卸载和恢复能力，不破坏用户原有 Codex 配置。
 
 ## 安装部署需求
 
