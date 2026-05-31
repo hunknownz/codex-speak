@@ -10,6 +10,7 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 - 开启或关闭儿童模式。
 - 调整语速。
 - 选择声音档位。
+- 切换朗读引擎。
 - 设置最大朗读字数。
 - 停止当前朗读。
 - 试听一句话。
@@ -61,6 +62,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 刷新状态 | `codex-speak status` |
 | 自动朗读开关 | `codex-speak config set --enabled ...` |
 | 儿童模式 | `codex-speak config set --child-mode ...` |
+| 朗读引擎 | `codex-speak config set --provider ...` |
 | 语速 | `codex-speak config set --speed ...` |
 | 声音档位 | `codex-speak config set --voice-profile ...` |
 | 最大朗读字数 | `codex-speak config set --max-read-chars ...` |
@@ -68,9 +70,23 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 停止 | `codex-speak stop` |
 | 自检 | `codex-speak doctor` |
 
+## 朗读引擎
+
+控制面板提供 `provider` 下拉框，让用户直接试听不同本地 TTS 方案：
+
+| Provider | 界面显示 | 定位 |
+| --- | --- | --- |
+| `sherpa_melo` | MeloTTS 中文女声 | 默认中文优先方案 |
+| `sherpa_kokoro` | Kokoro | 更自然的备选方案，需要额外模型 |
+| `sherpa_zipvoice` | ZipVoice | 实验性参考音频方案，需要额外模型和参考音频 |
+| `piper` | Piper 轻量语音 | 低配置兜底，需要额外引擎和模型 |
+| `system` | 系统语音 | 无模型快速验证 |
+
+状态区会显示当前 Provider 是否可用。如果用户选了一个还没安装模型的 Provider，试听会显示缺失原因；这样用户能明确知道“还没装模型”，而不是误以为这个声音不好听。
+
 ## 声音档位
 
-第一版不做真正多音色切换，因为当前 MeloTTS 中文模型只有一个中文女声音色。声音档位先映射到本地 VITS 参数：
+声音档位是 `voice_profile`，它和 `provider` 分开。Provider 决定用哪个朗读引擎，声音档位决定同一个引擎里尽量清楚、慢一点或快速预览。当前 MeloTTS 中文模型只有一个中文女声音色，所以档位先映射到本地 VITS 参数：
 
 | 档位 | 目标 | 主要效果 |
 | --- | --- | --- |
@@ -78,7 +94,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | `slow_clear` | 慢一点更清楚 | 降低语速，增加停顿 |
 | `quick_preview` | 快速预览 | 语速更快，停顿更短 |
 
-后续接入 Kokoro 或其他中文模型后，`voice_profile` 可以继续保留，底层再映射到真实声音模型。
+后续接入更多 Kokoro、ZipVoice 或 Piper 声音后，`voice_profile` 可以继续保留，底层再映射到真实声音模型。
 
 ## 开发命令
 

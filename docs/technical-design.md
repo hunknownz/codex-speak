@@ -111,6 +111,7 @@ terminal -> 命令窗口
 | --- | --- | --- | --- | --- | --- | --- |
 | Sherpa-ONNX + MeloTTS zh_en | 强 | 强 | 中 | 中高 | 中 | 默认中文方案 |
 | Sherpa-ONNX + Kokoro zh/multi-lang | 中高 | 强 | 中 | 高 | 中 | 高自然度备选 |
+| Sherpa-ONNX + ZipVoice | 中高 | 强 | 中高 | 高 | 高 | 实验性参考音频/可调声音 |
 | Piper zh_CN | 中 | 强 | 强 | 中 | 低 | 低配兜底 |
 | 系统朗读 | 中 | 强 | 强 | 低 | 低 | 最后兜底 |
 | 直接 Python MeloTTS | 强 | 中 | 中低 | 中高 | 高 | 暂不推荐默认 |
@@ -121,6 +122,7 @@ terminal -> 命令窗口
 ```text
 默认：Sherpa-ONNX + MeloTTS zh_en
 增强：Sherpa-ONNX + Kokoro 中文/多语言模型
+实验：Sherpa-ONNX + ZipVoice
 低配兜底：Piper zh_CN
 最后兜底：系统语音
 ```
@@ -130,7 +132,25 @@ terminal -> 命令窗口
 - MeloTTS 中文模型明确适合中文和中英混读，符合中文优先。
 - Sherpa-ONNX 适合作为统一推理底座，降低 Windows/macOS 适配成本。
 - Kokoro 体积小、自然度潜力高，适合做更好听的备选。
+- ZipVoice 可以用参考音频控制声音风格，但模型文件和参数更多，先作为实验入口。
 - Piper 快、轻、稳定，适合低配机器。
+
+实现上把这些方案抽象为 `provider`，而不是把每个模型散落成独立按钮。这样 CLI、MCP 和 Tauri App 都只改同一个配置项：
+
+```toml
+provider = "sherpa_melo"
+voice_profile = "clear_bright"
+```
+
+支持的 Provider：
+
+| Provider | 运行方式 | 必需文件 | 失败策略 |
+| --- | --- | --- | --- |
+| `sherpa_melo` | `sherpa-onnx-offline-tts` VITS/Melo 参数 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 可按配置兜底到系统语音 |
+| `sherpa_kokoro` | `sherpa-onnx-offline-tts` Kokoro 参数 | `model.onnx`、`voices.bin`、`tokens.txt`、词典或 `espeak-ng-data` | 直接提示缺模型，方便试听排错 |
+| `sherpa_zipvoice` | `sherpa-onnx-offline-tts` ZipVoice 参数 | `encoder.onnx`、`decoder.onnx`、`vocoder.onnx`、`tokens.txt`、参考音频和文本 | 直接提示缺模型，避免误以为试听成功 |
+| `piper` | Piper 可执行文件 stdin 输入文本 | `piper`/`piper.exe`、`model.onnx`、`model.onnx.json` | 直接提示缺模型 |
+| `system` | macOS `say` 或 Windows SpeechSynthesizer | 系统自带能力 | 用于无模型验证和最后兜底 |
 
 ## 跨平台实现
 
@@ -262,6 +282,7 @@ apps/codex-speak-control
 - 儿童模式开关。
 - 语速滑块。
 - 最大朗读字数滑块。
+- TTS Provider 选择。
 - 声音档位选择。
 - 试听、停止、刷新、自检按钮。
 
@@ -309,8 +330,8 @@ language = "zh"
 child_mode = true
 max_read_chars = 800
 
-tts_provider = "sherpa_melo"
-fallback_providers = ["sherpa_kokoro", "piper", "system"]
+provider = "sherpa_melo"
+fallback_provider = "system"
 
 speed = 0.9
 num_threads = 4
@@ -332,7 +353,10 @@ skip_code_blocks = true
     speak-engine
   models/
     melo/
-    kokoro/
+    kokoro-zh-en/
+    zipvoice-zh-en/
+    piper-zh-cn/
+  tools/
     piper/
   logs/
     last-spoken.txt

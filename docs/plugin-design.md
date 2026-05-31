@@ -6,7 +6,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 
 - 通过 Skill 要求 Codex 生成儿童友好的朗读导览。
 - 通过 MCP `codex_speak_prepare` 写入 side-channel。
-- 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速和声音档位。
+- 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速、声音档位和 TTS Provider。
 - 让朗读内容尽量不必出现在最终回答里。
 
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
@@ -90,6 +90,7 @@ Hook 触发后，Rust CLI 会：
 - 打开或关闭儿童模式。
 - 调慢或调快朗读速度。
 - 切换声音档位。
+- 切换 TTS Provider。
 
 这些按钮本质上调用 Rust CLI：
 
@@ -98,6 +99,7 @@ codex-speak stop
 codex-speak speak --text "这是一段试听文本"
 codex-speak doctor
 codex-speak config set --child-mode true --speed 0.82
+codex-speak config set --provider sherpa_kokoro
 ```
 
 ### 4. 配置管理
@@ -106,6 +108,7 @@ codex-speak config set --child-mode true --speed 0.82
 
 - `enabled`
 - `child_mode`
+- `provider`
 - `speed`
 - `voice_profile`
 - `num_threads`
@@ -119,6 +122,16 @@ codex-speak config set --child-mode true --speed 0.82
 ```text
 ~/.codex/codex-speak/config.toml
 ```
+
+Provider 当前支持：
+
+| Provider | 用途 | 说明 |
+| --- | --- | --- |
+| `sherpa_melo` | 默认中文朗读 | 当前安装器默认准备 |
+| `sherpa_kokoro` | 更自然的备选声音 | 需要额外模型 |
+| `sherpa_zipvoice` | 参考音频实验方案 | 需要额外模型和参考音频 |
+| `piper` | 低配兜底 | 需要 Piper 引擎和模型 |
+| `system` | 系统语音 | 不需要模型，适合快速验证 |
 
 ## 第二阶段插件功能：显示和校验
 

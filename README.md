@@ -22,7 +22,7 @@ Codex Hook
 speak-engine
   -> 消费 side-channel、提取 fallback 协议、清洗兜底、配置、调度
 本地 TTS
-  -> MeloTTS / Kokoro / Piper / 系统兜底
+  -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 安装器
   -> macOS / Windows 自动部署
 ```
@@ -44,7 +44,7 @@ speak-engine
 - Sherpa-ONNX + MeloTTS 中文模型接入
 - Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
 - Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路
-- Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、试听、停止、自检
+- Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、TTS 引擎切换、试听、停止、自检
 
 下一步：
 
@@ -84,6 +84,7 @@ codex-speak status
 codex-speak mcp
 codex-speak config get
 codex-speak config set --child-mode true --speed 0.9
+codex-speak config set --provider sherpa_melo
 codex-speak install
 codex-speak uninstall
 ```
@@ -94,7 +95,17 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak speak --text "你好，这是 Codex Speak 的中文本地朗读测试。"
 ```
 
-默认中文声音使用 MeloTTS 的中英混读女声。当前模型只有一个中文音色，所以第一版通过略微放慢语速、减少 VITS 随机噪声、增加推理线程来优化“口齿清晰、声音明亮、像姐姐在讲”的效果；后续会通过 Kokoro 或 ZipVoice 增加更多可选音色。
+默认中文声音使用 MeloTTS 的中英混读女声。控制面板和 CLI 现在都可以切换朗读引擎：
+
+| Provider | 定位 | 说明 |
+| --- | --- | --- |
+| `sherpa_melo` | 默认中文方案 | 中文优先，中英混读，当前安装器默认下载 |
+| `sherpa_kokoro` | 高自然度备选 | 需要额外安装 Kokoro 模型 |
+| `sherpa_zipvoice` | 参考音频克隆/实验 | 需要额外安装 ZipVoice 模型和参考音频 |
+| `piper` | 低配兜底 | 需要额外安装 Piper 引擎和中文模型 |
+| `system` | 系统兜底 | macOS/Windows 系统自带，质量较低但最容易验证 |
+
+如果正在试听某个额外 Provider，而模型还没有安装，Codex Speak 会直接报出缺失原因，不会偷偷切回默认声音；只有默认 `sherpa_melo` 失败时才会按配置兜底到系统语音。
 
 自检：
 
@@ -134,6 +145,7 @@ codex-speak uninstall
 - 语速滑块。
 - 最大朗读字数滑块。
 - 声音档位选择。
+- 朗读引擎选择。
 - 试听、停止、刷新、自检。
 
 开发运行：

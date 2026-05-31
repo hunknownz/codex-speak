@@ -7,6 +7,7 @@ use crate::config::Config;
 pub struct ConfigPatch {
     pub enabled: Option<bool>,
     pub child_mode: Option<bool>,
+    pub provider: Option<String>,
     pub speed: Option<f32>,
     pub max_read_chars: Option<usize>,
     pub voice_profile: Option<String>,
@@ -29,6 +30,11 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
         cfg.child_mode = child_mode;
         changed.push("child_mode".to_string());
     }
+    if let Some(provider) = patch.provider {
+        validate_provider(&provider)?;
+        cfg.provider = provider;
+        changed.push("provider".to_string());
+    }
     if let Some(speed) = patch.speed {
         validate_speed(speed)?;
         cfg.speed = speed;
@@ -48,6 +54,23 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
         config: cfg,
         changed,
     })
+}
+
+pub fn supported_providers() -> &'static [&'static str] {
+    &[
+        "sherpa_melo",
+        "sherpa_kokoro",
+        "sherpa_zipvoice",
+        "piper",
+        "system",
+    ]
+}
+
+fn validate_provider(provider: &str) -> Result<()> {
+    if !supported_providers().contains(&provider) {
+        bail!("unsupported provider: {provider}");
+    }
+    Ok(())
 }
 
 fn apply_voice_profile(cfg: &mut Config, profile: &str) -> Result<()> {

@@ -77,6 +77,8 @@ enum ConfigCommand {
         #[arg(long)]
         child_mode: Option<bool>,
         #[arg(long)]
+        provider: Option<String>,
+        #[arg(long)]
         speed: Option<f32>,
         #[arg(long)]
         max_read_chars: Option<usize>,
@@ -117,6 +119,7 @@ fn main() -> Result<()> {
             ConfigCommand::Set {
                 enabled,
                 child_mode,
+                provider,
                 speed,
                 max_read_chars,
                 voice_profile,
@@ -127,6 +130,7 @@ fn main() -> Result<()> {
                     settings::ConfigPatch {
                         enabled,
                         child_mode,
+                        provider,
                         speed,
                         max_read_chars,
                         voice_profile,

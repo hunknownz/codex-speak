@@ -113,6 +113,18 @@ pub fn model_dir() -> Result<PathBuf> {
     Ok(models_dir()?.join("vits-melo-tts-zh_en"))
 }
 
+pub fn kokoro_model_dir() -> Result<PathBuf> {
+    Ok(models_dir()?.join("kokoro-zh-en"))
+}
+
+pub fn zipvoice_model_dir() -> Result<PathBuf> {
+    Ok(models_dir()?.join("zipvoice-zh-en"))
+}
+
+pub fn piper_model_dir() -> Result<PathBuf> {
+    Ok(models_dir()?.join("piper-zh-cn"))
+}
+
 pub fn sherpa_bin() -> Result<PathBuf> {
     let exe = if cfg!(windows) {
         "sherpa-onnx-offline-tts.exe"
@@ -120,4 +132,9 @@ pub fn sherpa_bin() -> Result<PathBuf> {
         "sherpa-onnx-offline-tts"
     };
     Ok(tools_dir()?.join("sherpa-onnx").join("bin").join(exe))
+}
+
+pub fn piper_bin() -> Result<PathBuf> {
+    let exe = if cfg!(windows) { "piper.exe" } else { "piper" };
+    Ok(tools_dir()?.join("piper").join(exe))
 }

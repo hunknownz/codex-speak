@@ -5,12 +5,13 @@ const $ = (id) => document.getElementById(id);
 const controls = {
   enabled: $("enabled"),
   childMode: $("childMode"),
+  provider: $("provider"),
   voiceProfile: $("voiceProfile"),
   speed: $("speed"),
   maxChars: $("maxChars"),
   speedValue: $("speedValue"),
   maxCharsValue: $("maxCharsValue"),
-  provider: $("provider"),
+  providerState: $("providerState"),
   modelState: $("modelState"),
   hookState: $("hookState"),
   configState: $("configState"),
@@ -34,21 +35,22 @@ function renderStatus(status) {
   applying = true;
   controls.enabled.checked = status.enabled;
   controls.childMode.checked = status.child_mode;
+  controls.provider.value = status.provider || "sherpa_melo";
   controls.voiceProfile.value = status.voice_profile || "clear_bright";
   controls.speed.value = status.speed;
   controls.maxChars.value = status.max_read_chars;
   controls.speedValue.value = Number(status.speed).toFixed(2);
   controls.maxCharsValue.value = status.max_read_chars;
-  controls.provider.textContent = status.provider || "-";
-  controls.modelState.textContent = status.checks.model_exists ? "正常" : "缺失";
+  const provider = (status.providers || []).find((item) => item.id === status.provider);
+  controls.providerState.textContent = provider?.label || status.provider || "-";
+  controls.modelState.textContent = provider?.installed ? "正常" : (provider?.reason || "缺失");
   controls.hookState.textContent = status.checks.notify_configured ? "已连接" : "未连接";
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
 
   const ok = status.checks.config_exists
     && status.checks.cli_exists
-    && status.checks.model_exists
-    && status.checks.sherpa_exists
+    && Boolean(provider?.installed)
     && status.checks.notify_configured;
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";
@@ -96,6 +98,10 @@ controls.enabled.addEventListener("change", () => {
 
 controls.childMode.addEventListener("change", () => {
   savePatch({ childMode: controls.childMode.checked });
+});
+
+controls.provider.addEventListener("change", () => {
+  savePatch({ provider: controls.provider.value });
 });
 
 controls.voiceProfile.addEventListener("change", () => {

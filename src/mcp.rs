@@ -158,17 +158,36 @@ fn tools() -> Value {
         },
         {
             "name": "codex_speak_update_config",
-            "description": "Update Codex Speak settings such as child mode, speed, max read length, or voice profile.",
+            "description": "Update Codex Speak settings such as TTS provider, child mode, speed, max read length, or voice profile.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "enabled": { "type": "boolean" },
                     "child_mode": { "type": "boolean" },
+                    "provider": {
+                        "type": "string",
+                        "enum": ["sherpa_melo", "sherpa_kokoro", "sherpa_zipvoice", "piper", "system"]
+                    },
                     "speed": { "type": "number", "minimum": 0.6, "maximum": 1.3 },
                     "max_read_chars": { "type": "integer", "minimum": 80, "maximum": 2000 },
                     "voice_profile": {
                         "type": "string",
                         "enum": ["clear_bright", "slow_clear", "quick_preview"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_set_provider",
+            "description": "Switch the TTS provider used by Codex Speak.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["provider"],
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": ["sherpa_melo", "sherpa_kokoro", "sherpa_zipvoice", "piper", "system"]
                     }
                 },
                 "additionalProperties": false
@@ -283,6 +302,7 @@ fn call_tool(request: &Value) -> Result<Value> {
             let patch = settings::ConfigPatch {
                 enabled: args.get("enabled").and_then(Value::as_bool),
                 child_mode: args.get("child_mode").and_then(Value::as_bool),
+                provider: optional_string(&args, "provider"),
                 speed: args.get("speed").and_then(Value::as_f64).map(|v| v as f32),
                 max_read_chars: args
                     .get("max_read_chars")
@@ -291,6 +311,16 @@ fn call_tool(request: &Value) -> Result<Value> {
                 voice_profile: optional_string(&args, "voice_profile"),
             };
             update_config(cfg, patch)?
+        }
+        "codex_speak_set_provider" => {
+            let provider = optional_string(&args, "provider").context("missing provider")?;
+            update_config(
+                cfg,
+                settings::ConfigPatch {
+                    provider: Some(provider),
+                    ..Default::default()
+                },
+            )?
         }
         "codex_speak_set_child_mode" => {
             let child_mode = args

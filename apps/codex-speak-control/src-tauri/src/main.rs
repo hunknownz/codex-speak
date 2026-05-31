@@ -10,6 +10,7 @@ use serde_json::Value;
 struct SettingsPatch {
     enabled: Option<bool>,
     child_mode: Option<bool>,
+    provider: Option<String>,
     speed: Option<f32>,
     max_read_chars: Option<usize>,
     voice_profile: Option<String>,
@@ -30,6 +31,10 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
     if let Some(child_mode) = patch.child_mode {
         args.push("--child-mode".to_string());
         args.push(child_mode.to_string());
+    }
+    if let Some(provider) = patch.provider {
+        args.push("--provider".to_string());
+        args.push(provider);
     }
     if let Some(speed) = patch.speed {
         args.push("--speed".to_string());

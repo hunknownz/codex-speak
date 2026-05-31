@@ -35,7 +35,18 @@
 
       <section class="panel" aria-label="声音设置">
         <div class="panel-head">
-          <h2>声音</h2>
+          <h2>朗读引擎</h2>
+          <select id="provider" aria-label="朗读引擎">
+            <option value="sherpa_melo">MeloTTS 中文女声</option>
+            <option value="sherpa_kokoro">Kokoro</option>
+            <option value="sherpa_zipvoice">ZipVoice</option>
+            <option value="piper">Piper 轻量语音</option>
+            <option value="system">系统语音</option>
+          </select>
+        </div>
+
+        <div class="panel-head subhead">
+          <h2>声音档位</h2>
           <select id="voiceProfile" aria-label="声音档位">
             <option value="clear_bright">清楚明亮</option>
             <option value="slow_clear">慢一点更清楚</option>
@@ -65,7 +76,7 @@
         <div class="grid">
           <div>
             <small>引擎</small>
-            <strong id="provider">-</strong>
+            <strong id="providerState">-</strong>
           </div>
           <div>
             <small>模型</small>
