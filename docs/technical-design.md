@@ -27,7 +27,7 @@ installer
 Skill + Hook + 本地 TTS
 ```
 
-Plugin 不作为 Hook 朗读的必需组件，但第一版已经可以提供 MCP 工具，用于状态查询、试听、停止朗读、开关配置和 side-channel 写入。
+Plugin 不作为 Hook 朗读的必需组件，但第一版已经可以提供 MCP 工具，用于状态查询、试听、停止朗读、开关配置、儿童模式、语速、声音档位和 side-channel 写入。
 
 ## 设计原则
 
@@ -181,6 +181,8 @@ bootstrap installer
   -> 安装 Hook wrapper
   -> 安装 speak-engine
   -> 下载/校验 TTS 引擎和模型
+  -> 可选安装 Plugin
+  -> 可选安装 Tauri 控制面板
   -> 写入配置
   -> 运行 doctor 自检
   -> 播放测试音频
@@ -234,10 +236,36 @@ codex-speak
   doctor
   status
   mcp
+  config get
+  config set
   install
   uninstall
-  config
 ```
+
+## Tauri 控制面板
+
+Tauri 控制面板是普通用户手动控制入口，不直接做 TTS 推理。它调用同一个 Rust CLI：
+
+```text
+Tauri UI -> Tauri backend -> codex-speak CLI -> config / stop / speak / doctor
+```
+
+当前第一版位于：
+
+```text
+apps/codex-speak-control
+```
+
+它提供：
+
+- 自动朗读开关。
+- 儿童模式开关。
+- 语速滑块。
+- 最大朗读字数滑块。
+- 声音档位选择。
+- 试听、停止、刷新、自检按钮。
+
+这样可以把“普通用户点击配置”和“Codex 通过 MCP 改配置”统一到同一份 `config.toml`。
 
 实现语言建议：
 

@@ -6,7 +6,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 
 - 通过 Skill 要求 Codex 生成儿童友好的朗读导览。
 - 通过 MCP `codex_speak_prepare` 写入 side-channel。
-- 通过 MCP 工具展示状态、停止、试听、改开关。
+- 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速和声音档位。
 - 让朗读内容尽量不必出现在最终回答里。
 
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
@@ -87,6 +87,9 @@ Hook 触发后，Rust CLI 会：
 - 重读上一条。
 - 试听声音。
 - 运行自检。
+- 打开或关闭儿童模式。
+- 调慢或调快朗读速度。
+- 切换声音档位。
 
 这些按钮本质上调用 Rust CLI：
 
@@ -94,6 +97,7 @@ Hook 触发后，Rust CLI 会：
 codex-speak stop
 codex-speak speak --text "这是一段试听文本"
 codex-speak doctor
+codex-speak config set --child-mode true --speed 0.82
 ```
 
 ### 4. 配置管理
@@ -101,7 +105,9 @@ codex-speak doctor
 可调整：
 
 - `enabled`
+- `child_mode`
 - `speed`
+- `voice_profile`
 - `num_threads`
 - `vits_noise_scale`
 - `vits_noise_scale_w`
@@ -245,7 +251,7 @@ Plugin 负责：
 - 增加 `codex_speak_prepare` 工具。
 - Rust CLI 支持读取并消费 spool。
 - Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
-- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`。
+- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`。
 
 ### P3：Tauri 控制面板
 

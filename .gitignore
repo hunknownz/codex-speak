@@ -17,4 +17,4 @@ dist/
 build/
 target/
 node_modules/
-
+apps/**/src-tauri/gen/

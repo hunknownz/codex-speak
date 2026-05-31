@@ -30,6 +30,17 @@ When the side-channel succeeds:
 - Do not include the full HTML protocol block.
 - Mention only the important visible result for the user.
 
+## Configuration Tools
+
+When the user asks to control speech settings in natural language, use the available MCP tools:
+
+- Use `codex_speak_set_child_mode` for "打开儿童模式" or "关闭儿童模式".
+- Use `codex_speak_set_speed` for "慢一点读" or "快一点读".
+- Use `codex_speak_set_voice_profile` for "声音清楚明亮", "慢一点更清楚", or "快速预览".
+- Use `codex_speak_update_config` when several settings should change together.
+- Use `codex_speak_stop` when the user asks to stop speech.
+- Use `codex_speak_speak_text` when the user asks to try or preview a voice.
+
 ## Fallback Path: Folded HTML Protocol
 
 If `codex_speak_prepare` is not available, include a folded Codex Speak Protocol block at the end of substantial implementation, debugging, setup, research, or multi-step answers:

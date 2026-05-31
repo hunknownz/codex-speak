@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use crate::config::Config;
-use crate::{extract, process, side_channel, status, tts};
+use crate::{extract, process, settings, side_channel, status, tts};
 
 pub fn run() -> Result<()> {
     let stdin = io::stdin();
@@ -155,6 +155,63 @@ fn tools() -> Value {
                 },
                 "additionalProperties": false
             }
+        },
+        {
+            "name": "codex_speak_update_config",
+            "description": "Update Codex Speak settings such as child mode, speed, max read length, or voice profile.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "enabled": { "type": "boolean" },
+                    "child_mode": { "type": "boolean" },
+                    "speed": { "type": "number", "minimum": 0.6, "maximum": 1.3 },
+                    "max_read_chars": { "type": "integer", "minimum": 80, "maximum": 2000 },
+                    "voice_profile": {
+                        "type": "string",
+                        "enum": ["clear_bright", "slow_clear", "quick_preview"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_set_child_mode",
+            "description": "Enable or disable child-friendly speech mode.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["child_mode"],
+                "properties": {
+                    "child_mode": { "type": "boolean" }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_set_speed",
+            "description": "Set Codex Speak speed. Recommended range is 0.82 to 1.0.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["speed"],
+                "properties": {
+                    "speed": { "type": "number", "minimum": 0.6, "maximum": 1.3 }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_set_voice_profile",
+            "description": "Set a local voice tuning profile.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["voice_profile"],
+                "properties": {
+                    "voice_profile": {
+                        "type": "string",
+                        "enum": ["clear_bright", "slow_clear", "quick_preview"]
+                    }
+                },
+                "additionalProperties": false
+            }
         }
     ])
 }
@@ -214,10 +271,63 @@ fn call_tool(request: &Value) -> Result<Value> {
                 .get("enabled")
                 .and_then(Value::as_bool)
                 .context("missing enabled")?;
-            let mut next = cfg;
-            next.enabled = enabled;
-            next.save()?;
-            format!("ok: enabled={enabled}")
+            update_config(
+                cfg,
+                settings::ConfigPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                },
+            )?
+        }
+        "codex_speak_update_config" => {
+            let patch = settings::ConfigPatch {
+                enabled: args.get("enabled").and_then(Value::as_bool),
+                child_mode: args.get("child_mode").and_then(Value::as_bool),
+                speed: args.get("speed").and_then(Value::as_f64).map(|v| v as f32),
+                max_read_chars: args
+                    .get("max_read_chars")
+                    .and_then(Value::as_u64)
+                    .map(|v| v as usize),
+                voice_profile: optional_string(&args, "voice_profile"),
+            };
+            update_config(cfg, patch)?
+        }
+        "codex_speak_set_child_mode" => {
+            let child_mode = args
+                .get("child_mode")
+                .and_then(Value::as_bool)
+                .context("missing child_mode")?;
+            update_config(
+                cfg,
+                settings::ConfigPatch {
+                    child_mode: Some(child_mode),
+                    ..Default::default()
+                },
+            )?
+        }
+        "codex_speak_set_speed" => {
+            let speed = args
+                .get("speed")
+                .and_then(Value::as_f64)
+                .context("missing speed")? as f32;
+            update_config(
+                cfg,
+                settings::ConfigPatch {
+                    speed: Some(speed),
+                    ..Default::default()
+                },
+            )?
+        }
+        "codex_speak_set_voice_profile" => {
+            let voice_profile =
+                optional_string(&args, "voice_profile").context("missing voice_profile")?;
+            update_config(
+                cfg,
+                settings::ConfigPatch {
+                    voice_profile: Some(voice_profile),
+                    ..Default::default()
+                },
+            )?
         }
         other => anyhow::bail!("unknown tool: {other}"),
     };
@@ -254,6 +364,12 @@ fn parse_items(value: &Value) -> Result<Vec<side_channel::SpeakItem>> {
 
 fn optional_string(value: &Value, key: &str) -> Option<String> {
     value.get(key).and_then(Value::as_str).map(str::to_string)
+}
+
+fn update_config(cfg: Config, patch: settings::ConfigPatch) -> Result<String> {
+    let update = settings::apply_patch(cfg, patch)?;
+    update.config.save()?;
+    Ok(serde_json::to_string_pretty(&update)?)
 }
 
 fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<Value>> {

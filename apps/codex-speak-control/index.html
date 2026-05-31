@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Speak</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Codex Speak</h1>
+          <p id="subtitle">本地朗读控制台</p>
+        </div>
+        <div class="status-pill" id="health">检查中</div>
+      </header>
+
+      <section class="controls" aria-label="主要开关">
+        <label class="switch-row">
+          <span>
+            <strong>自动朗读</strong>
+            <small>Codex 回复结束后播放</small>
+          </span>
+          <input id="enabled" type="checkbox" />
+        </label>
+
+        <label class="switch-row">
+          <span>
+            <strong>儿童模式</strong>
+            <small>短句、解释代码作用、给下一步</small>
+          </span>
+          <input id="childMode" type="checkbox" />
+        </label>
+      </section>
+
+      <section class="panel" aria-label="声音设置">
+        <div class="panel-head">
+          <h2>声音</h2>
+          <select id="voiceProfile" aria-label="声音档位">
+            <option value="clear_bright">清楚明亮</option>
+            <option value="slow_clear">慢一点更清楚</option>
+            <option value="quick_preview">快速预览</option>
+          </select>
+        </div>
+
+        <label class="range-row">
+          <span>语速 <output id="speedValue">0.90</output></span>
+          <input id="speed" type="range" min="0.6" max="1.3" value="0.9" step="0.01" />
+        </label>
+
+        <label class="range-row">
+          <span>最多朗读字数 <output id="maxCharsValue">800</output></span>
+          <input id="maxChars" type="range" min="120" max="1600" value="800" step="20" />
+        </label>
+      </section>
+
+      <section class="actions" aria-label="快捷操作">
+        <button id="testSpeak" type="button">试听</button>
+        <button id="stopSpeak" type="button">停止</button>
+        <button id="refresh" type="button">刷新</button>
+        <button id="doctor" type="button">自检</button>
+      </section>
+
+      <section class="panel" aria-label="状态">
+        <div class="grid">
+          <div>
+            <small>引擎</small>
+            <strong id="provider">-</strong>
+          </div>
+          <div>
+            <small>模型</small>
+            <strong id="modelState">-</strong>
+          </div>
+          <div>
+            <small>Hook</small>
+            <strong id="hookState">-</strong>
+          </div>
+          <div>
+            <small>配置</small>
+            <strong id="configState">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel last" aria-label="最近朗读">
+        <div class="panel-head">
+          <h2>最近朗读</h2>
+        </div>
+        <p id="lastSpoken">暂无记录</p>
+      </section>
+
+      <pre id="log" aria-live="polite"></pre>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

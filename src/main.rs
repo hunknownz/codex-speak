@@ -5,6 +5,7 @@ mod install;
 mod mcp;
 mod process;
 mod session;
+mod settings;
 mod side_channel;
 mod status;
 mod tts;
@@ -46,6 +47,11 @@ enum Command {
     Doctor,
     /// Print machine-readable status for plugins and scripts.
     Status,
+    /// Read or update Codex Speak configuration.
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
     /// Run the Codex Speak MCP server for the Codex plugin.
     Mcp,
     /// Install Codex Speak into the current user's Codex home.
@@ -57,6 +63,25 @@ enum Command {
     Uninstall {
         #[arg(long)]
         remove_models: bool,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ConfigCommand {
+    /// Print the current configuration as JSON.
+    Get,
+    /// Update one or more configuration fields.
+    Set {
+        #[arg(long)]
+        enabled: Option<bool>,
+        #[arg(long)]
+        child_mode: Option<bool>,
+        #[arg(long)]
+        speed: Option<f32>,
+        #[arg(long)]
+        max_read_chars: Option<usize>,
+        #[arg(long)]
+        voice_profile: Option<String>,
     },
 }
 
@@ -84,6 +109,33 @@ fn main() -> Result<()> {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
         }
+        Command::Config { command } => match command {
+            ConfigCommand::Get => {
+                let cfg = config::Config::load_or_default()?;
+                println!("{}", serde_json::to_string_pretty(&cfg)?);
+            }
+            ConfigCommand::Set {
+                enabled,
+                child_mode,
+                speed,
+                max_read_chars,
+                voice_profile,
+            } => {
+                let cfg = config::Config::load_or_default()?;
+                let update = settings::apply_patch(
+                    cfg,
+                    settings::ConfigPatch {
+                        enabled,
+                        child_mode,
+                        speed,
+                        max_read_chars,
+                        voice_profile,
+                    },
+                )?;
+                update.config.save()?;
+                println!("{}", serde_json::to_string_pretty(&update)?);
+            }
+        },
         Command::Mcp => mcp::run()?,
         Command::Install { skip_tts_download } => install::install(skip_tts_download)?,
         Command::Uninstall { remove_models } => install::uninstall(remove_models)?,
