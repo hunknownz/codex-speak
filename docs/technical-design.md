@@ -14,7 +14,7 @@ Codex Hook
 speak-engine
   -> 消费 side-channel、提取 fallback 协议、清洗、配置、调度
 本地 TTS
-  -> MeloTTS / Kokoro / Piper / 系统兜底
+  -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 播放器
   -> macOS afplay / Windows PowerShell 播放
 installer
@@ -149,8 +149,19 @@ voice_profile = "clear_bright"
 | `sherpa_melo` | `sherpa-onnx-offline-tts` VITS/Melo 参数 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 可按配置兜底到系统语音 |
 | `sherpa_kokoro` | `sherpa-onnx-offline-tts` Kokoro 参数 | `model.onnx`、`voices.bin`、`tokens.txt`、词典或 `espeak-ng-data` | 直接提示缺模型，方便试听排错 |
 | `sherpa_zipvoice` | `sherpa-onnx-offline-tts` ZipVoice 参数 | `encoder.onnx`、`decoder.onnx`、`vocoder.onnx`、`tokens.txt`、参考音频和文本 | 直接提示缺模型，避免误以为试听成功 |
-| `piper` | Piper 可执行文件 stdin 输入文本 | `piper`/`piper.exe`、`model.onnx`、`model.onnx.json` | 直接提示缺模型 |
+| `piper` | `sherpa-onnx-offline-tts` 运行 Piper/VITS 模型 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 直接提示缺模型 |
 | `system` | macOS `say` 或 Windows SpeechSynthesizer | 系统自带能力 | 用于无模型验证和最后兜底 |
+
+模型安装命令：
+
+```bash
+codex-speak models install --provider sherpa_kokoro
+codex-speak models install --provider sherpa_zipvoice
+codex-speak models install --provider piper
+codex-speak models install --all
+```
+
+Tauri App 的“安装模型”按钮调用同一个命令；Codex Plugin/MCP 的 `codex_speak_install_model` 也调用同一个 Rust 核心。
 
 ## 跨平台实现
 
@@ -283,6 +294,7 @@ apps/codex-speak-control
 - 语速滑块。
 - 最大朗读字数滑块。
 - TTS Provider 选择。
+- 当前 Provider 模型安装按钮。
 - 声音档位选择。
 - 试听、停止、刷新、自检按钮。
 
@@ -313,7 +325,7 @@ default = true
 
 [[models]]
 id = "piper-zh-cn-huayan"
-provider = "piper"
+provider = "sherpa_onnx_vits"
 language = "zh"
 low_resource = true
 url = "..."
@@ -376,7 +388,7 @@ skip_code_blocks = true
 ### M2：本地 TTS
 
 - 接入 Sherpa-ONNX + MeloTTS。
-- 增加 Kokoro/Piper 试听命令。
+- 增加 Kokoro/ZipVoice/Piper 试听和模型安装命令。
 - 失败时自动兜底。
 - 支持 Windows PowerShell 安装脚本。
 - 增加 `doctor` 自检命令。

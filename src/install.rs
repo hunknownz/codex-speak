@@ -11,6 +11,20 @@ use crate::config::{self, Config};
 
 const MODEL_URL: &str =
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-melo-tts-zh_en.tar.bz2";
+const KOKORO_URL: &str =
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2";
+const ZIPVOICE_URL: &str =
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-zipvoice-distill-int8-zh-en-emilia.tar.bz2";
+const ZIPVOICE_VOCODER_URL: &str =
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos_24khz.onnx";
+const PIPER_ONNX_URL: &str =
+    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx";
+const PIPER_JSON_URL: &str =
+    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx.json";
+const PIPER_TOKENS_URL: &str =
+    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/tokens.txt";
+const PIPER_LEXICON_URL: &str =
+    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/lexicon.txt";
 const SHERPA_MACOS_URL: &str =
     "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-osx-universal2-shared.tar.bz2";
 
@@ -211,12 +225,51 @@ fn replace_notify_line(existing: &str, notify_line: &str) -> String {
 }
 
 fn install_tts_assets() -> Result<()> {
+    install_tts_runtime()?;
+    install_melo_model()?;
+    Ok(())
+}
+
+pub fn install_all_models() -> Result<()> {
+    for provider in ["sherpa_melo", "sherpa_kokoro", "piper", "sherpa_zipvoice"] {
+        install_model(provider)?;
+    }
+    Ok(())
+}
+
+pub fn install_model(provider: &str) -> Result<()> {
+    create_dirs()?;
+    match provider {
+        "sherpa_melo" => {
+            install_tts_runtime()?;
+            install_melo_model()
+        }
+        "sherpa_kokoro" => {
+            install_tts_runtime()?;
+            install_kokoro_model()
+        }
+        "sherpa_zipvoice" => {
+            install_tts_runtime()?;
+            install_zipvoice_model()
+        }
+        "piper" => {
+            install_tts_runtime()?;
+            install_piper_model()
+        }
+        "system" => {
+            eprintln!("System speech does not require a model download.");
+            Ok(())
+        }
+        other => anyhow::bail!("unsupported provider: {other}"),
+    }
+}
+
+fn install_tts_runtime() -> Result<()> {
     if cfg!(target_os = "macos") {
         install_sherpa_macos()?;
     } else {
-        println!("Skipping Sherpa download on this platform for now");
+        eprintln!("Skipping Sherpa download on this platform for now");
     }
-    install_melo_model()?;
     Ok(())
 }
 
@@ -251,8 +304,67 @@ fn install_melo_model() -> Result<()> {
     Ok(())
 }
 
+fn install_kokoro_model() -> Result<()> {
+    let target = config::kokoro_model_dir()?;
+    if target.join("model.onnx").exists() && target.join("voices.bin").exists() {
+        return Ok(());
+    }
+    let archive = config::cache_dir()?.join("kokoro-multi-lang-v1_0.tar.bz2");
+    download(KOKORO_URL, &archive)?;
+    let extract_dir = config::cache_dir()?.join("kokoro-extract");
+    let _ = fs::remove_dir_all(&extract_dir);
+    fs::create_dir_all(&extract_dir)?;
+    untar_bzip2(&archive, &extract_dir)?;
+    let root = find_child_dir(&extract_dir, "kokoro-multi-lang-v1_0")
+        .context("could not find Kokoro model root in archive")?;
+    replace_dir(&root, &target)?;
+    Ok(())
+}
+
+fn install_zipvoice_model() -> Result<()> {
+    let target = config::zipvoice_model_dir()?;
+    if target.join("encoder.onnx").exists()
+        && target.join("decoder.onnx").exists()
+        && target.join("vocoder.onnx").exists()
+    {
+        return Ok(());
+    }
+    let archive = config::cache_dir()?.join("zipvoice-zh-en.tar.bz2");
+    download(ZIPVOICE_URL, &archive)?;
+    let extract_dir = config::cache_dir()?.join("zipvoice-extract");
+    let _ = fs::remove_dir_all(&extract_dir);
+    fs::create_dir_all(&extract_dir)?;
+    untar_bzip2(&archive, &extract_dir)?;
+    let root = find_child_dir(
+        &extract_dir,
+        "sherpa-onnx-zipvoice-distill-int8-zh-en-emilia",
+    )
+    .context("could not find ZipVoice model root in archive")?;
+    replace_dir(&root, &target)?;
+    normalize_zipvoice_files(&target)?;
+    download(ZIPVOICE_VOCODER_URL, &target.join("vocoder.onnx"))?;
+    ensure_zipvoice_reference(&target)?;
+    Ok(())
+}
+
+fn install_piper_model() -> Result<()> {
+    let target = config::piper_model_dir()?;
+    if target.join("model.onnx").exists()
+        && target.join("tokens.txt").exists()
+        && target.join("lexicon.txt").exists()
+    {
+        return Ok(());
+    }
+    fs::create_dir_all(&target)?;
+    download(PIPER_ONNX_URL, &target.join("model.onnx"))?;
+    download(PIPER_JSON_URL, &target.join("model.onnx.json"))?;
+    download(PIPER_TOKENS_URL, &target.join("tokens.txt"))?;
+    download(PIPER_LEXICON_URL, &target.join("lexicon.txt"))?;
+    Ok(())
+}
+
 fn download(url: &str, dest: &Path) -> Result<()> {
-    println!("Downloading {url}");
+    eprintln!("Downloading {url}");
     let status = Command::new("curl")
         .args(["-L", "--fail", "--progress-bar", "-o"])
         .arg(dest)
@@ -292,6 +404,83 @@ fn find_sherpa_root(root: &Path) -> Option<PathBuf> {
         }
     }
     None
+}
+
+fn find_child_dir(root: &Path, name: &str) -> Option<PathBuf> {
+    for entry in walkdir::WalkDir::new(root)
+        .min_depth(1)
+        .max_depth(2)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        if entry.file_type().is_dir() && entry.file_name() == name {
+            return Some(entry.path().to_path_buf());
+        }
+    }
+    None
+}
+
+fn replace_dir(src: &Path, dst: &Path) -> Result<()> {
+    let _ = fs::remove_dir_all(dst);
+    fs::create_dir_all(dst)?;
+    copy_dir_recursive(src, dst)
+}
+
+fn normalize_zipvoice_files(dir: &Path) -> Result<()> {
+    copy_first_existing(
+        &[
+            dir.join("encoder.onnx"),
+            dir.join("encoder.int8.onnx"),
+            dir.join("model.int8.onnx"),
+        ],
+        &dir.join("encoder.onnx"),
+    )?;
+    copy_first_existing(
+        &[dir.join("decoder.onnx"), dir.join("decoder.int8.onnx")],
+        &dir.join("decoder.onnx"),
+    )?;
+    copy_first_existing(
+        &[
+            dir.join("tokens.txt"),
+            dir.join("tokens_en.txt"),
+            dir.join("tokens_zh.txt"),
+        ],
+        &dir.join("tokens.txt"),
+    )?;
+    Ok(())
+}
+
+fn ensure_zipvoice_reference(dir: &Path) -> Result<()> {
+    let reference_wav = dir.join("reference.wav");
+    if !reference_wav.exists() {
+        copy_first_existing(
+            &[
+                dir.join("test_wavs/leijun-1.wav"),
+                dir.join("test_wavs/en-1.wav"),
+                dir.join("test_wavs/0.wav"),
+            ],
+            &reference_wav,
+        )?;
+    }
+    let reference_txt = dir.join("reference.txt");
+    if !reference_txt.exists() {
+        fs::write(
+            reference_txt,
+            "小米汽车正式发布会现在开始，今天我们要给大家介绍一个全新的产品。",
+        )?;
+    }
+    Ok(())
+}
+
+fn copy_first_existing(candidates: &[PathBuf], dest: &Path) -> Result<()> {
+    if dest.exists() {
+        return Ok(());
+    }
+    let Some(src) = candidates.iter().find(|path| path.exists()) else {
+        anyhow::bail!("could not find any candidate file for {}", dest.display());
+    };
+    fs::copy(src, dest)?;
+    Ok(())
 }
 
 fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {

@@ -38,6 +38,7 @@ When the user asks to control speech settings in natural language, use the avail
 - Use `codex_speak_set_speed` for "慢一点读" or "快一点读".
 - Use `codex_speak_set_voice_profile` for "声音清楚明亮", "慢一点更清楚", or "快速预览".
 - Use `codex_speak_set_provider` for "换一个朗读引擎", "试试 Kokoro", "切到 Piper", or "用系统语音".
+- Use `codex_speak_install_model` for "安装这个声音", "下载 Kokoro 模型", or "把当前朗读引擎补全".
 - Use `codex_speak_update_config` when several settings should change together.
 - Use `codex_speak_stop` when the user asks to stop speech.
 - Use `codex_speak_speak_text` when the user asks to try or preview a voice.

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -60,15 +60,13 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
 #[tauri::command]
 fn speak_sample() -> Result<(), String> {
     let sample = "你好，我是 Codex Speak。现在的声音会更清楚，也会按你的设置来朗读。";
-    Command::new(cli_path()?)
-        .args(["speak", "--text", sample])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .context("failed to start sample speech")
-        .map_err(to_string)?;
-    Ok(())
+    run_cli(["speak", "--text", sample]).map(|_| ())
+}
+
+#[tauri::command]
+fn install_current_model() -> Result<Value, String> {
+    run_cli(["models", "install"])?;
+    load_status()
 }
 
 #[tauri::command]
@@ -138,6 +136,7 @@ fn main() {
             load_status,
             update_settings,
             speak_sample,
+            install_current_model,
             stop_speech,
             run_doctor
         ])

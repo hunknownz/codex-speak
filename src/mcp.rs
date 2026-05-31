@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use crate::config::Config;
-use crate::{extract, process, settings, side_channel, status, tts};
+use crate::{extract, install, process, settings, side_channel, status, tts};
 
 pub fn run() -> Result<()> {
     let stdin = io::stdin();
@@ -194,6 +194,20 @@ fn tools() -> Value {
             }
         },
         {
+            "name": "codex_speak_install_model",
+            "description": "Download or repair the local model for the current or selected TTS provider.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": ["sherpa_melo", "sherpa_kokoro", "sherpa_zipvoice", "piper", "system"]
+                    }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
             "name": "codex_speak_set_child_mode",
             "description": "Enable or disable child-friendly speech mode.",
             "inputSchema": {
@@ -321,6 +335,13 @@ fn call_tool(request: &Value) -> Result<Value> {
                     ..Default::default()
                 },
             )?
+        }
+        "codex_speak_install_model" => {
+            let provider =
+                optional_string(&args, "provider").unwrap_or_else(|| cfg.provider.clone());
+            install::install_model(&provider)?;
+            let cfg = Config::load_or_default()?;
+            serde_json::to_string_pretty(&status::collect(&cfg)?)?
         }
         "codex_speak_set_child_mode" => {
             let child_mode = args

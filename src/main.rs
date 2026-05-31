@@ -52,6 +52,11 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    /// Download or repair local TTS models.
+    Models {
+        #[command(subcommand)]
+        command: ModelsCommand,
+    },
     /// Run the Codex Speak MCP server for the Codex plugin.
     Mcp,
     /// Install Codex Speak into the current user's Codex home.
@@ -84,6 +89,17 @@ enum ConfigCommand {
         max_read_chars: Option<usize>,
         #[arg(long)]
         voice_profile: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum ModelsCommand {
+    /// Install the current provider model, a named provider, or every supported local model.
+    Install {
+        #[arg(long)]
+        provider: Option<String>,
+        #[arg(long)]
+        all: bool,
     },
 }
 
@@ -138,6 +154,21 @@ fn main() -> Result<()> {
                 )?;
                 update.config.save()?;
                 println!("{}", serde_json::to_string_pretty(&update)?);
+            }
+        },
+        Command::Models { command } => match command {
+            ModelsCommand::Install { provider, all } => {
+                if all {
+                    install::install_all_models()?;
+                } else {
+                    let provider = match provider {
+                        Some(provider) => provider,
+                        None => config::Config::load_or_default()?.provider,
+                    };
+                    install::install_model(&provider)?;
+                }
+                let cfg = config::Config::load_or_default()?;
+                println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
             }
         },
         Command::Mcp => mcp::run()?,

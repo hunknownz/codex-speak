@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde::Serialize;
@@ -113,7 +114,7 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
                 && model.join("model.onnx").is_file()
                 && model.join("voices.bin").is_file()
                 && model.join("tokens.txt").is_file()
-                && (model.join("lexicon.txt").is_file() || model.join("espeak-ng-data").is_dir());
+                && (!kokoro_lexicons(&model).is_empty() || model.join("espeak-ng-data").is_dir());
             (
                 "Kokoro".to_string(),
                 ok,
@@ -123,12 +124,15 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
         "sherpa_zipvoice" => {
             let model = config::zipvoice_model_dir()?;
             let ok = config::sherpa_bin()?.is_file()
-                && model.join("encoder.onnx").is_file()
-                && model.join("decoder.onnx").is_file()
+                && any_file(&[model.join("encoder.onnx"), model.join("encoder.int8.onnx")])
+                && any_file(&[model.join("decoder.onnx"), model.join("decoder.int8.onnx")])
                 && model.join("tokens.txt").is_file()
-                && model.join("vocoder.onnx").is_file()
-                && model.join("reference.wav").is_file()
-                && model.join("reference.txt").is_file();
+                && any_file(&[model.join("vocoder.onnx"), model.join("vocos_24khz.onnx")])
+                && any_file(&[
+                    model.join("reference.wav"),
+                    model.join("test_wavs/leijun-1.wav"),
+                    model.join("test_wavs/en-1.wav"),
+                ]);
             (
                 "ZipVoice 中文/英文".to_string(),
                 ok,
@@ -137,13 +141,14 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
         }
         "piper" => {
             let model = config::piper_model_dir()?;
-            let ok = config::piper_bin()?.is_file()
+            let ok = config::sherpa_bin()?.is_file()
                 && model.join("model.onnx").is_file()
-                && model.join("model.onnx.json").is_file();
+                && model.join("tokens.txt").is_file()
+                && model.join("lexicon.txt").is_file();
             (
-                "Piper 轻量语音".to_string(),
+                "Piper 中文轻量音色".to_string(),
                 ok,
-                missing_reason(ok, "Piper 引擎或模型未安装"),
+                missing_reason(ok, "Piper 中文模型未安装"),
             )
         }
         "system" => (
@@ -176,6 +181,21 @@ fn system_voice_available() -> bool {
     } else {
         cfg!(windows)
     }
+}
+
+fn kokoro_lexicons(model: &Path) -> Vec<PathBuf> {
+    [
+        model.join("lexicon.txt"),
+        model.join("lexicon-us-en.txt"),
+        model.join("lexicon-zh.txt"),
+    ]
+    .into_iter()
+    .filter(|path| path.is_file())
+    .collect()
+}
+
+fn any_file(paths: &[PathBuf]) -> bool {
+    paths.iter().any(|path| path.is_file())
 }
 
 fn binary_name() -> &'static str {

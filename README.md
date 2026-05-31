@@ -85,6 +85,8 @@ codex-speak mcp
 codex-speak config get
 codex-speak config set --child-mode true --speed 0.9
 codex-speak config set --provider sherpa_melo
+codex-speak models install --provider piper
+codex-speak models install --all
 codex-speak install
 codex-speak uninstall
 ```
@@ -100,9 +102,9 @@ codex-speak uninstall
 | Provider | 定位 | 说明 |
 | --- | --- | --- |
 | `sherpa_melo` | 默认中文方案 | 中文优先，中英混读，当前安装器默认下载 |
-| `sherpa_kokoro` | 高自然度备选 | 需要额外安装 Kokoro 模型 |
-| `sherpa_zipvoice` | 参考音频克隆/实验 | 需要额外安装 ZipVoice 模型和参考音频 |
-| `piper` | 低配兜底 | 需要额外安装 Piper 引擎和中文模型 |
+| `sherpa_kokoro` | 高自然度备选 | 可通过 `models install` 下载 Kokoro 模型 |
+| `sherpa_zipvoice` | 参考音频克隆/实验 | 可通过 `models install` 下载 ZipVoice 模型和 vocoder |
+| `piper` | 低配兜底 | 可通过 `models install` 下载 Piper 中文轻量模型，底层仍用 Sherpa-ONNX 运行 |
 | `system` | 系统兜底 | macOS/Windows 系统自带，质量较低但最容易验证 |
 
 如果正在试听某个额外 Provider，而模型还没有安装，Codex Speak 会直接报出缺失原因，不会偷偷切回默认声音；只有默认 `sherpa_melo` 失败时才会按配置兜底到系统语音。
@@ -146,6 +148,7 @@ codex-speak uninstall
 - 最大朗读字数滑块。
 - 声音档位选择。
 - 朗读引擎选择。
+- 当前朗读引擎模型安装。
 - 试听、停止、刷新、自检。
 
 开发运行：

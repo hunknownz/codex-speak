@@ -133,8 +133,3 @@ pub fn sherpa_bin() -> Result<PathBuf> {
     };
     Ok(tools_dir()?.join("sherpa-onnx").join("bin").join(exe))
 }
-
-pub fn piper_bin() -> Result<PathBuf> {
-    let exe = if cfg!(windows) { "piper.exe" } else { "piper" };
-    Ok(tools_dir()?.join("piper").join(exe))
-}

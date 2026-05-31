@@ -11,6 +11,7 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 - 调整语速。
 - 选择声音档位。
 - 切换朗读引擎。
+- 安装当前朗读引擎需要的模型。
 - 设置最大朗读字数。
 - 停止当前朗读。
 - 试听一句话。
@@ -66,6 +67,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 语速 | `codex-speak config set --speed ...` |
 | 声音档位 | `codex-speak config set --voice-profile ...` |
 | 最大朗读字数 | `codex-speak config set --max-read-chars ...` |
+| 安装模型 | `codex-speak models install` |
 | 试听 | `codex-speak speak --text ...` |
 | 停止 | `codex-speak stop` |
 | 自检 | `codex-speak doctor` |
@@ -79,10 +81,12 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | `sherpa_melo` | MeloTTS 中文女声 | 默认中文优先方案 |
 | `sherpa_kokoro` | Kokoro | 更自然的备选方案，需要额外模型 |
 | `sherpa_zipvoice` | ZipVoice | 实验性参考音频方案，需要额外模型和参考音频 |
-| `piper` | Piper 轻量语音 | 低配置兜底，需要额外引擎和模型 |
+| `piper` | Piper 轻量语音 | 低配置兜底，下载中文轻量模型后由 Sherpa-ONNX 运行 |
 | `system` | 系统语音 | 无模型快速验证 |
 
 状态区会显示当前 Provider 是否可用。如果用户选了一个还没安装模型的 Provider，试听会显示缺失原因；这样用户能明确知道“还没装模型”，而不是误以为这个声音不好听。
+
+“安装模型”按钮会安装当前下拉框选中的 Provider。模型安装可能需要几十秒到几分钟，取决于包大小和网络速度。
 
 ## 声音档位
 

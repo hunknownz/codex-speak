@@ -87,6 +87,7 @@ Hook 触发后，Rust CLI 会：
 - 重读上一条。
 - 试听声音。
 - 运行自检。
+- 安装当前或指定 Provider 的模型。
 - 打开或关闭儿童模式。
 - 调慢或调快朗读速度。
 - 切换声音档位。
@@ -98,6 +99,7 @@ Hook 触发后，Rust CLI 会：
 codex-speak stop
 codex-speak speak --text "这是一段试听文本"
 codex-speak doctor
+codex-speak models install --provider sherpa_kokoro
 codex-speak config set --child-mode true --speed 0.82
 codex-speak config set --provider sherpa_kokoro
 ```
@@ -128,9 +130,9 @@ Provider 当前支持：
 | Provider | 用途 | 说明 |
 | --- | --- | --- |
 | `sherpa_melo` | 默认中文朗读 | 当前安装器默认准备 |
-| `sherpa_kokoro` | 更自然的备选声音 | 需要额外模型 |
-| `sherpa_zipvoice` | 参考音频实验方案 | 需要额外模型和参考音频 |
-| `piper` | 低配兜底 | 需要 Piper 引擎和模型 |
+| `sherpa_kokoro` | 更自然的备选声音 | 可通过模型安装工具下载 |
+| `sherpa_zipvoice` | 参考音频实验方案 | 可通过模型安装工具下载模型、vocoder 和参考音频 |
+| `piper` | 低配兜底 | 可通过模型安装工具下载中文轻量模型 |
 | `system` | 系统语音 | 不需要模型，适合快速验证 |
 
 ## 第二阶段插件功能：显示和校验

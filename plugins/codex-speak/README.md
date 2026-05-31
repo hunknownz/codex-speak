@@ -5,7 +5,7 @@ Codex Speak Plugin adds Codex-facing controls and tools on top of the Rust CLI.
 ## What It Can Do
 
 - Expose a `codex-speak` skill for speech-friendly final answers.
-- Provide MCP tools for status, preview, stop, test speech, enable/disable, child mode, speed, voice profiles, TTS provider switching, and side-channel preparation.
+- Provide MCP tools for status, preview, stop, test speech, enable/disable, child mode, speed, voice profiles, TTS provider switching, model installation, and side-channel preparation.
 - Let Codex write a spoken guide to `~/.codex/codex-speak/spool/latest.json` so the hook can read that guide without relying only on visible chat text.
 
 ## What It Cannot Reliably Do Yet
@@ -28,5 +28,6 @@ The current Codex plugin surface does not provide a documented API for rewriting
 - `codex_speak_set_speed`
 - `codex_speak_set_voice_profile`
 - `codex_speak_set_provider`
+- `codex_speak_install_model`
 
 The plugin expects the Rust CLI to be installed at `~/.codex/codex-speak/bin/codex-speak` or available on `PATH`.

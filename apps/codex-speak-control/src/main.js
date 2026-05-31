@@ -122,7 +122,21 @@ $("testSpeak").addEventListener("click", async () => {
   setBusy(true);
   try {
     await invoke("speak_sample");
-    setLog("正在试听");
+    setLog("试听完成");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("installModel").addEventListener("click", async () => {
+  setBusy(true);
+  setLog("正在下载并安装当前朗读引擎的模型...");
+  try {
+    const status = await invoke("install_current_model");
+    renderStatus(status);
+    setLog("模型已安装");
   } catch (error) {
     setLog(String(error));
   } finally {
