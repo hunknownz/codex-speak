@@ -21,8 +21,21 @@ if (-not (Test-Path $InstalledApp)) {
 }
 
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
-& $InstalledCli doctor --json | Out-File -Encoding utf8 (Join-Path $Smoke "doctor.json")
-$Doctor = Get-Content -Raw -Encoding utf8 (Join-Path $Smoke "doctor.json") | ConvertFrom-Json
+$DoctorJson = Join-Path $Smoke "doctor.json"
+$DoctorErr = Join-Path $Smoke "doctor.stderr.txt"
+$DoctorProcess = Start-Process `
+  -FilePath $InstalledCli `
+  -ArgumentList @("doctor", "--json") `
+  -NoNewWindow `
+  -Wait `
+  -PassThru `
+  -RedirectStandardOutput $DoctorJson `
+  -RedirectStandardError $DoctorErr
+if (-not (Test-Path $DoctorJson) -or (Get-Item $DoctorJson).Length -eq 0) {
+  $DoctorError = if (Test-Path $DoctorErr) { Get-Content -Raw -Encoding utf8 $DoctorErr } else { "" }
+  throw "doctor --json produced no output. exit=$($DoctorProcess.ExitCode) $DoctorError"
+}
+$Doctor = Get-Content -Raw -Encoding utf8 $DoctorJson | ConvertFrom-Json
 $Checks = @{}
 foreach ($Check in $Doctor.checks) {
   $Checks[$Check.id] = $Check
@@ -38,7 +51,8 @@ foreach ($Id in @(
   "player"
 )) {
   if (-not $Checks.ContainsKey($Id) -or $Checks[$Id].status -ne "ok") {
-    throw "doctor core check failed: $Id"
+    $Status = if ($Checks.ContainsKey($Id)) { $Checks[$Id].status } else { "missing" }
+    throw "doctor core check failed: $Id status=$Status"
   }
 }
 Write-Host "Windows release smoke install OK"

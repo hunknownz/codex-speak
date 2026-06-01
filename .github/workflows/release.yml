@@ -28,7 +28,12 @@ jobs:
         with:
           node-version: 22
       - name: Build CLI
-        run: cargo build --release
+        shell: bash
+        run: |
+          cargo build --release || {
+            sleep 10
+            cargo build --release
+          }
       - name: Build native macOS pet helper
         if: runner.os == 'macOS'
         run: swiftc -O -framework AppKit -framework AVFoundation -o target/release/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift
