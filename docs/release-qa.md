@@ -61,7 +61,7 @@ cd codex-speak-macos
 ./scripts/manual-qa-macos.sh --allow-missing-models
 ```
 
-它会自动运行自检、状态、模型列表和支持包收集，并在控制面板、桌面 Pet、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
+它会自动运行 release 包 manifest 校验、自检、状态、模型列表和支持包收集，并在控制面板、桌面 Pet、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
 
 收到 QA 输出目录后，可以在源码仓库或 release 包里校验：
 
@@ -72,7 +72,8 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `macos`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
-- 有 Node.js 时，`node scripts/check-release-manifest.mjs .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
+- `./bin/codex-speak verify-package --package-dir .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
+- 有 Node.js 时，`node scripts/check-release-manifest.mjs .` 也应通过，作为脚本版交叉校验。
 - 安装后 `~/.codex/codex-speak/release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
@@ -111,7 +112,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 .\scripts\manual-qa-windows.ps1 -AllowMissingModels
 ```
 
-它会自动运行自检、状态、模型列表和支持包收集，并在控制面板、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 Windows 真机结果发回排障。
+它会自动运行 release 包 manifest 校验、自检、状态、模型列表和支持包收集，并在控制面板、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 Windows 真机结果发回排障。
 
 收到 QA 输出目录后，可以在源码仓库或 release 包里校验：
 
@@ -122,7 +123,8 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `windows`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
-- 有 Node.js 时，`node .\scripts\check-release-manifest.mjs .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
+- `.\bin\codex-speak.exe verify-package --package-dir .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
+- 有 Node.js 时，`node .\scripts\check-release-manifest.mjs .` 也应通过，作为脚本版交叉校验。
 - 安装后 `%USERPROFILE%\.codex\codex-speak\release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor` 能运行。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。

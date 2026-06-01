@@ -99,6 +99,7 @@ codex-speak doctor
 codex-speak doctor --json
 codex-speak verify-install --allow-missing-models
 codex-speak verify-codex
+codex-speak verify-package --package-dir .
 codex-speak status
 codex-speak support-bundle
 codex-speak pet-state
@@ -173,7 +174,13 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 
 支持包会包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。
 
-解压 release 包后，如果机器上有 Node.js，也可以先校验包内 manifest 记录的关键文件哈希：
+解压 release 包后，可以用包里的 CLI 校验 manifest 记录的关键文件哈希：
+
+```bash
+./bin/codex-speak verify-package --package-dir .
+```
+
+如果机器上有 Node.js，也可以用随包的脚本做同样的校验：
 
 ```bash
 node scripts/check-release-manifest.mjs .

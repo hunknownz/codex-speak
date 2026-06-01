@@ -8,6 +8,7 @@ rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR"
 tar -xzf "$ARCHIVE" -C "$SMOKE_DIR"
 
+"$SMOKE_DIR/codex-speak-macos/bin/codex-speak" verify-package --package-dir "$SMOKE_DIR/codex-speak-macos" >"$SMOKE_DIR/verify-package.txt"
 node "$SMOKE_DIR/codex-speak-macos/scripts/check-release-manifest.mjs" "$SMOKE_DIR/codex-speak-macos" >"$SMOKE_DIR/check-release-manifest.txt"
 "$SMOKE_DIR/codex-speak-macos/installers/install-macos.sh" --skip-tts-download
 

@@ -296,7 +296,21 @@ Get-FileHash .\codex-speak-windows.zip -Algorithm SHA256
 Get-Content .\codex-speak-windows.zip.sha256
 ```
 
-解压后，如果机器上有 Node.js，还可以校验 release manifest 中记录的关键文件：
+解压后，可以用包里的 CLI 校验 release manifest 中记录的关键文件：
+
+macOS:
+
+```bash
+./bin/codex-speak verify-package --package-dir .
+```
+
+Windows:
+
+```powershell
+.\bin\codex-speak.exe verify-package --package-dir .
+```
+
+如果机器上有 Node.js，也可以用随包脚本做同样的校验：
 
 ```bash
 node scripts/check-release-manifest.mjs .
@@ -306,7 +320,7 @@ CI 会做三层检查：
 
 - 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保 release manifest、manifest 校验脚本、安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
-- 烟测还会先运行包内 `check-release-manifest.mjs`，再运行 `codex-speak doctor --json`、`codex-speak verify-codex` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、Codex 集成主路径可用、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
+- 烟测还会先运行包内 `codex-speak verify-package` 和 `check-release-manifest.mjs`，再运行 `codex-speak doctor --json`、`codex-speak verify-codex` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、Codex 集成主路径可用、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 - macOS/Windows 烟测还会用非交互模式运行 release 包里的手工 QA 收集脚本，并用 `check-manual-qa-report.mjs` 校验生成的 `qa-report.json`，确保真机 QA 收集和回传校验脚本本身没有随包损坏。
 
 发布前可以运行 readiness 检查：

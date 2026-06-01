@@ -9,8 +9,10 @@ Remove-Item -Recurse -Force $Smoke -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Smoke | Out-Null
 Expand-Archive -Force -Path $Archive -DestinationPath $Smoke
 
-node (Join-Path $Smoke "codex-speak-windows\scripts\check-release-manifest.mjs") (Join-Path $Smoke "codex-speak-windows") | Out-File -Encoding utf8 (Join-Path $Smoke "check-release-manifest.txt")
-& (Join-Path $Smoke "codex-speak-windows\installers\install-windows.ps1") -SkipTtsDownload
+$PackageRoot = Join-Path $Smoke "codex-speak-windows"
+& (Join-Path $PackageRoot "bin\codex-speak.exe") verify-package --package-dir $PackageRoot | Out-File -Encoding utf8 (Join-Path $Smoke "verify-package.txt")
+node (Join-Path $PackageRoot "scripts\check-release-manifest.mjs") $PackageRoot | Out-File -Encoding utf8 (Join-Path $Smoke "check-release-manifest.txt")
+& (Join-Path $PackageRoot "installers\install-windows.ps1") -SkipTtsDownload
 
 $InstalledCli = Join-Path $env:USERPROFILE ".codex\codex-speak\bin\codex-speak.exe"
 $InstalledApp = Join-Path $env:USERPROFILE ".codex\codex-speak\apps\codex-speak-control.exe"
@@ -28,9 +30,9 @@ if (-not (Test-Path $InstalledManifest)) {
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
 & $InstalledCli verify-install --allow-missing-models | Out-File -Encoding utf8 (Join-Path $Smoke "verify-install.txt")
 & $InstalledCli verify-codex | Out-File -Encoding utf8 (Join-Path $Smoke "verify-codex.txt")
-$ManualQaScript = Join-Path $Smoke "codex-speak-windows\scripts\manual-qa-windows.ps1"
+$ManualQaScript = Join-Path $PackageRoot "scripts\manual-qa-windows.ps1"
 & $ManualQaScript -CliPath $InstalledCli -OutputDir (Join-Path $Smoke "manual-qa") -AllowMissingModels -NonInteractive | Out-File -Encoding utf8 (Join-Path $Smoke "manual-qa.txt")
-$ManualQaCheck = Join-Path $Smoke "codex-speak-windows\scripts\check-manual-qa-report.mjs"
+$ManualQaCheck = Join-Path $PackageRoot "scripts\check-manual-qa-report.mjs"
 node $ManualQaCheck (Join-Path $Smoke "manual-qa") --allow-non-interactive | Out-File -Encoding utf8 -Append (Join-Path $Smoke "manual-qa.txt")
 $SupportDir = Join-Path $Smoke "support"
 & $InstalledCli support-bundle --output $SupportDir | Out-Null

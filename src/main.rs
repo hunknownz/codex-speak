@@ -8,6 +8,7 @@ mod mcp;
 mod model_catalog;
 mod pet_state;
 mod process;
+mod release_manifest;
 mod session;
 mod settings;
 mod side_channel;
@@ -61,6 +62,13 @@ enum Command {
     },
     /// Verify Skill/MCP side-channel and hook consumption behavior without playing audio.
     VerifyCodex {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Verify an unpacked release package manifest and key file hashes.
+    VerifyPackage {
+        #[arg(long)]
+        package_dir: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },
@@ -170,6 +178,9 @@ fn main() -> Result<()> {
             allow_missing_models,
         } => doctor::verify_install(allow_missing_models)?,
         Command::VerifyCodex { json } => codex_integration::run(json)?,
+        Command::VerifyPackage { package_dir, json } => {
+            release_manifest::run(package_dir.as_deref(), json)?
+        }
         Command::Status => {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);

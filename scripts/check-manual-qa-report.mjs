@@ -10,6 +10,7 @@ const help = args.includes("--help") || args.includes("-h");
 const requiredAutoChecks = [
   "cli exists",
   "cli version",
+  "release package manifest",
   "verify install",
   "doctor json",
   "doctor json parse",

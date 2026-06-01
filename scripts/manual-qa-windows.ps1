@@ -8,6 +8,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ScriptDir = Split-Path -Parent $PSCommandPath
+$PackageDir = Split-Path -Parent $ScriptDir
+$PackageCli = Join-Path $PackageDir "bin\codex-speak.exe"
 
 if (-not $OutputDir) {
   $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -43,9 +46,10 @@ function Add-QaCheck {
   }
 }
 
-function Invoke-QaCommand {
+function Invoke-QaExecutable {
   param(
     [string]$Name,
+    [string]$Executable,
     [string[]]$Arguments,
     [switch]$AllowFailure
   )
@@ -54,12 +58,21 @@ function Invoke-QaCommand {
   $Stdout = Join-Path $OutputDir "$SafeName.stdout.txt"
   $Stderr = Join-Path $OutputDir "$SafeName.stderr.txt"
 
-  & $CliPath @Arguments > $Stdout 2> $Stderr
+  & $Executable @Arguments > $Stdout 2> $Stderr
   $ExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
   $Status = if ($ExitCode -eq 0 -or $AllowFailure) { "pass" } else { "fail" }
   $Detail = if ($ExitCode -eq 0) { "exit 0" } else { "exit $ExitCode" }
   Add-QaCheck $Name $Status $Detail $ExitCode $Stdout $Stderr
   return $ExitCode
+}
+
+function Invoke-QaCommand {
+  param(
+    [string]$Name,
+    [string[]]$Arguments,
+    [switch]$AllowFailure
+  )
+  return Invoke-QaExecutable -Name $Name -Executable $CliPath -Arguments $Arguments -AllowFailure:$AllowFailure
 }
 
 function Add-ManualCheck {
@@ -129,6 +142,11 @@ if (-not (Test-Path $CliPath)) {
 Add-QaCheck "cli exists" "pass" $CliPath
 
 Invoke-QaCommand "cli version" @("--version") | Out-Null
+if ((Test-Path $PackageCli) -and (Test-Path (Join-Path $PackageDir "release-manifest.json"))) {
+  Invoke-QaExecutable "release package manifest" $PackageCli @("verify-package", "--package-dir", $PackageDir) | Out-Null
+} else {
+  Add-QaCheck "release package manifest" "fail" "missing release package manifest or package CLI near $ScriptDir"
+}
 
 $VerifyArgs = @("verify-install")
 if ($AllowMissingModels) {

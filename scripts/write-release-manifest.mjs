@@ -90,7 +90,7 @@ function verificationCommands(targetPlatform) {
       verifyCodex: "~/.codex/codex-speak/bin/codex-speak verify-codex",
       manualQa: "./scripts/manual-qa-macos.sh --allow-missing-models",
       checkQaReport: "node scripts/check-manual-qa-report.mjs <qa-output-dir>",
-      verifyManifest: "node scripts/check-release-manifest.mjs ."
+      verifyManifest: "./bin/codex-speak verify-package --package-dir ."
     };
   }
   if (targetPlatform === "windows") {
@@ -100,7 +100,7 @@ function verificationCommands(targetPlatform) {
       verifyCodex: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-codex",
       manualQa: ".\\scripts\\manual-qa-windows.ps1 -AllowMissingModels",
       checkQaReport: "node .\\scripts\\check-manual-qa-report.mjs <qa-output-dir>",
-      verifyManifest: "node .\\scripts\\check-release-manifest.mjs ."
+      verifyManifest: ".\\bin\\codex-speak.exe verify-package --package-dir ."
     };
   }
   fail(`Unsupported platform: ${targetPlatform}`);

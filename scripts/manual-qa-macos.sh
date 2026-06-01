@@ -7,6 +7,9 @@ ALLOW_MISSING_MODELS=0
 NON_INTERACTIVE=0
 SKIP_APP_OPEN=0
 SKIP_SPEAK=0
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACKAGE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PACKAGE_CLI="$PACKAGE_DIR/bin/codex-speak"
 
 usage() {
   cat <<'USAGE'
@@ -119,10 +122,11 @@ safe_name() {
   printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' '-'
 }
 
-invoke_qa_command() {
+invoke_qa_executable() {
   local name="$1"
   local allow_failure="$2"
-  shift 2
+  local executable="$3"
+  shift 3
 
   local safe
   safe="$(safe_name "$name")"
@@ -130,7 +134,7 @@ invoke_qa_command() {
   local stderr="$OUTPUT_DIR/$safe.stderr.txt"
 
   set +e
-  "$CLI_PATH" "$@" >"$stdout" 2>"$stderr"
+  "$executable" "$@" >"$stdout" 2>"$stderr"
   local exit_code=$?
   set -e
 
@@ -140,6 +144,13 @@ invoke_qa_command() {
   fi
   add_qa_check "$name" "$status" "exit $exit_code" "$exit_code" "$stdout" "$stderr"
   return 0
+}
+
+invoke_qa_command() {
+  local name="$1"
+  local allow_failure="$2"
+  shift 2
+  invoke_qa_executable "$name" "$allow_failure" "$CLI_PATH" "$@"
 }
 
 add_manual_check() {
@@ -215,6 +226,11 @@ fi
 add_qa_check "cli exists" "pass" "$CLI_PATH"
 
 invoke_qa_command "cli version" 0 --version >/dev/null
+if [ -f "$PACKAGE_DIR/release-manifest.json" ] && [ -x "$PACKAGE_CLI" ]; then
+  invoke_qa_executable "release package manifest" 0 "$PACKAGE_CLI" verify-package --package-dir "$PACKAGE_DIR" >/dev/null
+else
+  add_qa_check "release package manifest" "fail" "missing release package manifest or package CLI near $SCRIPT_DIR"
+fi
 
 verify_args=(verify-install)
 if [ "$ALLOW_MISSING_MODELS" -eq 1 ]; then
