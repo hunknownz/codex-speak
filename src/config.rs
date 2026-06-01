@@ -97,6 +97,10 @@ pub fn config_path() -> Result<PathBuf> {
     Ok(app_home()?.join("config.toml"))
 }
 
+pub fn release_manifest_path() -> Result<PathBuf> {
+    Ok(app_home()?.join("release-manifest.json"))
+}
+
 pub fn logs_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("logs"))
 }

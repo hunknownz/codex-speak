@@ -21,10 +21,11 @@ pub fn write_bundle(output: Option<&Path>) -> Result<PathBuf> {
         &dir.join("README.txt"),
         "Codex Speak support bundle\n\
          Review these files before sharing them. They may include local paths and recent speech logs.\n\
-         Useful files: doctor.json, status.json, models.json, environment.json, and logs/*.log.\n",
+         Useful files: doctor.json, status.json, models.json, environment.json, release-manifest.json, and logs/*.log.\n",
     )?;
     write_json(&dir.join("doctor.json"), &doctor::collect()?)?;
     write_environment(&dir)?;
+    write_release_manifest(&dir)?;
     write_config_and_status(&dir)?;
     write_recent_logs(&dir)?;
 
@@ -36,6 +37,22 @@ fn default_bundle_dir() -> Result<PathBuf> {
     Ok(config::app_home()?
         .join("support")
         .join(format!("codex-speak-support-{ts}")))
+}
+
+fn write_release_manifest(dir: &Path) -> Result<()> {
+    let source = config::release_manifest_path()?;
+    if source.is_file() {
+        let source_display = source.display().to_string();
+        fs::copy(&source, dir.join("release-manifest.json"))
+            .with_context(|| format!("failed to copy release manifest {source_display}"))?;
+    } else {
+        write_text(
+            &dir.join("release-manifest-missing.txt"),
+            "release-manifest.json was not found in the installed Codex Speak directory.\n\
+             This usually means Codex Speak was installed from source or from an older package.\n",
+        )?;
+    }
+    Ok(())
 }
 
 fn write_config_and_status(dir: &Path) -> Result<()> {

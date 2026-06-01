@@ -162,6 +162,8 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
+支持包会包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。
+
 本地开发验证：
 
 ```bash

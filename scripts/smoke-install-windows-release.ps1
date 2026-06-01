@@ -13,11 +13,15 @@ Expand-Archive -Force -Path $Archive -DestinationPath $Smoke
 
 $InstalledCli = Join-Path $env:USERPROFILE ".codex\codex-speak\bin\codex-speak.exe"
 $InstalledApp = Join-Path $env:USERPROFILE ".codex\codex-speak\apps\codex-speak-control.exe"
+$InstalledManifest = Join-Path $env:USERPROFILE ".codex\codex-speak\release-manifest.json"
 if (-not (Test-Path $InstalledCli)) {
   throw "Installed CLI missing: $InstalledCli"
 }
 if (-not (Test-Path $InstalledApp)) {
   throw "Installed control app missing: $InstalledApp"
+}
+if (-not (Test-Path $InstalledManifest)) {
+  throw "Installed release manifest missing: $InstalledManifest"
 }
 
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
@@ -28,7 +32,7 @@ $ManualQaCheck = Join-Path $Smoke "codex-speak-windows\scripts\check-manual-qa-r
 node $ManualQaCheck (Join-Path $Smoke "manual-qa") --allow-non-interactive | Out-File -Encoding utf8 -Append (Join-Path $Smoke "manual-qa.txt")
 $SupportDir = Join-Path $Smoke "support"
 & $InstalledCli support-bundle --output $SupportDir | Out-Null
-foreach ($SupportFile in @("doctor.json", "status.json", "models.json")) {
+foreach ($SupportFile in @("doctor.json", "status.json", "models.json", "release-manifest.json")) {
   $Path = Join-Path $SupportDir $SupportFile
   if (-not (Test-Path $Path)) {
     throw "support bundle missing: $Path"

@@ -71,6 +71,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `macos`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
+- 安装后 `~/.codex/codex-speak/release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
 - `~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
@@ -118,6 +119,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `windows`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
+- 安装后 `%USERPROFILE%\.codex\codex-speak\release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor` 能运行。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。

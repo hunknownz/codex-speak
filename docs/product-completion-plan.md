@@ -97,6 +97,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断自动项和人工确认项是否通过。
 - Release 包已包含 `release-manifest.json`，记录版本、git commit、平台、生成时间、关键文件 sha256 和推荐验证命令，方便外部反馈时确认构建来源。
+- 安装器会把 release 包里的 `release-manifest.json` 保留到安装目录，`support-bundle` 会随支持包回传它，避免用户安装后丢失构建来源信息。
 - Release workflow 已增加稳定版签名门禁：`v*-rc*` 仍可无签名验证发布链路，正式 `v*` 且非 `-rc` 标签缺少签名或公证 secrets 时会直接失败。
 
 剩余外部验证：

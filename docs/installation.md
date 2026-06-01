@@ -243,6 +243,8 @@ marketplace 条目使用本地路径：
 
 它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。分享前请先快速看一下内容，因为里面可能包含本机路径和最近朗读记录。
 
+如果用户是从 release 包安装的，支持包还会包含安装时保留下来的 `release-manifest.json`，用于确认版本、git commit、平台和关键文件 sha256。
+
 模型和 TTS runtime 下载会先写入临时文件，再在校验通过后替换目标文件。默认安装涉及的 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型都已经固定 sha256。
 
 ## 发布包
@@ -287,7 +289,7 @@ CI 会做三层检查：
 
 - 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保 release manifest、安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
-- 烟测还会运行 `codex-speak doctor --json` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、支持包能生成，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
+- 烟测还会运行 `codex-speak doctor --json` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 - macOS/Windows 烟测还会用非交互模式运行 release 包里的手工 QA 收集脚本，并用 `check-manual-qa-report.mjs` 校验生成的 `qa-report.json`，确保真机 QA 收集和回传校验脚本本身没有随包损坏。
 
 发布前可以运行 readiness 检查：

@@ -63,6 +63,7 @@ const SHERPA_WINDOWS: DownloadAsset = DownloadAsset {
 pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
     create_dirs()?;
     install_self_binary()?;
+    install_release_manifest()?;
     install_skill()?;
     install_plugin()?;
     install_hook()?;
@@ -152,6 +153,34 @@ fn install_self_binary() -> Result<()> {
     Ok(())
 }
 
+fn install_release_manifest() -> Result<()> {
+    let current = std::env::current_exe()?;
+    let Some(package_root) = current.parent().and_then(Path::parent) else {
+        return Ok(());
+    };
+    let source = package_root.join("release-manifest.json");
+    if !source.is_file() {
+        return Ok(());
+    }
+
+    let target = config::release_manifest_path()?;
+    let source_canonical = source.canonicalize().ok();
+    let target_canonical = target.canonicalize().ok();
+    if source_canonical.is_some() && source_canonical == target_canonical {
+        return Ok(());
+    }
+
+    let temp = target.with_extension(format!("tmp.{}", std::process::id()));
+    fs::copy(&source, &temp).with_context(|| {
+        format!(
+            "failed to copy release manifest {} to {}",
+            source.display(),
+            temp.display()
+        )
+    })?;
+    replace_data_file(&temp, &target)
+}
+
 fn replace_file(source: &Path, target: &Path) -> Result<()> {
     #[cfg(windows)]
     if target.exists() {
@@ -168,6 +197,22 @@ fn replace_file(source: &Path, target: &Path) -> Result<()> {
     })?;
     make_executable(&target)?;
     Ok(())
+}
+
+fn replace_data_file(source: &Path, target: &Path) -> Result<()> {
+    #[cfg(windows)]
+    if target.exists() {
+        fs::remove_file(target)
+            .with_context(|| format!("failed to remove {}", target.display()))?;
+    }
+
+    fs::rename(source, target).with_context(|| {
+        format!(
+            "failed to move {} to {}",
+            source.display(),
+            target.display()
+        )
+    })
 }
 
 fn install_skill() -> Result<()> {
