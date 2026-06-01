@@ -198,6 +198,12 @@ node scripts/check-release-manifest.mjs .
 node scripts/check-release-readiness.mjs
 ```
 
+正式发布前可以把真机 QA 回传目录也纳入门禁：
+
+```bash
+node scripts/check-release-readiness.mjs --tag v0.1.0 --require-signing-env --require-manual-qa --macos-qa-dir /path/to/macos-qa --windows-qa-dir /path/to/windows-qa
+```
+
 ## 文档
 
 - [需求文档](docs/requirements.md)

@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 
 const args = new Set(process.argv.slice(2));
 const tag = valueAfter("--tag");
+const macosQaDir = valueAfter("--macos-qa-dir");
+const windowsQaDir = valueAfter("--windows-qa-dir");
 const allowDirty = args.has("--allow-dirty");
 const offline = args.has("--offline");
 const requireSigningEnv = args.has("--require-signing-env");
+const requireManualQa = args.has("--require-manual-qa");
+const allowNonInteractiveQa = args.has("--allow-non-interactive-qa");
 const help = args.has("--help") || args.has("-h");
 
 const results = [];
@@ -43,6 +48,7 @@ async function main() {
   checkWorkflowRuntime();
   checkStableReleaseSigningPolicy();
   checkSigningEnv();
+  checkManualQaEvidence();
 
   if (!offline && repo) {
     await checkCiRun();
@@ -73,12 +79,18 @@ Options:
   --allow-dirty            Allow local uncommitted changes.
   --offline                Skip GitHub Actions API checks.
   --require-signing-env    Fail if signing environment variables are missing.
+  --require-manual-qa      Fail unless both macOS and Windows QA evidence directories are supplied and pass.
+  --macos-qa-dir <dir>     Validate a macOS manual QA output directory or qa-report.json.
+  --windows-qa-dir <dir>   Validate a Windows manual QA output directory or qa-report.json.
+  --allow-non-interactive-qa
+                           Accept non-interactive QA reports, for CI smoke only.
   --help                   Show this help.
 
 Examples:
   node scripts/check-release-readiness.mjs
   node scripts/check-release-readiness.mjs --tag v0.1.0-rc.1
   node scripts/check-release-readiness.mjs --tag v0.1.0 --require-signing-env
+  node scripts/check-release-readiness.mjs --tag v0.1.0 --require-signing-env --require-manual-qa --macos-qa-dir /path/to/macos-qa --windows-qa-dir /path/to/windows-qa
 `);
 }
 
@@ -194,6 +206,84 @@ function checkSigningEnv() {
   } else {
     warn("signing environment", `not enforced here; missing in current environment: ${missing.join(", ")}`);
   }
+}
+
+function checkManualQaEvidence() {
+  const evidence = [
+    { platform: "macos", label: "macOS manual QA", dir: macosQaDir },
+    { platform: "windows", label: "Windows manual QA", dir: windowsQaDir }
+  ];
+
+  for (const item of evidence) {
+    if (!item.dir) {
+      if (requireManualQa) {
+        fail(item.label, "missing QA evidence directory");
+      } else {
+        warn(item.label, "not supplied; pass QA output with --macos-qa-dir or --windows-qa-dir");
+      }
+      continue;
+    }
+    validateManualQaEvidence(item.platform, item.label, item.dir);
+  }
+}
+
+function validateManualQaEvidence(platform, label, inputPath) {
+  const reportPath = resolveQaReportPath(inputPath);
+  if (!reportPath) {
+    fail(label, `qa-report.json not found at ${inputPath}`);
+    return;
+  }
+
+  const reportDir = path.dirname(reportPath);
+  const checkerArgs = ["scripts/check-manual-qa-report.mjs", reportPath];
+  if (allowNonInteractiveQa) {
+    checkerArgs.push("--allow-non-interactive");
+  }
+  try {
+    execFileSync(process.execPath, checkerArgs, { encoding: "utf8" });
+    ok(label, `${reportPath} passed check-manual-qa-report.mjs`);
+  } catch (error) {
+    const output = `${error.stdout ?? ""}${error.stderr ?? ""}`.trim();
+    fail(label, output || error.message);
+    return;
+  }
+
+  const manifestPath = path.join(reportDir, "support-bundle", "release-manifest.json");
+  if (!existsSync(manifestPath) || !statSync(manifestPath).isFile()) {
+    fail(`${label} release manifest`, "support-bundle/release-manifest.json missing");
+    return;
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    fail(`${label} release manifest`, `could not parse: ${error.message}`);
+    return;
+  }
+
+  check(
+    manifest.platform === platform,
+    `${label} platform`,
+    manifest.platform ?? "missing"
+  );
+  check(
+    manifest.git?.commit === head,
+    `${label} git commit`,
+    manifest.git?.commit ? `${manifest.git.commit.slice(0, 7)} / ${head.slice(0, 7)}` : "missing"
+  );
+}
+
+function resolveQaReportPath(inputPath) {
+  const resolved = path.resolve(inputPath);
+  if (!existsSync(resolved)) {
+    return null;
+  }
+  if (statSync(resolved).isDirectory()) {
+    const nested = path.join(resolved, "qa-report.json");
+    return existsSync(nested) && statSync(nested).isFile() ? nested : null;
+  }
+  return statSync(resolved).isFile() ? resolved : null;
 }
 
 async function checkCiRun() {

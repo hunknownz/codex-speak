@@ -26,6 +26,17 @@ node scripts/check-release-readiness.mjs --tag v0.1.0-rc.1
 node scripts/check-release-readiness.mjs --tag v0.1.0 --require-signing-env
 ```
 
+正式发布前同时要求签名环境和两台真机 QA 回传：
+
+```bash
+node scripts/check-release-readiness.mjs \
+  --tag v0.1.0 \
+  --require-signing-env \
+  --require-manual-qa \
+  --macos-qa-dir /path/to/codex-speak-macos-qa-... \
+  --windows-qa-dir C:\path\to\codex-speak-windows-qa-...
+```
+
 离线或本地开发时只检查文件布局和本地状态：
 
 ```bash
@@ -42,6 +53,7 @@ node scripts/check-release-readiness.mjs --offline --allow-dirty
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 需要正式签名发布时，签名环境变量已经配置。
+- 传入 `--require-manual-qa` 时，macOS 和 Windows 真机 QA 报告必须都存在、通过 `check-manual-qa-report.mjs`，且回传支持包里的 `release-manifest.json` 必须匹配当前 git commit。
 - release 包内包含 `release-manifest.json`，可以追踪版本、git commit、平台和关键文件 sha256。
 - release 包内包含 `scripts/check-release-manifest.mjs`，解压后可以校验 manifest 和关键文件 sha256。
 
