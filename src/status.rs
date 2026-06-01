@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde::Serialize;
 
+use crate::bundled;
 use crate::config::{self, Config};
 use crate::model_catalog;
 use crate::pet_state::PetState;
@@ -53,10 +54,17 @@ pub struct StatusChecks {
     pub model_exists: bool,
     pub sherpa_exists: bool,
     pub notify_configured: bool,
+    pub notify_hook_current: bool,
+    pub codex_skill_installed: bool,
+    pub codex_skill_current: bool,
     pub plugin_installed: bool,
+    pub plugin_current: bool,
     pub plugin_skill_installed: bool,
+    pub plugin_skill_current: bool,
     pub plugin_mcp_config_installed: bool,
+    pub plugin_mcp_config_current: bool,
     pub plugin_mcp_script_installed: bool,
+    pub plugin_mcp_script_current: bool,
     pub marketplace_configured: bool,
     pub player_available: bool,
 }
@@ -86,6 +94,12 @@ pub fn collect(cfg: &Config) -> Result<Status> {
     let marketplace_path = config::personal_marketplace_path()?;
     let codex_config = config::codex_home()?.join("config.toml");
     let codex_config_raw = fs::read_to_string(codex_config).unwrap_or_default();
+    let notify_hook_path = hook_path()?;
+    let codex_skill_path = config::codex_home()?.join("skills/codex-speak/SKILL.md");
+    let plugin_manifest_path = plugin_path.join(".codex-plugin/plugin.json");
+    let plugin_skill_path = plugin_path.join("skills/codex-speak/SKILL.md");
+    let plugin_mcp_config_path = plugin_path.join(".mcp.json");
+    let plugin_mcp_script_path = plugin_path.join(mcp_script_path());
     let last_spoken = fs::read_to_string(config::logs_dir()?.join("last-spoken.txt"))
         .ok()
         .map(|text| preview(&text));
@@ -123,10 +137,20 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             model_exists: model_path.is_file(),
             sherpa_exists: sherpa_path.is_file(),
             notify_configured: codex_config_raw.contains("codex-speak-notify"),
-            plugin_installed: plugin_path.join(".codex-plugin/plugin.json").is_file(),
-            plugin_skill_installed: plugin_path.join("skills/codex-speak/SKILL.md").is_file(),
-            plugin_mcp_config_installed: plugin_path.join(".mcp.json").is_file(),
-            plugin_mcp_script_installed: plugin_path.join(mcp_script_path()).is_file(),
+            notify_hook_current: file_matches(&notify_hook_path, &bundled::hook_content(&cli_path)),
+            codex_skill_installed: codex_skill_path.is_file(),
+            codex_skill_current: file_matches(&codex_skill_path, bundled::CODEX_SKILL),
+            plugin_installed: plugin_manifest_path.is_file(),
+            plugin_current: file_matches(&plugin_manifest_path, bundled::PLUGIN_MANIFEST),
+            plugin_skill_installed: plugin_skill_path.is_file(),
+            plugin_skill_current: file_matches(&plugin_skill_path, bundled::PLUGIN_SKILL),
+            plugin_mcp_config_installed: plugin_mcp_config_path.is_file(),
+            plugin_mcp_config_current: file_matches(
+                &plugin_mcp_config_path,
+                bundled::PLUGIN_MCP_CONFIG,
+            ),
+            plugin_mcp_script_installed: plugin_mcp_script_path.is_file(),
+            plugin_mcp_script_current: file_matches(&plugin_mcp_script_path, expected_mcp_script()),
             marketplace_configured: marketplace_has_plugin(&marketplace_path),
             player_available: crate::doctor::player_available(),
         },
@@ -262,12 +286,33 @@ fn binary_name() -> &'static str {
     }
 }
 
+fn hook_path() -> Result<PathBuf> {
+    let name = if cfg!(windows) {
+        "codex-speak-notify.ps1"
+    } else {
+        "codex-speak-notify"
+    };
+    Ok(config::codex_home()?.join("hooks").join(name))
+}
+
 fn mcp_script_path() -> &'static str {
     if cfg!(windows) {
         "scripts/codex-speak-mcp.ps1"
     } else {
         "scripts/codex-speak-mcp"
     }
+}
+
+fn expected_mcp_script() -> &'static str {
+    if cfg!(windows) {
+        bundled::PLUGIN_MCP_SCRIPT_WINDOWS
+    } else {
+        bundled::PLUGIN_MCP_SCRIPT_UNIX
+    }
+}
+
+fn file_matches(path: &Path, expected: &str) -> bool {
+    fs::read_to_string(path).is_ok_and(|actual| actual == expected)
 }
 
 fn preview(text: &str) -> String {

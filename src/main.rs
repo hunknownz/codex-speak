@@ -1,3 +1,4 @@
+mod bundled;
 mod codex_integration;
 mod config;
 mod control_app;

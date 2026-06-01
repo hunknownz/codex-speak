@@ -68,6 +68,8 @@ foreach ($Id in @(
   "cli",
   "control_app",
   "codex_notify",
+  "codex_notify_hook",
+  "codex_skill",
   "plugin",
   "plugin_skill",
   "plugin_mcp_config",

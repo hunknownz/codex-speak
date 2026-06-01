@@ -87,7 +87,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 
 播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮和 MCP `stop` 工具会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
 
-控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型和最近日志的本地排障目录。
+控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性，以及 Skill、Hook wrapper、Plugin 和 MCP 脚本是否与当前 CLI 内置版本一致；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型和最近日志的本地排障目录。
 
 ## 桌面 Pet
 

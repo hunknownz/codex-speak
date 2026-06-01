@@ -153,6 +153,8 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
+`doctor` 会检查 Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本是否与当前 CLI 内置版本一致。看到这些项提示“需刷新”或 `differs from current CLI bundle` 时，重新运行 `codex-speak install` 即可同步本地集成文件。
+
 如果是刚装完、想快速确认安装链路是否可交付，可以运行：
 
 ```bash

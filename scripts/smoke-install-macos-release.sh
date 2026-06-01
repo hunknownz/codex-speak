@@ -52,6 +52,8 @@ for (const id of [
   "control_app",
   "pet_helper",
   "codex_notify",
+  "codex_notify_hook",
+  "codex_skill",
   "plugin",
   "plugin_skill",
   "plugin_mcp_config",

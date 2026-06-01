@@ -204,7 +204,7 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
-当某项检查失败或警告时，`doctor` 会在文本输出和 JSON 输出里给出 `hint`，告诉用户下一步应该重新安装、安装模型、刷新插件，还是检查系统播放器。
+当某项检查失败或警告时，`doctor` 会在文本输出和 JSON 输出里给出 `hint`，告诉用户下一步应该重新安装、安装模型、刷新插件，还是检查系统播放器。它不只检查文件是否存在，也会检查 Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本是否与当前 CLI 内置版本一致；如果用户更新了 CLI 但插件还是旧文件，会提示重新运行 `codex-speak install` 刷新。
 
 `doctor --json` 和 `status` 都会包含版本、系统和 CPU 架构信息，方便远程排障时确认用户正在运行哪个构建。
 
@@ -241,8 +241,8 @@ marketplace 条目使用本地路径：
 - CLI 已安装。
 - 控制面板 App 已安装，或显示为 WARN。
 - macOS 原生 Pet helper 已安装；Windows 当前会跳过这项原生 helper 检查。
-- Hook 已配置。
-- Plugin manifest、Skill、MCP 配置和当前平台 MCP 脚本都已安装。
+- Hook 已配置，并且 Hook wrapper 与当前 CLI 一致。
+- Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本都已安装且与当前 CLI 一致。
 - Plugin marketplace 已配置。
 - Sherpa-ONNX 和默认中文模型可用。
 - 本机播放器可用。Windows 会检查 `powershell.exe`，因为系统语音和 wav 播放都走 PowerShell/.NET 播放链路。

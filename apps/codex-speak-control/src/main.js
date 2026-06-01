@@ -52,14 +52,21 @@ function renderStatus(status) {
     ? `${provider.role} · ${provider.languages} · ${provider.footprint}`
     : "-";
   controls.modelState.textContent = provider?.installed ? "正常" : (provider?.reason || "缺失");
-  controls.hookState.textContent = status.checks.notify_configured ? "已连接" : "未连接";
+  const hookOk = status.checks.notify_configured && status.checks.notify_hook_current;
+  controls.hookState.textContent = hookOk ? "已连接" : (status.checks.notify_configured ? "需刷新" : "未连接");
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
   controls.controlAppState.textContent = status.checks.control_app_exists ? "已安装" : "未安装";
   const pluginOk = status.checks.plugin_installed
+    && status.checks.plugin_current
     && status.checks.plugin_skill_installed
+    && status.checks.plugin_skill_current
     && status.checks.plugin_mcp_config_installed
-    && status.checks.plugin_mcp_script_installed;
-  controls.pluginState.textContent = pluginOk ? "已安装" : "需修复";
+    && status.checks.plugin_mcp_config_current
+    && status.checks.plugin_mcp_script_installed
+    && status.checks.plugin_mcp_script_current
+    && status.checks.codex_skill_installed
+    && status.checks.codex_skill_current;
+  controls.pluginState.textContent = pluginOk ? "已安装" : "需刷新";
   controls.marketplaceState.textContent = status.checks.marketplace_configured ? "已连接" : "缺失";
   controls.petState.textContent = petStateLabel(status.pet_state?.state, status.checks);
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
@@ -67,7 +74,7 @@ function renderStatus(status) {
   const ok = status.checks.config_exists
     && status.checks.cli_exists
     && Boolean(provider?.installed)
-    && status.checks.notify_configured
+    && hookOk
     && status.checks.player_available
     && status.checks.control_app_exists
     && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists)

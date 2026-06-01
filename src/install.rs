@@ -10,6 +10,7 @@ use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
+use crate::bundled;
 use crate::config::{self, Config};
 
 const PLUGIN_NAME: &str = "codex-speak";
@@ -218,10 +219,7 @@ fn replace_data_file(source: &Path, target: &Path) -> Result<()> {
 fn install_skill() -> Result<()> {
     let dir = config::codex_home()?.join("skills/codex-speak");
     fs::create_dir_all(&dir)?;
-    fs::write(
-        dir.join("SKILL.md"),
-        include_str!("../skills/codex-speak/SKILL.md"),
-    )?;
+    fs::write(dir.join("SKILL.md"), bundled::CODEX_SKILL)?;
     Ok(())
 }
 
@@ -234,30 +232,21 @@ fn install_plugin() -> Result<()> {
 
     fs::write(
         root.join(".codex-plugin/plugin.json"),
-        include_str!("../plugins/codex-speak/.codex-plugin/plugin.json"),
+        bundled::PLUGIN_MANIFEST,
     )?;
-    fs::write(
-        root.join(".mcp.json"),
-        include_str!("../plugins/codex-speak/.mcp.json"),
-    )?;
-    fs::write(
-        root.join("README.md"),
-        include_str!("../plugins/codex-speak/README.md"),
-    )?;
+    fs::write(root.join(".mcp.json"), bundled::PLUGIN_MCP_CONFIG)?;
+    fs::write(root.join("README.md"), bundled::PLUGIN_README)?;
     fs::write(
         root.join("skills/codex-speak/SKILL.md"),
-        include_str!("../plugins/codex-speak/skills/codex-speak/SKILL.md"),
+        bundled::PLUGIN_SKILL,
     )?;
 
     let script = root.join("scripts/codex-speak-mcp");
-    fs::write(
-        &script,
-        include_str!("../plugins/codex-speak/scripts/codex-speak-mcp"),
-    )?;
+    fs::write(&script, bundled::PLUGIN_MCP_SCRIPT_UNIX)?;
     make_executable(&script)?;
     fs::write(
         root.join("scripts/codex-speak-mcp.ps1"),
-        include_str!("../plugins/codex-speak/scripts/codex-speak-mcp.ps1"),
+        bundled::PLUGIN_MCP_SCRIPT_WINDOWS,
     )?;
 
     upsert_personal_marketplace_entry()
@@ -271,25 +260,7 @@ fn uninstall_plugin() -> Result<()> {
 fn install_hook() -> Result<()> {
     let hook_path = hook_path()?;
     let cli_path = config::bin_dir()?.join(binary_name());
-    let content = if cfg!(windows) {
-        format!(
-            r#"$ErrorActionPreference = "SilentlyContinue"
-& "{}" speak *> $null
-exit 0
-"#,
-            cli_path.display()
-        )
-    } else {
-        format!(
-            r#"#!/usr/bin/env bash
-set -u
-"{}" speak >/dev/null 2>&1 || true
-exit 0
-"#,
-            cli_path.display()
-        )
-    };
-    fs::write(&hook_path, content)?;
+    fs::write(&hook_path, bundled::hook_content(&cli_path))?;
     make_executable(&hook_path)?;
     Ok(())
 }

@@ -1,12 +1,12 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::Result;
 use chrono::Local;
 use serde::Serialize;
 
-use crate::config;
+use crate::{bundled, config};
 
 const MODEL_CHECK_IDS: &[&str] = &["sherpa_tts", "melo_model", "melo_lexicon", "melo_tokens"];
 
@@ -137,28 +137,46 @@ pub fn collect() -> Result<DoctorReport> {
         &mut checks,
     );
     check_notify(&mut checks)?;
-    check_file(
+    check_file_matches(
+        "codex_notify_hook",
+        "Codex notify hook",
+        &hook_path()?,
+        &bundled::hook_content(&config::bin_dir()?.join(binary_name())),
+        &mut checks,
+    );
+    check_file_matches(
+        "codex_skill",
+        "Codex Speak skill",
+        &config::codex_home()?.join("skills/codex-speak/SKILL.md"),
+        bundled::CODEX_SKILL,
+        &mut checks,
+    );
+    check_file_matches(
         "plugin",
         "Codex Speak plugin",
         &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
+        bundled::PLUGIN_MANIFEST,
         &mut checks,
     );
-    check_file(
+    check_file_matches(
         "plugin_skill",
         "Codex Speak plugin skill",
         &config::installed_plugin_dir()?.join("skills/codex-speak/SKILL.md"),
+        bundled::PLUGIN_SKILL,
         &mut checks,
     );
-    check_file(
+    check_file_matches(
         "plugin_mcp_config",
         "Codex Speak MCP config",
         &config::installed_plugin_dir()?.join(".mcp.json"),
+        bundled::PLUGIN_MCP_CONFIG,
         &mut checks,
     );
-    check_file(
+    check_file_matches(
         "plugin_mcp_script",
         "Codex Speak MCP script",
         &config::installed_plugin_dir()?.join(mcp_script_path()),
+        expected_mcp_script(),
         &mut checks,
     );
     check_marketplace(&mut checks)?;
@@ -318,6 +336,12 @@ fn hint_for(id: &str) -> Option<&'static str> {
         "codex_notify" => Some(
             "Run `codex-speak install` so the Codex notify hook points at codex-speak-notify.",
         ),
+        "codex_notify_hook" => Some(
+            "Run `codex-speak install` so the notify hook wrapper matches the current CLI.",
+        ),
+        "codex_skill" => Some(
+            "Run `codex-speak install` to refresh the Codex Speak skill.",
+        ),
         "plugin" | "plugin_skill" | "plugin_mcp_config" | "plugin_mcp_script" => Some(
             "Run `codex-speak install` to refresh the local Codex Speak plugin files.",
         ),
@@ -366,6 +390,23 @@ fn mcp_script_path() -> &'static str {
     }
 }
 
+fn expected_mcp_script() -> &'static str {
+    if cfg!(windows) {
+        bundled::PLUGIN_MCP_SCRIPT_WINDOWS
+    } else {
+        bundled::PLUGIN_MCP_SCRIPT_UNIX
+    }
+}
+
+fn hook_path() -> Result<PathBuf> {
+    let name = if cfg!(windows) {
+        "codex-speak-notify.ps1"
+    } else {
+        "codex-speak-notify"
+    };
+    Ok(config::codex_home()?.join("hooks").join(name))
+}
+
 fn check_dir(id: &'static str, label: &'static str, path: &Path, checks: &mut Vec<DoctorCheck>) {
     if path.is_dir() {
         checks.push(DoctorCheck::ok(id, label, path.display().to_string()));
@@ -404,6 +445,34 @@ fn check_file(id: &'static str, label: &'static str, path: &Path, checks: &mut V
             label,
             format!("missing {}", path.display()),
         ));
+    }
+}
+
+fn check_file_matches(
+    id: &'static str,
+    label: &'static str,
+    path: &Path,
+    expected: &str,
+    checks: &mut Vec<DoctorCheck>,
+) {
+    match fs::read_to_string(path) {
+        Ok(actual) if actual == expected => {
+            checks.push(DoctorCheck::ok(id, label, path.display().to_string()));
+        }
+        Ok(_) => {
+            checks.push(DoctorCheck::fail(
+                id,
+                label,
+                format!("{} differs from current CLI bundle", path.display()),
+            ));
+        }
+        Err(_) => {
+            checks.push(DoctorCheck::fail(
+                id,
+                label,
+                format!("missing {}", path.display()),
+            ));
+        }
     }
 }
 
@@ -511,6 +580,14 @@ mod tests {
     #[test]
     fn failed_checks_include_actionable_hint() {
         let check = DoctorCheck::fail("plugin_mcp_script", "Codex Speak MCP script", "missing");
+        assert!(check.hint.is_some());
+    }
+
+    #[test]
+    fn stale_integration_checks_include_actionable_hint() {
+        let check = DoctorCheck::fail("codex_skill", "Codex Speak skill", "stale");
+        assert!(check.hint.is_some());
+        let check = DoctorCheck::fail("codex_notify_hook", "Codex notify hook", "stale");
         assert!(check.hint.is_some());
     }
 
