@@ -73,7 +73,7 @@ cd codex-speak-macos
 ./scripts/manual-qa-macos.sh --allow-missing-models
 ```
 
-它会自动运行 release 包 manifest 校验、自检、状态、模型列表和支持包收集，并在控制面板、桌面 Pet、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
+它会自动运行 release 包 manifest 校验、自检、状态、模型列表、Codex 集成预检、控制项验收和支持包收集，并在控制面板、控制项调节、桌面 Pet、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
 
 收到 QA 输出目录后，可以在源码仓库或 release 包里校验：
 
@@ -91,6 +91,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
 - `~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
 - `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费和普通回复兜底清洗链路可用。
+- `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `~/.codex/codex-speak/bin/codex-speak app open` 能打开控制面板。
 - 控制面板能显示当前 provider、儿童模式、语速、模型状态。
 - 点击试听后能听到系统兜底或已安装模型的声音。
@@ -124,7 +125,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 .\scripts\manual-qa-windows.ps1 -AllowMissingModels
 ```
 
-它会自动运行 release 包 manifest 校验、自检、状态、模型列表和支持包收集，并在控制面板、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 Windows 真机结果发回排障。
+它会自动运行 release 包 manifest 校验、自检、状态、模型列表、Codex 集成预检、控制项验收和支持包收集，并在控制面板、控制项调节、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 Windows 真机结果发回排障。
 
 收到 QA 输出目录后，可以在源码仓库或 release 包里校验：
 
@@ -142,6 +143,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
 - `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费和普通回复兜底清洗链路可用。
+- `codex-speak.exe verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `codex-speak.exe app open` 能打开 Tauri 控制面板。
 - 控制面板能切换儿童模式、语速、声音档位和 provider。
 - `codex-speak.exe speak --text "你好，这是 Windows 朗读测试。"` 能播放。

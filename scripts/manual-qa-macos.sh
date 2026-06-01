@@ -249,6 +249,7 @@ fi
 invoke_qa_command "status" 0 status >/dev/null
 invoke_qa_command "models list" 0 models list >/dev/null
 invoke_qa_command "verify codex integration" 0 verify-codex >/dev/null
+invoke_qa_command "verify controls" 0 verify-controls >/dev/null
 
 support_dir="$OUTPUT_DIR/support-bundle"
 invoke_qa_command "support bundle" 0 support-bundle --output "$support_dir" >/dev/null
@@ -273,6 +274,7 @@ invoke_qa_command "app path" 0 app path >/dev/null
 if [ "$SKIP_APP_OPEN" -ne 1 ] && [ "$NON_INTERACTIVE" -ne 1 ]; then
   invoke_qa_command "app open" 0 app open >/dev/null
   add_manual_check "control app visible" "Did the Codex Speak control panel open?"
+  add_manual_check "control settings adjustable" "Can you toggle child mode and change speed, voice profile, and TTS provider in the control panel?"
   add_manual_check "desktop pet transparent" "Is the desktop pet visible without a white or beige background block?"
 fi
 

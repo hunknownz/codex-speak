@@ -49,6 +49,7 @@ struct VerificationCommands {
     install: String,
     verify_install: String,
     verify_codex: String,
+    verify_controls: String,
     manual_qa: String,
     check_qa_report: String,
     verify_manifest: String,
@@ -160,6 +161,10 @@ fn validate_manifest_fields(
         (
             "verification.verifyCodex",
             &manifest.verification.verify_codex,
+        ),
+        (
+            "verification.verifyControls",
+            &manifest.verification.verify_controls,
         ),
         ("verification.manualQa", &manifest.verification.manual_qa),
         (

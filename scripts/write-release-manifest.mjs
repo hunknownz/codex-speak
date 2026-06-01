@@ -88,6 +88,7 @@ function verificationCommands(targetPlatform) {
       install: "./installers/install-macos.sh --skip-tts-download",
       verifyInstall: "~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models",
       verifyCodex: "~/.codex/codex-speak/bin/codex-speak verify-codex",
+      verifyControls: "~/.codex/codex-speak/bin/codex-speak verify-controls",
       manualQa: "./scripts/manual-qa-macos.sh --allow-missing-models",
       checkQaReport: "node scripts/check-manual-qa-report.mjs <qa-output-dir>",
       verifyManifest: "./bin/codex-speak verify-package --package-dir ."
@@ -98,6 +99,7 @@ function verificationCommands(targetPlatform) {
       install: ".\\installers\\install-windows.ps1 -SkipTtsDownload",
       verifyInstall: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-install --allow-missing-models",
       verifyCodex: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-codex",
+      verifyControls: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-controls",
       manualQa: ".\\scripts\\manual-qa-windows.ps1 -AllowMissingModels",
       checkQaReport: "node .\\scripts\\check-manual-qa-report.mjs <qa-output-dir>",
       verifyManifest: ".\\bin\\codex-speak.exe verify-package --package-dir ."

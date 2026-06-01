@@ -17,6 +17,7 @@ const requiredAutoChecks = [
   "status",
   "models list",
   "verify codex integration",
+  "verify controls",
   "support bundle",
   "support doctor.json",
   "support status.json",
@@ -25,7 +26,12 @@ const requiredAutoChecks = [
   "app path"
 ];
 
-const commonManualChecks = ["control app visible", "speech audible", "speech stopped"];
+const commonManualChecks = [
+  "control app visible",
+  "control settings adjustable",
+  "speech audible",
+  "speech stopped"
+];
 
 if (help || !reportArg) {
   printUsage();

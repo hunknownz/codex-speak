@@ -78,7 +78,7 @@ function checkFileEntry(file) {
 
 function checkVerificationCommands(manifest) {
   const commands = manifest.verification ?? {};
-  for (const key of ["install", "verifyInstall", "verifyCodex", "manualQa", "checkQaReport", "verifyManifest"]) {
+  for (const key of ["install", "verifyInstall", "verifyCodex", "verifyControls", "manualQa", "checkQaReport", "verifyManifest"]) {
     check(typeof commands[key] === "string" && commands[key].length > 0, `verification.${key}`, commands[key] ?? "missing");
   }
 }

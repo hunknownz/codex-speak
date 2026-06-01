@@ -106,7 +106,7 @@ function checkReleaseManifest(expectedPlatform) {
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
     fail("release-manifest.json files list is missing");
   }
-  for (const key of ["install", "verifyInstall", "verifyCodex", "manualQa", "checkQaReport", "verifyManifest"]) {
+  for (const key of ["install", "verifyInstall", "verifyCodex", "verifyControls", "manualQa", "checkQaReport", "verifyManifest"]) {
     if (typeof manifest.verification?.[key] !== "string" || manifest.verification[key].length === 0) {
       fail(`release-manifest.json verification.${key} is missing`);
     }

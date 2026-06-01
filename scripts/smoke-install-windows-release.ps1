@@ -30,6 +30,7 @@ if (-not (Test-Path $InstalledManifest)) {
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
 & $InstalledCli verify-install --allow-missing-models | Out-File -Encoding utf8 (Join-Path $Smoke "verify-install.txt")
 & $InstalledCli verify-codex | Out-File -Encoding utf8 (Join-Path $Smoke "verify-codex.txt")
+& $InstalledCli verify-controls | Out-File -Encoding utf8 (Join-Path $Smoke "verify-controls.txt")
 $ManualQaScript = Join-Path $PackageRoot "scripts\manual-qa-windows.ps1"
 & $ManualQaScript -CliPath $InstalledCli -OutputDir (Join-Path $Smoke "manual-qa") -AllowMissingModels -NonInteractive | Out-File -Encoding utf8 (Join-Path $Smoke "manual-qa.txt")
 $ManualQaCheck = Join-Path $PackageRoot "scripts\check-manual-qa-report.mjs"

@@ -166,6 +166,7 @@ try {
 Invoke-QaCommand "status" @("status") | Out-Null
 Invoke-QaCommand "models list" @("models", "list") | Out-Null
 Invoke-QaCommand "verify codex integration" @("verify-codex") | Out-Null
+Invoke-QaCommand "verify controls" @("verify-controls") | Out-Null
 
 $SupportDir = Join-Path $OutputDir "support-bundle"
 Invoke-QaCommand "support bundle" @("support-bundle", "--output", $SupportDir) | Out-Null
@@ -192,6 +193,7 @@ Invoke-QaCommand "app path" @("app", "path") | Out-Null
 if (-not $SkipAppOpen -and -not $NonInteractive) {
   Invoke-QaCommand "app open" @("app", "open") | Out-Null
   Add-ManualCheck "control app visible" "Did the Codex Speak control panel open?"
+  Add-ManualCheck "control settings adjustable" "Can you toggle child mode and change speed, voice profile, and TTS provider in the control panel?"
 }
 
 if (-not $SkipSpeak -and -not $NonInteractive) {

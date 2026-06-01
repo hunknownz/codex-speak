@@ -22,6 +22,7 @@ test -f "$HOME/.codex/codex-speak/release-manifest.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" models list >"$SMOKE_DIR/models.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" verify-install --allow-missing-models >"$SMOKE_DIR/verify-install.txt"
 "$HOME/.codex/codex-speak/bin/codex-speak" verify-codex >"$SMOKE_DIR/verify-codex.txt"
+"$HOME/.codex/codex-speak/bin/codex-speak" verify-controls >"$SMOKE_DIR/verify-controls.txt"
 "$SMOKE_DIR/codex-speak-macos/scripts/manual-qa-macos.sh" \
   --cli-path "$HOME/.codex/codex-speak/bin/codex-speak" \
   --output-dir "$SMOKE_DIR/manual-qa" \

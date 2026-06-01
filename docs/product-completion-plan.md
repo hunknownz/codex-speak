@@ -95,6 +95,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
 - `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费和普通回复兜底清洗链路。
+- `verify-controls` 已补齐为控制项验收命令；release smoke 和手工 QA 收集脚本会验证自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能写入、重新读取，并恢复原配置。
 - macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断 release 包 manifest、自检、支持包和人工确认项是否通过。

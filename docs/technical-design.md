@@ -274,6 +274,10 @@ codex-speak
   speak
   stop
   doctor
+  verify-install
+  verify-codex
+  verify-controls
+  verify-package
   status
   mcp
   config get

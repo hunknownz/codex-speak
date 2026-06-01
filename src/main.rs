@@ -1,6 +1,7 @@
 mod codex_integration;
 mod config;
 mod control_app;
+mod controls;
 mod doctor;
 mod extract;
 mod install;
@@ -62,6 +63,11 @@ enum Command {
     },
     /// Verify Skill/MCP side-channel and hook consumption behavior without playing audio.
     VerifyCodex {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Verify settings controls can be changed, observed, and restored.
+    VerifyControls {
         #[arg(long)]
         json: bool,
     },
@@ -178,6 +184,7 @@ fn main() -> Result<()> {
             allow_missing_models,
         } => doctor::verify_install(allow_missing_models)?,
         Command::VerifyCodex { json } => codex_integration::run(json)?,
+        Command::VerifyControls { json } => controls::run(json)?,
         Command::VerifyPackage { package_dir, json } => {
             release_manifest::run(package_dir.as_deref(), json)?
         }

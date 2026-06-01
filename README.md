@@ -99,6 +99,7 @@ codex-speak doctor
 codex-speak doctor --json
 codex-speak verify-install --allow-missing-models
 codex-speak verify-codex
+codex-speak verify-controls
 codex-speak verify-package --package-dir .
 codex-speak status
 codex-speak support-bundle
@@ -165,6 +166,14 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ```
 
 它会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查普通回复兜底清洗时不会逐字朗读代码、命令和长路径。
+
+验证控制项能安全切换并恢复：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-controls
+```
+
+它会临时切换自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎，确认配置能保存、重新读取，并且 `status` 会反映这些变化；结束时会恢复原始配置。
 
 也可以生成一个本地支持包：
 
