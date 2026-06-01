@@ -82,6 +82,8 @@ enum Command {
     Install {
         #[arg(long)]
         skip_tts_download: bool,
+        #[arg(long)]
+        no_summary: bool,
     },
     /// Uninstall Codex Speak and restore previous notify when available.
     Uninstall {
@@ -217,7 +219,10 @@ fn main() -> Result<()> {
             }
         },
         Command::Mcp => mcp::run()?,
-        Command::Install { skip_tts_download } => install::install(skip_tts_download)?,
+        Command::Install {
+            skip_tts_download,
+            no_summary,
+        } => install::install(skip_tts_download, no_summary)?,
         Command::Uninstall { remove_models } => install::uninstall(remove_models)?,
     }
 

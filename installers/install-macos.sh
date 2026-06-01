@@ -7,6 +7,7 @@ PET_HELPER_SOURCE="$ROOT_DIR/apps/codex-speak-pet-macos/CodexSpeakPet.swift"
 PET_HELPER_TARGET="$HOME/.codex/codex-speak/bin/codex-speak-pet-macos"
 PET_ASSETS_TARGET="$HOME/.codex/codex-speak/assets/pet"
 SKIP_CONTROL_APP=0
+SKIP_TTS_DOWNLOAD=0
 CODEX_SPEAK_ARGS=()
 
 for arg in "$@"; do
@@ -14,11 +15,43 @@ for arg in "$@"; do
     --skip-control-app)
       SKIP_CONTROL_APP=1
       ;;
+    --skip-tts-download)
+      SKIP_TTS_DOWNLOAD=1
+      CODEX_SPEAK_ARGS+=("$arg")
+      ;;
     *)
       CODEX_SPEAK_ARGS+=("$arg")
       ;;
   esac
 done
+
+print_next_steps() {
+  local cli="$HOME/.codex/codex-speak/bin/codex-speak"
+  local include_control_app=0
+  if [ "$SKIP_CONTROL_APP" -eq 0 ] && [ -e "$APP_TARGET" ]; then
+    include_control_app=1
+  fi
+  echo
+  echo "Next steps:"
+  echo "  1. Run self-check:"
+  echo "     $cli doctor"
+  if [ "$include_control_app" -eq 1 ]; then
+    echo "  2. Open the control app:"
+    echo "     $cli app open"
+    echo "  3. If you need help, create a support bundle:"
+  else
+    echo "  2. If you need help, create a support bundle:"
+  fi
+  echo "     $cli support-bundle"
+  if [ "$SKIP_TTS_DOWNLOAD" -eq 1 ]; then
+    if [ "$include_control_app" -eq 1 ]; then
+      echo "  4. Install the default local Chinese voice model when ready:"
+    else
+      echo "  3. Install the default local Chinese voice model when ready:"
+    fi
+    echo "     $cli models install --provider sherpa_melo"
+  fi
+}
 
 copy_app() {
   local source="$1"
@@ -60,10 +93,11 @@ else
   exit 1
 fi
 
-"$CLI_SOURCE" install "${CODEX_SPEAK_ARGS[@]}"
+"$CLI_SOURCE" install --no-summary "${CODEX_SPEAK_ARGS[@]}"
 
 if [ "$SKIP_CONTROL_APP" -eq 1 ]; then
   echo "Skipping Codex Speak control app and native pet helper install."
+  print_next_steps
   exit 0
 fi
 
@@ -88,12 +122,14 @@ fi
 
 if [ -d "$ROOT_DIR/apps/Codex Speak.app" ]; then
   copy_app "$ROOT_DIR/apps/Codex Speak.app"
+  print_next_steps
   exit 0
 fi
 
 APP_SOURCE="$ROOT_DIR/apps/codex-speak-control/src-tauri/target/release/bundle/macos/Codex Speak.app"
 if [ -d "$APP_SOURCE" ]; then
   copy_app "$APP_SOURCE"
+  print_next_steps
   exit 0
 fi
 
@@ -111,3 +147,4 @@ if [ -d "$APP_SOURCE" ]; then
 else
   echo "Codex Speak control app was not installed because no prebuilt app or npm build path is available."
 fi
+print_next_steps

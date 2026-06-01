@@ -60,7 +60,7 @@ const SHERPA_WINDOWS: DownloadAsset = DownloadAsset {
     sha256: Some("f91f488186e797dd9e9bc2a3dcbe18ddd244627af5d9fa3707f7a2f3bc4032ce"),
 };
 
-pub fn install(skip_tts_download: bool) -> Result<()> {
+pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
     create_dirs()?;
     install_self_binary()?;
     install_skill()?;
@@ -77,7 +77,9 @@ pub fn install(skip_tts_download: bool) -> Result<()> {
     }
 
     println!("Codex Speak installed at {}", config::app_home()?.display());
-    print_install_summary(skip_tts_download)?;
+    if !no_summary {
+        print_install_summary(skip_tts_download, config::control_app_path()?.exists())?;
+    }
     Ok(())
 }
 
@@ -114,18 +116,23 @@ fn create_dirs() -> Result<()> {
     Ok(())
 }
 
-fn print_install_summary(skip_tts_download: bool) -> Result<()> {
+pub fn print_install_summary(skip_tts_download: bool, include_control_app: bool) -> Result<()> {
     let cli = config::bin_dir()?.join(binary_name());
     println!();
     println!("Next steps:");
     println!("  1. Run self-check:");
     println!("     {} doctor", cli.display());
-    println!("  2. Open the control app:");
-    println!("     {} app open", cli.display());
-    println!("  3. If you need help, create a support bundle:");
+    if include_control_app {
+        println!("  2. Open the control app:");
+        println!("     {} app open", cli.display());
+        println!("  3. If you need help, create a support bundle:");
+    } else {
+        println!("  2. If you need help, create a support bundle:");
+    }
     println!("     {} support-bundle", cli.display());
     if skip_tts_download {
-        println!("  4. Install the default local Chinese voice model when ready:");
+        let step = if include_control_app { 4 } else { 3 };
+        println!("  {step}. Install the default local Chinese voice model when ready:");
         println!(
             "     {} models install --provider sherpa_melo",
             cli.display()

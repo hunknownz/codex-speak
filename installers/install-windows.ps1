@@ -28,6 +28,31 @@ function First-ExistingPath {
   return $null
 }
 
+function Write-NextSteps {
+  $CliPath = Join-Path $env:USERPROFILE ".codex\codex-speak\bin\codex-speak.exe"
+  $IncludeControlApp = (-not $SkipControlApp) -and (Test-Path $AppTarget)
+  Write-Host ""
+  Write-Host "Next steps:"
+  Write-Host "  1. Run self-check:"
+  Write-Host "     $CliPath doctor"
+  if ($IncludeControlApp) {
+    Write-Host "  2. Open the control app:"
+    Write-Host "     $CliPath app open"
+    Write-Host "  3. If you need help, create a support bundle:"
+  } else {
+    Write-Host "  2. If you need help, create a support bundle:"
+  }
+  Write-Host "     $CliPath support-bundle"
+  if ($SkipTtsDownload) {
+    if ($IncludeControlApp) {
+      Write-Host "  4. Install the default local Chinese voice model when ready:"
+    } else {
+      Write-Host "  3. Install the default local Chinese voice model when ready:"
+    }
+    Write-Host "     $CliPath models install --provider sherpa_melo"
+  }
+}
+
 Push-Location $RootDir
 try {
   $Cli = First-ExistingPath -Candidates @(
@@ -52,7 +77,7 @@ try {
     throw "Codex Speak CLI was not found at $Cli"
   }
 
-  $Args = @("install")
+  $Args = @("install", "--no-summary")
   if ($SkipTtsDownload) {
     $Args += "--skip-tts-download"
   }
@@ -64,6 +89,7 @@ try {
 
   if ($SkipControlApp) {
     Write-Host "Skipping Codex Speak control app install."
+    Write-NextSteps
     return
   }
 
@@ -75,6 +101,7 @@ try {
 
   if ($AppSource) {
     Copy-ControlApp $AppSource
+    Write-NextSteps
     return
   }
 
@@ -102,6 +129,7 @@ try {
   } else {
     Write-Host "Codex Speak control app was not installed because no prebuilt app or npm build path is available."
   }
+  Write-NextSteps
 } finally {
   Pop-Location
 }
