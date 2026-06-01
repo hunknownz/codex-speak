@@ -168,6 +168,26 @@ Invoke-QaCommand "models list" @("models", "list") | Out-Null
 Invoke-QaCommand "verify codex integration" @("verify-codex") | Out-Null
 Invoke-QaCommand "verify controls" @("verify-controls") | Out-Null
 
+$MixedText = "我运行 hello world，并检查 MCP、JSON、CLI 和 API。"
+Invoke-QaCommand "mixed english extract" @("extract", "--text", $MixedText) | Out-Null
+$MixedStdout = Join-Path $OutputDir "mixed-english-extract.stdout.txt"
+try {
+  $MixedExtract = Get-Content -Raw -Encoding utf8 $MixedStdout
+} catch {
+  $MixedExtract = ""
+}
+if (
+  $MixedExtract.Contains("插件通道") -and
+  $MixedExtract.Contains("数据格式") -and
+  $MixedExtract.Contains("命令行工具") -and
+  -not $MixedExtract.Contains("MCP") -and
+  -not $MixedExtract.Contains("JSON")
+) {
+  Add-QaCheck "mixed english normalization" "pass" "technical English terms normalized for speech"
+} else {
+  Add-QaCheck "mixed english normalization" "fail" "expected technical English terms to be normalized in $MixedStdout"
+}
+
 $SupportDir = Join-Path $OutputDir "support-bundle"
 Invoke-QaCommand "support bundle" @("support-bundle", "--output", $SupportDir) | Out-Null
 foreach ($File in @("doctor.json", "status.json", "models.json", "support-bundle-metadata.json")) {
@@ -199,6 +219,9 @@ if (-not $SkipAppOpen -and -not $NonInteractive) {
 if (-not $SkipSpeak -and -not $NonInteractive) {
   Invoke-QaCommand "speak sample" @("speak", "--text", "你好，这是CodexSpeak的Windows真机朗读验收。") -AllowFailure | Out-Null
   Add-ManualCheck "speech audible" "Did you hear the test voice clearly?"
+
+  Invoke-QaCommand "speak mixed english sample" @("speak", "--text", $MixedText) -AllowFailure | Out-Null
+  Add-ManualCheck "mixed english speech clear" "Did the mixed Chinese and English sample avoid spelling technical words letter by letter?"
 
   $StopStdout = Join-Path $OutputDir "stop-background-speak.stdout.txt"
   $StopStderr = Join-Path $OutputDir "stop-background-speak.stderr.txt"

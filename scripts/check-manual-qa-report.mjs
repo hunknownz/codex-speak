@@ -18,6 +18,8 @@ const requiredAutoChecks = [
   "models list",
   "verify codex integration",
   "verify controls",
+  "mixed english extract",
+  "mixed english normalization",
   "support bundle",
   "support doctor.json",
   "support status.json",
@@ -31,6 +33,7 @@ const commonManualChecks = [
   "control app visible",
   "control settings adjustable",
   "speech audible",
+  "mixed english speech clear",
   "speech stopped"
 ];
 

@@ -251,6 +251,19 @@ invoke_qa_command "models list" 0 models list >/dev/null
 invoke_qa_command "verify codex integration" 0 verify-codex >/dev/null
 invoke_qa_command "verify controls" 0 verify-controls >/dev/null
 
+mixed_text="我运行 hello world，并检查 MCP、JSON、CLI 和 API。"
+invoke_qa_command "mixed english extract" 0 extract --text "$mixed_text" >/dev/null
+mixed_stdout="$OUTPUT_DIR/mixed-english-extract.stdout.txt"
+if grep -q "插件通道" "$mixed_stdout" \
+  && grep -q "数据格式" "$mixed_stdout" \
+  && grep -q "命令行工具" "$mixed_stdout" \
+  && ! grep -q "MCP" "$mixed_stdout" \
+  && ! grep -q "JSON" "$mixed_stdout"; then
+  add_qa_check "mixed english normalization" "pass" "technical English terms normalized for speech"
+else
+  add_qa_check "mixed english normalization" "fail" "expected technical English terms to be normalized in $mixed_stdout"
+fi
+
 support_dir="$OUTPUT_DIR/support-bundle"
 invoke_qa_command "support bundle" 0 support-bundle --output "$support_dir" >/dev/null
 for file in doctor.json status.json models.json support-bundle-metadata.json; do
@@ -281,6 +294,9 @@ fi
 if [ "$SKIP_SPEAK" -ne 1 ] && [ "$NON_INTERACTIVE" -ne 1 ]; then
   invoke_qa_command "speak sample" 1 speak --text "你好，这是 Codex Speak 的 macOS 真机朗读验收。" >/dev/null || true
   add_manual_check "speech audible" "Did you hear the test voice clearly?"
+
+  invoke_qa_command "speak mixed english sample" 1 speak --text "$mixed_text" >/dev/null || true
+  add_manual_check "mixed english speech clear" "Did the mixed Chinese and English sample avoid spelling technical words letter by letter?"
 
   long_text="这是 Codex Speak 的停止按钮测试。我会读得稍微久一点，方便你确认停止命令有没有打断朗读。"
   "$CLI_PATH" speak --text "$long_text" >"$OUTPUT_DIR/stop-background-speak.stdout.txt" 2>"$OUTPUT_DIR/stop-background-speak.stderr.txt" &
