@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 const args = new Set(process.argv.slice(2));
 const tag = valueAfter("--tag");
@@ -40,6 +40,7 @@ async function main() {
   check(Boolean(repo), "GitHub origin", repo ?? "could not parse origin remote");
 
   checkRequiredFiles();
+  checkWorkflowRuntime();
   checkSigningEnv();
 
   if (!offline && repo) {
@@ -117,6 +118,24 @@ function checkRequiredFiles() {
   for (const file of executableFiles) {
     const executable = existsSync(file) && (statSync(file).mode & 0o111) !== 0;
     check(executable, `executable bit ${file}`, executable ? "set" : "missing");
+  }
+}
+
+function checkWorkflowRuntime() {
+  const workflowFiles = [".github/workflows/ci.yml", ".github/workflows/release.yml"];
+  const deprecatedPatterns = [
+    /actions\/checkout@v4/,
+    /actions\/setup-node@v4/,
+    /node-version:\s*22\b/
+  ];
+  for (const file of workflowFiles) {
+    const content = readFileSync(file, "utf8");
+    const deprecated = deprecatedPatterns.find((pattern) => pattern.test(content));
+    check(
+      !deprecated,
+      `workflow runtime ${file}`,
+      deprecated ? `deprecated pattern ${deprecated.source}` : "Node 24 action runtime"
+    );
   }
 }
 

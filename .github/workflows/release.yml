@@ -22,11 +22,11 @@ jobs:
           - os: windows-2022
             artifact_name: codex-speak-windows
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
       - name: Build CLI
         shell: bash
         run: |
@@ -39,7 +39,7 @@ jobs:
         run: swiftc -O -framework AppKit -framework AVFoundation -o target/release/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift
       - name: Install frontend dependencies
         working-directory: apps/codex-speak-control
-        run: npm install
+        run: npm ci
       - name: Build Tauri app on macOS
         if: runner.os == 'macOS'
         working-directory: apps/codex-speak-control

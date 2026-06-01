@@ -171,7 +171,7 @@ codex-speak models list
 
 ```bash
 cd apps/codex-speak-control
-npm install
+npm ci
 npm run dev
 ```
 
