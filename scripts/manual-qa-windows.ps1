@@ -147,6 +147,7 @@ try {
 
 Invoke-QaCommand "status" @("status") | Out-Null
 Invoke-QaCommand "models list" @("models", "list") | Out-Null
+Invoke-QaCommand "verify codex integration" @("verify-codex") | Out-Null
 
 $SupportDir = Join-Path $OutputDir "support-bundle"
 Invoke-QaCommand "support bundle" @("support-bundle", "--output", $SupportDir) | Out-Null
@@ -157,6 +158,15 @@ foreach ($File in @("doctor.json", "status.json", "models.json")) {
   } else {
     Add-QaCheck "support $File" "fail" "missing $Path"
   }
+}
+$ManifestPath = Join-Path $SupportDir "release-manifest.json"
+$MissingManifestPath = Join-Path $SupportDir "release-manifest-missing.txt"
+if (Test-Path $ManifestPath) {
+  Add-QaCheck "support release manifest" "pass" $ManifestPath
+} elseif (Test-Path $MissingManifestPath) {
+  Add-QaCheck "support release manifest" "pass" $MissingManifestPath
+} else {
+  Add-QaCheck "support release manifest" "fail" "missing release manifest or missing marker"
 }
 
 Invoke-QaCommand "app path" @("app", "path") | Out-Null

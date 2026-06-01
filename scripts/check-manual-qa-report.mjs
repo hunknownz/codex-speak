@@ -15,10 +15,12 @@ const requiredAutoChecks = [
   "doctor json parse",
   "status",
   "models list",
+  "verify codex integration",
   "support bundle",
   "support doctor.json",
   "support status.json",
   "support models.json",
+  "support release manifest",
   "app path"
 ];
 
@@ -69,6 +71,13 @@ for (const file of ["doctor.json", "status.json", "models.json"]) {
   const supportPath = path.join(reportDir, "support-bundle", file);
   check(existsSync(supportPath) && statSync(supportPath).isFile(), `support file ${file}`, existsSync(supportPath) ? "present" : "missing");
 }
+const manifestPath = path.join(reportDir, "support-bundle", "release-manifest.json");
+const missingManifestPath = path.join(reportDir, "support-bundle", "release-manifest-missing.txt");
+check(
+  existsSync(manifestPath) || existsSync(missingManifestPath),
+  "support file release manifest",
+  existsSync(manifestPath) ? "present" : existsSync(missingManifestPath) ? "missing marker present" : "missing"
+);
 
 printResults();
 if (results.some((item) => item.status === "FAIL")) {

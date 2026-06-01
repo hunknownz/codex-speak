@@ -232,6 +232,7 @@ fi
 
 invoke_qa_command "status" 0 status >/dev/null
 invoke_qa_command "models list" 0 models list >/dev/null
+invoke_qa_command "verify codex integration" 0 verify-codex >/dev/null
 
 support_dir="$OUTPUT_DIR/support-bundle"
 invoke_qa_command "support bundle" 0 support-bundle --output "$support_dir" >/dev/null
@@ -243,6 +244,13 @@ for file in doctor.json status.json models.json; do
     add_qa_check "support $file" "fail" "missing $path"
   fi
 done
+if [ -f "$support_dir/release-manifest.json" ]; then
+  add_qa_check "support release manifest" "pass" "$support_dir/release-manifest.json"
+elif [ -f "$support_dir/release-manifest-missing.txt" ]; then
+  add_qa_check "support release manifest" "pass" "$support_dir/release-manifest-missing.txt"
+else
+  add_qa_check "support release manifest" "fail" "missing release manifest or missing marker"
+fi
 
 invoke_qa_command "app path" 0 app path >/dev/null
 

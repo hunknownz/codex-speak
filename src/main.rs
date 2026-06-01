@@ -1,3 +1,4 @@
+mod codex_integration;
 mod config;
 mod control_app;
 mod doctor;
@@ -57,6 +58,11 @@ enum Command {
     VerifyInstall {
         #[arg(long)]
         allow_missing_models: bool,
+    },
+    /// Verify Skill/MCP side-channel and hook consumption behavior without playing audio.
+    VerifyCodex {
+        #[arg(long)]
+        json: bool,
     },
     /// Print machine-readable status for plugins and scripts.
     Status,
@@ -163,6 +169,7 @@ fn main() -> Result<()> {
         Command::VerifyInstall {
             allow_missing_models,
         } => doctor::verify_install(allow_missing_models)?,
+        Command::VerifyCodex { json } => codex_integration::run(json)?,
         Command::Status => {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);

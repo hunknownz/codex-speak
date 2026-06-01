@@ -218,6 +218,14 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
 ```
 
+还可以验证 Codex 集成主路径：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-codex
+```
+
+这个命令不会播放声音，会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查普通回复兜底清洗时不会逐字朗读代码、命令和长路径。
+
 期望看到这些检查通过：
 
 - CLI 已安装。
@@ -289,7 +297,7 @@ CI 会做三层检查：
 
 - 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保 release manifest、安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
-- 烟测还会运行 `codex-speak doctor --json` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
+- 烟测还会运行 `codex-speak doctor --json`、`codex-speak verify-codex` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、Codex 集成主路径可用、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 - macOS/Windows 烟测还会用非交互模式运行 release 包里的手工 QA 收集脚本，并用 `check-manual-qa-report.mjs` 校验生成的 `qa-report.json`，确保真机 QA 收集和回传校验脚本本身没有随包损坏。
 
 发布前可以运行 readiness 检查：

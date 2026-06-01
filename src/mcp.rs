@@ -262,6 +262,19 @@ fn call_tool(request: &Value) -> Result<Value> {
         .unwrap_or_else(|| json!({}));
     let cfg = Config::load_or_default()?;
 
+    let text = call_tool_by_name(name, args, cfg)?;
+
+    Ok(json!({
+        "content": [
+            {
+                "type": "text",
+                "text": text
+            }
+        ]
+    }))
+}
+
+pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<String> {
     let text = match name {
         "codex_speak_status" => serde_json::to_string_pretty(&status::collect(&cfg)?)?,
         "codex_speak_prepare" => {
@@ -394,15 +407,7 @@ fn call_tool(request: &Value) -> Result<Value> {
         }
         other => anyhow::bail!("unknown tool: {other}"),
     };
-
-    Ok(json!({
-        "content": [
-            {
-                "type": "text",
-                "text": text
-            }
-        ]
-    }))
+    Ok(text)
 }
 
 fn parse_items(value: &Value) -> Result<Vec<side_channel::SpeakItem>> {

@@ -98,6 +98,7 @@ codex-speak stop
 codex-speak doctor
 codex-speak doctor --json
 codex-speak verify-install --allow-missing-models
+codex-speak verify-codex
 codex-speak status
 codex-speak support-bundle
 codex-speak pet-state
@@ -155,6 +156,14 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ```bash
 ~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
 ```
+
+验证 Codex 集成主路径，不播放声音：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-codex
+```
+
+它会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查普通回复兜底清洗时不会逐字朗读代码、命令和长路径。
 
 也可以生成一个本地支持包：
 
