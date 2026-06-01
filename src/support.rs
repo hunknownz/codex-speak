@@ -3,31 +3,48 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use regex::Regex;
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::{config, doctor, pet_state, status};
 
 const MAX_TEXT_BYTES: usize = 32 * 1024;
 
-pub fn write_bundle(output: Option<&Path>) -> Result<PathBuf> {
+#[derive(Debug, Clone, Copy)]
+pub struct SupportBundleOptions {
+    pub include_private: bool,
+}
+
+impl Default for SupportBundleOptions {
+    fn default() -> Self {
+        Self {
+            include_private: false,
+        }
+    }
+}
+
+pub fn write_bundle(output: Option<&Path>, options: SupportBundleOptions) -> Result<PathBuf> {
     let dir = match output {
         Some(path) => path.to_path_buf(),
         None => default_bundle_dir()?,
     };
     fs::create_dir_all(&dir).with_context(|| format!("failed to create {}", dir.display()))?;
 
+    let redactor = Redactor::new(options.include_private)?;
     write_text(
         &dir.join("README.txt"),
-        "Codex Speak support bundle\n\
-         Review these files before sharing them. They may include local paths and recent speech logs.\n\
-         Useful files: doctor.json, status.json, models.json, environment.json, release-manifest.json, and logs/*.log.\n",
+        &bundle_readme(options.include_private),
     )?;
-    write_json(&dir.join("doctor.json"), &doctor::collect()?)?;
-    write_environment(&dir)?;
+    write_json(
+        &dir.join("support-bundle-metadata.json"),
+        &bundle_metadata(options.include_private),
+    )?;
+    write_json_redacted(&dir.join("doctor.json"), &doctor::collect()?, &redactor)?;
+    write_environment(&dir, &redactor)?;
     write_release_manifest(&dir)?;
-    write_config_and_status(&dir)?;
-    write_recent_logs(&dir)?;
+    write_config_and_status(&dir, &redactor)?;
+    write_recent_logs(&dir, &redactor, options.include_private)?;
 
     Ok(dir)
 }
@@ -55,26 +72,31 @@ fn write_release_manifest(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_config_and_status(dir: &Path) -> Result<()> {
+fn write_config_and_status(dir: &Path, redactor: &Redactor) -> Result<()> {
     match config::Config::load_or_default() {
         Ok(cfg) => {
             let mut safe_cfg = cfg.clone();
             safe_cfg.previous_notify = None;
-            write_json(&dir.join("config.json"), &safe_cfg)?;
-            write_json(&dir.join("status.json"), &status::collect(&cfg)?)?;
+            write_json_redacted(&dir.join("config.json"), &safe_cfg, redactor)?;
+            write_json_redacted(&dir.join("status.json"), &status::collect(&cfg)?, redactor)?;
         }
         Err(err) => write_text(&dir.join("config-error.txt"), &err.to_string())?,
     }
-    write_json(&dir.join("models.json"), &status::provider_statuses()?)?;
-    write_json(
+    write_json_redacted(
+        &dir.join("models.json"),
+        &status::provider_statuses()?,
+        redactor,
+    )?;
+    write_json_redacted(
         &dir.join("pet-state.json"),
         &pet_state::read_state().unwrap_or_default(),
+        redactor,
     )?;
     Ok(())
 }
 
-fn write_environment(dir: &Path) -> Result<()> {
-    write_json(
+fn write_environment(dir: &Path, redactor: &Redactor) -> Result<()> {
+    write_json_redacted(
         &dir.join("environment.json"),
         &json!({
             "version": env!("CARGO_PKG_VERSION"),
@@ -84,10 +106,11 @@ fn write_environment(dir: &Path) -> Result<()> {
             "codex_home": config::codex_home()?.display().to_string(),
             "agents_home": config::agents_home()?.display().to_string()
         }),
+        redactor,
     )
 }
 
-fn write_recent_logs(dir: &Path) -> Result<()> {
+fn write_recent_logs(dir: &Path, redactor: &Redactor, include_private: bool) -> Result<()> {
     let logs_dir = config::logs_dir()?;
     let target = dir.join("logs");
     fs::create_dir_all(&target)?;
@@ -99,9 +122,22 @@ fn write_recent_logs(dir: &Path) -> Result<()> {
     ] {
         let source = logs_dir.join(name);
         if source.is_file() {
+            if name == "last-spoken.txt" && !include_private {
+                write_text(
+                    &target.join(name),
+                    "[redacted by codex-speak support-bundle]\n\
+                     Recent spoken text can include private user content.\n\
+                     Re-run with `codex-speak support-bundle --include-private` only if you explicitly want to share it.\n",
+                )?;
+                continue;
+            }
             let raw = fs::read_to_string(&source)
                 .unwrap_or_else(|_| "<binary or unreadable log>".to_string());
-            write_text(&target.join(name), &truncate_text(&raw, MAX_TEXT_BYTES))?;
+            let redacted = redactor.redact_text(&raw);
+            write_text(
+                &target.join(name),
+                &truncate_text(&redacted, MAX_TEXT_BYTES),
+            )?;
         }
     }
     Ok(())
@@ -112,11 +148,127 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     write_text(path, &raw)
 }
 
+fn write_json_redacted(path: &Path, value: &impl Serialize, redactor: &Redactor) -> Result<()> {
+    let mut value = serde_json::to_value(value)?;
+    redact_json_value(&mut value, redactor);
+    write_json(path, &value)
+}
+
 fn write_text(path: &Path, text: &str) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
     fs::write(path, text).with_context(|| format!("failed to write {}", path.display()))
+}
+
+fn bundle_readme(include_private: bool) -> String {
+    let privacy = if include_private {
+        "This bundle was created with --include-private, so it may contain local paths and recent spoken text.\n"
+    } else {
+        "This bundle is redacted by default: local home paths and recent spoken text are replaced before sharing.\n\
+         For deep debugging only, re-run `codex-speak support-bundle --include-private` to include raw local paths and logs.\n"
+    };
+    format!(
+        "Codex Speak support bundle\n\
+         {privacy}\
+         Useful files: doctor.json, status.json, models.json, environment.json, release-manifest.json, support-bundle-metadata.json, and logs/*.log.\n"
+    )
+}
+
+fn bundle_metadata(include_private: bool) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "product": "codex-speak",
+        "version": env!("CARGO_PKG_VERSION"),
+        "generatedAt": Local::now().to_rfc3339(),
+        "redacted": !include_private,
+        "includePrivate": include_private,
+        "redaction": {
+            "localPaths": !include_private,
+            "recentSpokenText": !include_private
+        }
+    })
+}
+
+struct Redactor {
+    include_private: bool,
+    replacements: Vec<(String, &'static str)>,
+}
+
+impl Redactor {
+    fn new(include_private: bool) -> Result<Self> {
+        let mut replacements = Vec::new();
+        for (path, placeholder) in [
+            (config::app_home()?, "<codex-speak-home>"),
+            (config::codex_home()?, "<codex-home>"),
+            (config::agents_home()?, "<agents-home>"),
+            (config::home_dir()?, "<home>"),
+        ] {
+            push_path_replacement(&mut replacements, path, placeholder);
+        }
+        replacements.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
+        Ok(Self {
+            include_private,
+            replacements,
+        })
+    }
+
+    fn redact_text(&self, text: &str) -> String {
+        if self.include_private {
+            return text.to_string();
+        }
+        let mut result = text.to_string();
+        for (needle, replacement) in &self.replacements {
+            result = result.replace(needle, replacement);
+        }
+        redact_generic_paths(&result)
+    }
+}
+
+fn redact_generic_paths(text: &str) -> String {
+    let unix_home = Regex::new(r"/(?:Users|home)/[^/\s:]+(?:/[^\s:]+)*")
+        .expect("generic Unix home path regex should compile");
+    let windows_home = Regex::new(r"(?i)[A-Z]:\\Users\\[^\\\s:]+(?:\\[^\s:]+)*")
+        .expect("generic Windows home path regex should compile");
+    let text = unix_home.replace_all(text, "<local-path>");
+    windows_home.replace_all(&text, "<local-path>").into_owned()
+}
+
+fn push_path_replacement(
+    replacements: &mut Vec<(String, &'static str)>,
+    path: PathBuf,
+    placeholder: &'static str,
+) {
+    let text = path.display().to_string();
+    if !text.is_empty() {
+        replacements.push((text.clone(), placeholder));
+        if text.contains('\\') {
+            replacements.push((text.replace('\\', "/"), placeholder));
+        }
+    }
+}
+
+fn redact_json_value(value: &mut Value, redactor: &Redactor) {
+    match value {
+        Value::String(text) => {
+            *text = redactor.redact_text(text);
+        }
+        Value::Array(items) => {
+            for item in items {
+                redact_json_value(item, redactor);
+            }
+        }
+        Value::Object(map) => {
+            for (key, item) in map {
+                if key == "last_spoken" && !redactor.include_private {
+                    *item = Value::String("<redacted recent spoken text>".to_string());
+                } else {
+                    redact_json_value(item, redactor);
+                }
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
 }
 
 fn truncate_text(text: &str, max_bytes: usize) -> String {
@@ -136,7 +288,8 @@ fn truncate_text(text: &str, max_bytes: usize) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::truncate_text;
+    use super::{redact_generic_paths, redact_json_value, truncate_text, Redactor};
+    use serde_json::json;
 
     #[test]
     fn truncates_without_splitting_utf8() {
@@ -149,5 +302,52 @@ mod tests {
     #[test]
     fn keeps_short_text_unchanged() {
         assert_eq!(truncate_text("ok", 32), "ok");
+    }
+
+    #[test]
+    fn redacts_configured_paths_in_text() {
+        let redactor = Redactor {
+            include_private: false,
+            replacements: vec![("/Users/example/.codex".to_string(), "<codex-home>")],
+        };
+        assert_eq!(
+            redactor.redact_text("/Users/example/.codex/codex-speak"),
+            "<codex-home>/codex-speak"
+        );
+    }
+
+    #[test]
+    fn redacts_generic_home_paths_from_tool_logs() {
+        assert_eq!(
+            redact_generic_paths("/Users/runner/work/file.cc:120"),
+            "<local-path>:120"
+        );
+        assert_eq!(
+            redact_generic_paths(r"C:\Users\runner\work\file.cc:120"),
+            "<local-path>:120"
+        );
+    }
+
+    #[test]
+    fn include_private_keeps_text() {
+        let redactor = Redactor {
+            include_private: true,
+            replacements: vec![("/Users/example".to_string(), "<home>")],
+        };
+        assert_eq!(
+            redactor.redact_text("/Users/example/file"),
+            "/Users/example/file"
+        );
+    }
+
+    #[test]
+    fn redacts_last_spoken_json_field() {
+        let redactor = Redactor {
+            include_private: false,
+            replacements: Vec::new(),
+        };
+        let mut value = json!({"last_spoken": "secret spoken text"});
+        redact_json_value(&mut value, &redactor);
+        assert_eq!(value["last_spoken"], json!("<redacted recent spoken text>"));
     }
 }

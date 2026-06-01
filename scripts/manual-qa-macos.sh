@@ -253,7 +253,7 @@ invoke_qa_command "verify controls" 0 verify-controls >/dev/null
 
 support_dir="$OUTPUT_DIR/support-bundle"
 invoke_qa_command "support bundle" 0 support-bundle --output "$support_dir" >/dev/null
-for file in doctor.json status.json models.json; do
+for file in doctor.json status.json models.json support-bundle-metadata.json; do
   path="$support_dir/$file"
   if [ -f "$path" ]; then
     add_qa_check "support $file" "pass" "$path"

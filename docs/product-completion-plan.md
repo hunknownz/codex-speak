@@ -90,12 +90,13 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `doctor --json` 已补齐机器可读自检结果，控制面板健康状态也会检查播放器可用性，方便 Windows 真机和外部用户反馈问题。
 - `doctor --json` 和控制面板健康状态已进一步覆盖 Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本，避免外部机器上出现“插件看起来安装了，但 side-channel/MCP 实际不可用”的隐性问题。
 - `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、插件、Hook 或播放器问题。
-- `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，方便 Windows 真机和外部用户反馈问题；macOS/Windows release smoke 已覆盖该命令。
+- `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，并默认脱敏 home 路径和最近朗读文本；macOS/Windows release smoke 已覆盖该命令。
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
 - `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费和普通回复兜底清洗链路。
 - `verify-controls` 已补齐为控制项验收命令；release smoke 和手工 QA 收集脚本会验证自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能写入、重新读取，并恢复原配置。
+- 英文朗读已补齐第一层兜底：常见技术缩写会在进入 TTS 前变成中文可懂词，系统语音兜底会按中英文分段选择系统声音，减少英文单词逐字母读的问题。
 - macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断 release 包 manifest、自检、支持包和人工确认项是否通过。

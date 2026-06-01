@@ -1,5 +1,7 @@
 use regex::Regex;
 
+use crate::pronunciation;
+
 pub fn extract_speak_block(text: &str) -> Option<String> {
     let re = Regex::new(r"(?s)<!--\s*codex-speak\s*(.*?)\s*-->").ok()?;
     re.captures(text)
@@ -170,23 +172,7 @@ fn strip_markdown(line: &str) -> String {
 }
 
 fn simplify_terms(line: &str) -> String {
-    let replacements = [
-        ("Hook", "自动触发器"),
-        ("hook", "自动触发器"),
-        ("Plugin", "插件"),
-        ("plugin", "插件"),
-        ("TTS", "朗读工具"),
-        ("API", "接口"),
-        ("config.toml", "配置文件"),
-        ("terminal", "命令窗口"),
-        ("Terminal", "命令窗口"),
-        ("CLI", "命令行工具"),
-    ];
-    let mut s = line.to_string();
-    for (from, to) in replacements {
-        s = s.replace(from, to);
-    }
-    s
+    pronunciation::normalize_for_tts(line)
 }
 
 pub fn truncate_chars(text: &str, max_chars: usize) -> String {
@@ -282,6 +268,14 @@ mod tests {
         let cleaned = clean_for_speech(text, 300);
         assert!(!cleaned.contains("fn main"));
         assert!(cleaned.contains("自动触发器"));
+    }
+
+    #[test]
+    fn normalizes_english_technical_terms() {
+        let cleaned = clean_for_speech("MCP 和 JSON 都通过了。", 300);
+        assert!(cleaned.contains("插件通道"));
+        assert!(cleaned.contains("数据格式"));
+        assert!(!cleaned.contains("MCP"));
     }
 
     #[test]

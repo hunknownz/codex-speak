@@ -70,6 +70,7 @@ For very short conversational answers, skip the guide if the whole answer is alr
 ## Writing Rules
 
 - Use Chinese first. Keep English technical words only when necessary.
+- Rewrite common English abbreviations into Chinese explanations when they are meant for speech, for example `MCP` as "插件通道", `JSON` as "数据格式", `CLI` as "命令行工具", and `API` as "接口".
 - Keep it around 120 to 300 Chinese characters by default. Use up to 500 only for complex work.
 - Do not read code verbatim. Explain what the code does and what problem it solves.
 - Do not read raw shell commands. Explain the action, such as "我运行了测试" or "我安装了本地语音模型".

@@ -259,7 +259,15 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。分享前请先快速看一下内容，因为里面可能包含本机路径和最近朗读记录。
+它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。默认支持包会脱敏本机 home 路径，并把最近朗读文本替换成提示文字，适合直接发给维护者排查安装问题。
+
+如果确实需要完整本机路径和最近朗读日志做深度排障，再显式运行：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak support-bundle --include-private
+```
+
+使用 `--include-private` 前请先确认可以分享这些内容，因为它可能包含本机路径和最近朗读记录。
 
 如果用户是从 release 包安装的，支持包还会包含安装时保留下来的 `release-manifest.json`，用于确认版本、git commit、平台和关键文件 sha256。
 

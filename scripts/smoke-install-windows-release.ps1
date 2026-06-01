@@ -37,7 +37,7 @@ $ManualQaCheck = Join-Path $PackageRoot "scripts\check-manual-qa-report.mjs"
 node $ManualQaCheck (Join-Path $Smoke "manual-qa") --allow-non-interactive | Out-File -Encoding utf8 -Append (Join-Path $Smoke "manual-qa.txt")
 $SupportDir = Join-Path $Smoke "support"
 & $InstalledCli support-bundle --output $SupportDir | Out-Null
-foreach ($SupportFile in @("doctor.json", "status.json", "models.json", "release-manifest.json")) {
+foreach ($SupportFile in @("doctor.json", "status.json", "models.json", "support-bundle-metadata.json", "release-manifest.json")) {
   $Path = Join-Path $SupportDir $SupportFile
   if (-not (Test-Path $Path)) {
     throw "support bundle missing: $Path"

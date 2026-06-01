@@ -22,6 +22,7 @@ const requiredAutoChecks = [
   "support doctor.json",
   "support status.json",
   "support models.json",
+  "support support-bundle-metadata.json",
   "support release manifest",
   "app path"
 ];
@@ -74,7 +75,7 @@ if (report.nonInteractive && !allowNonInteractive) {
   }
 }
 
-for (const file of ["doctor.json", "status.json", "models.json"]) {
+for (const file of ["doctor.json", "status.json", "models.json", "support-bundle-metadata.json"]) {
   const supportPath = path.join(reportDir, "support-bundle", file);
   check(existsSync(supportPath) && statSync(supportPath).isFile(), `support file ${file}`, existsSync(supportPath) ? "present" : "missing");
 }

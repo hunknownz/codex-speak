@@ -9,6 +9,7 @@ mod mcp;
 mod model_catalog;
 mod pet_state;
 mod process;
+mod pronunciation;
 mod release_manifest;
 mod session;
 mod settings;
@@ -84,6 +85,8 @@ enum Command {
     SupportBundle {
         #[arg(long)]
         output: Option<PathBuf>,
+        #[arg(long)]
+        include_private: bool,
     },
     /// Print the desktop pet state as JSON.
     PetState,
@@ -192,8 +195,14 @@ fn main() -> Result<()> {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
         }
-        Command::SupportBundle { output } => {
-            let dir = support::write_bundle(output.as_deref())?;
+        Command::SupportBundle {
+            output,
+            include_private,
+        } => {
+            let dir = support::write_bundle(
+                output.as_deref(),
+                support::SupportBundleOptions { include_private },
+            )?;
             println!("{}", dir.display());
         }
         Command::PetState => println!(

@@ -135,6 +135,12 @@ codex-speak uninstall
 
 如果正在试听某个额外 Provider，而模型还没有安装，Codex Speak 会直接报出缺失原因，不会偷偷切回默认声音；只有默认 `sherpa_melo` 失败时才会按配置兜底到系统语音。
 
+英文和技术词处理：
+
+- 朗读前会把常见技术词转换成更适合中文听的说法，例如 `MCP` 会读成“插件通道”，`JSON` 会读成“数据格式”，`CLI` 会读成“命令行工具”。
+- 系统语音兜底会把中英文分段，中文段用中文系统声音，普通英文段用英文系统声音，减少中文声音把英文单词逐字母读出来的问题。
+- 如果经常听中英混读，优先使用 `sherpa_melo` 或 `sherpa_kokoro`，不要长期依赖 `system` 兜底。
+
 自检：
 
 ```bash
@@ -181,7 +187,7 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-支持包会包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。
+支持包默认会脱敏本机 home 路径和最近朗读文本，并包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。只有深度排障时，才建议显式运行 `support-bundle --include-private`。
 
 解压 release 包后，可以用包里的 CLI 校验 manifest 记录的关键文件哈希：
 

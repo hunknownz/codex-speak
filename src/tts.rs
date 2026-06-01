@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use crate::config::{self, Config};
 use crate::pet_state;
 use crate::process;
+use crate::pronunciation;
 
 pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     if !cfg.enabled {
@@ -16,16 +17,23 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     fs::create_dir_all(config::logs_dir()?)?;
     fs::create_dir_all(config::cache_dir()?)?;
 
-    process::stop_speech()?;
-    let _ = pet_state::write_state("speaking", Some(text), "tts");
+    let spoken_text = pronunciation::normalize_for_tts(text);
+    let spoken_text = if spoken_text.trim().is_empty() {
+        text.to_string()
+    } else {
+        spoken_text
+    };
 
-    let result = if let Err(err) = speak_with_provider(cfg, text, no_play) {
+    process::stop_speech()?;
+    let _ = pet_state::write_state("speaking", Some(&spoken_text), "tts");
+
+    let result = if let Err(err) = speak_with_provider(cfg, &spoken_text, no_play) {
         fs::write(
             config::logs_dir()?.join("last-error.log"),
             format!("{err:#}\n"),
         )?;
         if cfg.provider == "sherpa_melo" && cfg.fallback_provider == "system" {
-            speak_with_system(text, no_play)
+            speak_with_system(&spoken_text, no_play)
         } else {
             Err(err)
         }
@@ -38,7 +46,7 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
         return Err(err);
     }
 
-    fs::write(config::logs_dir()?.join("last-spoken.txt"), text)?;
+    fs::write(config::logs_dir()?.join("last-spoken.txt"), spoken_text)?;
     let _ = pet_state::write_state("done", Some("朗读完成。"), "tts");
     Ok(())
 }
@@ -274,17 +282,48 @@ fn speak_with_system(text: &str, no_play: bool) -> Result<()> {
     if no_play {
         return Ok(());
     }
+    let segments = split_system_speech_segments(text);
+    if segments.is_empty() {
+        return Ok(());
+    }
     if cfg!(target_os = "macos") {
-        let mut command = Command::new("/usr/bin/say");
-        command.args(["-v", "Tingting", "-r", "175", text]);
+        let script = segments
+            .iter()
+            .map(|segment| {
+                format!(
+                    "/usr/bin/say -v {} -r 175 {}",
+                    macos_voice(segment.lang),
+                    sh_literal(&segment.text)
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", &script]);
         process::run_tracked(command, "macOS say")?;
     } else if cfg!(windows) {
-        let script = format!(
+        let mut script = String::from(
             "Add-Type -AssemblyName System.Speech; \
+             Add-Type -AssemblyName System.Globalization; \
              $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-             $s.Speak({});",
-            ps_literal(text)
+             function Use-Culture($name) { \
+               try { \
+                 $s.SelectVoiceByHints(\
+                   [System.Speech.Synthesis.VoiceGender]::NotSet, \
+                   [System.Speech.Synthesis.VoiceAge]::NotSet, \
+                   0, \
+                   [System.Globalization.CultureInfo]::GetCultureInfo($name)\
+                 ); \
+               } catch {} \
+             };",
         );
+        for segment in &segments {
+            script.push_str(&format!(
+                " Use-Culture '{}'; $s.Speak({});",
+                windows_culture(segment.lang),
+                ps_literal(&segment.text)
+            ));
+        }
         let mut command = Command::new("powershell.exe");
         command.args(["-NoProfile", "-Command", &script]);
         process::run_tracked(command, "Windows system speech")?;
@@ -292,6 +331,90 @@ fn speak_with_system(text: &str, no_play: bool) -> Result<()> {
         anyhow::bail!("no system speech fallback for this platform");
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SystemSpeechLang {
+    Chinese,
+    English,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SystemSpeechSegment {
+    lang: SystemSpeechLang,
+    text: String,
+}
+
+fn split_system_speech_segments(text: &str) -> Vec<SystemSpeechSegment> {
+    let mut segments = Vec::new();
+    let mut current = String::new();
+    let mut current_lang: Option<SystemSpeechLang> = None;
+
+    for ch in text.chars() {
+        if let Some(next_lang) = classify_speech_char(ch) {
+            if let Some(lang) = current_lang {
+                if lang != next_lang && !current.trim().is_empty() {
+                    segments.push(SystemSpeechSegment {
+                        lang,
+                        text: current,
+                    });
+                    current = String::new();
+                }
+            }
+            current_lang = Some(next_lang);
+        }
+        current.push(ch);
+    }
+
+    if !current.trim().is_empty() {
+        segments.push(SystemSpeechSegment {
+            lang: current_lang.unwrap_or(SystemSpeechLang::Chinese),
+            text: current,
+        });
+    }
+
+    segments
+}
+
+fn classify_speech_char(ch: char) -> Option<SystemSpeechLang> {
+    if ch.is_ascii_alphabetic() {
+        Some(SystemSpeechLang::English)
+    } else if is_cjk(ch) {
+        Some(SystemSpeechLang::Chinese)
+    } else {
+        None
+    }
+}
+
+fn is_cjk(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{3400}'..='\u{4DBF}'
+            | '\u{4E00}'..='\u{9FFF}'
+            | '\u{F900}'..='\u{FAFF}'
+            | '\u{20000}'..='\u{2A6DF}'
+            | '\u{2A700}'..='\u{2B73F}'
+            | '\u{2B740}'..='\u{2B81F}'
+            | '\u{2B820}'..='\u{2CEAF}'
+    )
+}
+
+fn macos_voice(lang: SystemSpeechLang) -> &'static str {
+    match lang {
+        SystemSpeechLang::Chinese => "Tingting",
+        SystemSpeechLang::English => "Samantha",
+    }
+}
+
+fn windows_culture(lang: SystemSpeechLang) -> &'static str {
+    match lang {
+        SystemSpeechLang::Chinese => "zh-CN",
+        SystemSpeechLang::English => "en-US",
+    }
+}
+
+fn sh_literal(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 fn play_wav(path: &Path) -> Result<()> {
@@ -376,5 +499,20 @@ mod tests {
     fn powershell_literal_escapes_single_quotes() {
         assert_eq!(ps_literal("C:\\Kids\\莎莎.wav"), "'C:\\Kids\\莎莎.wav'");
         assert_eq!(ps_literal("it's ok"), "'it''s ok'");
+    }
+
+    #[test]
+    fn shell_literal_escapes_single_quotes() {
+        assert_eq!(sh_literal("it's ok"), "'it'\\''s ok'");
+    }
+
+    #[test]
+    fn splits_mixed_chinese_and_english_for_system_speech() {
+        let segments = split_system_speech_segments("我运行 hello world，然后继续。");
+        assert_eq!(segments.len(), 3);
+        assert_eq!(segments[0].lang, SystemSpeechLang::Chinese);
+        assert_eq!(segments[1].lang, SystemSpeechLang::English);
+        assert_eq!(segments[1].text, "hello world，");
+        assert_eq!(segments[2].lang, SystemSpeechLang::Chinese);
     }
 }
