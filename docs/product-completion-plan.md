@@ -87,6 +87,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `v0.1.0-rc.1` 已触发 release workflow，macOS/Windows build job 和 GitHub Release 发布 job 均通过。该 RC release 是 draft prerelease，用于验证 artifact 上传链路，不作为正式公开版本。
 - 发布 readiness 检查已补为脚本 `scripts/check-release-readiness.mjs`，人工验收清单已沉淀到 `docs/release-qa.md`。
 - `doctor --json` 已补齐机器可读自检结果，控制面板健康状态也会检查播放器可用性，方便 Windows 真机和外部用户反馈问题。
+- `doctor --json` 和控制面板健康状态已进一步覆盖 Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本，避免外部机器上出现“插件看起来安装了，但 side-channel/MCP 实际不可用”的隐性问题。
 
 剩余外部验证：
 

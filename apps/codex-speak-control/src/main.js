@@ -55,7 +55,11 @@ function renderStatus(status) {
   controls.hookState.textContent = status.checks.notify_configured ? "已连接" : "未连接";
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
   controls.controlAppState.textContent = status.checks.control_app_exists ? "已安装" : "未安装";
-  controls.pluginState.textContent = status.checks.plugin_installed ? "已安装" : "缺失";
+  const pluginOk = status.checks.plugin_installed
+    && status.checks.plugin_skill_installed
+    && status.checks.plugin_mcp_config_installed
+    && status.checks.plugin_mcp_script_installed;
+  controls.pluginState.textContent = pluginOk ? "已安装" : "需修复";
   controls.marketplaceState.textContent = status.checks.marketplace_configured ? "已连接" : "缺失";
   controls.petState.textContent = petStateLabel(status.pet_state?.state, status.checks);
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
@@ -67,7 +71,7 @@ function renderStatus(status) {
     && status.checks.player_available
     && status.checks.control_app_exists
     && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists)
-    && status.checks.plugin_installed
+    && pluginOk
     && status.checks.marketplace_configured;
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";

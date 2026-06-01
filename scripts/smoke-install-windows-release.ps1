@@ -47,6 +47,9 @@ foreach ($Id in @(
   "control_app",
   "codex_notify",
   "plugin",
+  "plugin_skill",
+  "plugin_mcp_config",
+  "plugin_mcp_script",
   "plugin_marketplace",
   "player"
 )) {

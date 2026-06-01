@@ -112,6 +112,24 @@ pub fn collect() -> Result<DoctorReport> {
         &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
         &mut checks,
     );
+    check_file(
+        "plugin_skill",
+        "Codex Speak plugin skill",
+        &config::installed_plugin_dir()?.join("skills/codex-speak/SKILL.md"),
+        &mut checks,
+    );
+    check_file(
+        "plugin_mcp_config",
+        "Codex Speak MCP config",
+        &config::installed_plugin_dir()?.join(".mcp.json"),
+        &mut checks,
+    );
+    check_file(
+        "plugin_mcp_script",
+        "Codex Speak MCP script",
+        &config::installed_plugin_dir()?.join(mcp_script_path()),
+        &mut checks,
+    );
     check_marketplace(&mut checks)?;
     check_player(&mut checks);
 
@@ -218,6 +236,14 @@ fn binary_name() -> &'static str {
         "codex-speak.exe"
     } else {
         "codex-speak"
+    }
+}
+
+fn mcp_script_path() -> &'static str {
+    if cfg!(windows) {
+        "scripts/codex-speak-mcp.ps1"
+    } else {
+        "scripts/codex-speak-mcp"
     }
 }
 

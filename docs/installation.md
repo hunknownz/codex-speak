@@ -198,7 +198,7 @@ marketplace 条目使用本地路径：
 - 控制面板 App 已安装，或显示为 WARN。
 - macOS 原生 Pet helper 已安装；Windows 当前会跳过这项原生 helper 检查。
 - Hook 已配置。
-- Plugin 已安装。
+- Plugin manifest、Skill、MCP 配置和当前平台 MCP 脚本都已安装。
 - Plugin marketplace 已配置。
 - Sherpa-ONNX 和默认中文模型可用。
 - 本机播放器可用。Windows 会检查 `powershell.exe`，因为系统语音和 wav 播放都走 PowerShell/.NET 播放链路。

@@ -49,6 +49,9 @@ pub struct StatusChecks {
     pub sherpa_exists: bool,
     pub notify_configured: bool,
     pub plugin_installed: bool,
+    pub plugin_skill_installed: bool,
+    pub plugin_mcp_config_installed: bool,
+    pub plugin_mcp_script_installed: bool,
     pub marketplace_configured: bool,
     pub player_available: bool,
 }
@@ -110,6 +113,9 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             sherpa_exists: sherpa_path.is_file(),
             notify_configured: codex_config_raw.contains("codex-speak-notify"),
             plugin_installed: plugin_path.join(".codex-plugin/plugin.json").is_file(),
+            plugin_skill_installed: plugin_path.join("skills/codex-speak/SKILL.md").is_file(),
+            plugin_mcp_config_installed: plugin_path.join(".mcp.json").is_file(),
+            plugin_mcp_script_installed: plugin_path.join(mcp_script_path()).is_file(),
             marketplace_configured: marketplace_has_plugin(&marketplace_path),
             player_available: crate::doctor::player_available(),
         },
@@ -242,6 +248,14 @@ fn binary_name() -> &'static str {
         "codex-speak.exe"
     } else {
         "codex-speak"
+    }
+}
+
+fn mcp_script_path() -> &'static str {
+    if cfg!(windows) {
+        "scripts/codex-speak-mcp.ps1"
+    } else {
+        "scripts/codex-speak-mcp"
     }
 }
 
