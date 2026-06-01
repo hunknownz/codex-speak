@@ -8,18 +8,20 @@ APP_SOURCE="$ROOT_DIR/apps/codex-speak-control/src-tauri/target/release/bundle/m
 cd "$ROOT_DIR"
 
 rm -rf "$PACKAGE" "$ROOT_DIR/dist/codex-speak-macos.tar.gz" "$ROOT_DIR/dist/codex-speak-macos.tar.gz.sha256"
-mkdir -p "$PACKAGE/bin" "$PACKAGE/apps" "$PACKAGE/assets/pet" "$PACKAGE/installers" "$PACKAGE/docs"
+mkdir -p "$PACKAGE/bin" "$PACKAGE/apps" "$PACKAGE/assets/pet" "$PACKAGE/installers" "$PACKAGE/scripts" "$PACKAGE/docs"
 
 cp "$ROOT_DIR/target/release/codex-speak" "$PACKAGE/bin/codex-speak"
 cp "$ROOT_DIR/target/release/codex-speak-pet-macos" "$PACKAGE/bin/codex-speak-pet-macos"
 ditto "$APP_SOURCE" "$PACKAGE/apps/Codex Speak.app"
 ditto "$ROOT_DIR/apps/codex-speak-pet-macos/assets" "$PACKAGE/assets/pet"
 cp "$ROOT_DIR/installers/install-macos.sh" "$ROOT_DIR/installers/uninstall-macos.sh" "$PACKAGE/installers/"
+cp "$ROOT_DIR/scripts/manual-qa-macos.sh" "$PACKAGE/scripts/"
 chmod +x \
   "$PACKAGE/bin/codex-speak" \
   "$PACKAGE/bin/codex-speak-pet-macos" \
   "$PACKAGE/installers/install-macos.sh" \
-  "$PACKAGE/installers/uninstall-macos.sh"
+  "$PACKAGE/installers/uninstall-macos.sh" \
+  "$PACKAGE/scripts/manual-qa-macos.sh"
 
 cp "$ROOT_DIR/README.md" "$PACKAGE/README.md"
 cp \

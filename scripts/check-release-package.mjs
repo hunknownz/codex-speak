@@ -32,6 +32,7 @@ if (platform === "macos") {
   requireDirectory("apps/Codex Speak.app");
   requireExecutable("installers/install-macos.sh");
   requireExecutable("installers/uninstall-macos.sh");
+  requireExecutable("scripts/manual-qa-macos.sh");
   requireFile("assets/pet/codex-agent.mov");
   requireFile("assets/pet/codex-agent-source-spritesheet.png");
   requireFile("assets/pet/codex-agent-hit.png");

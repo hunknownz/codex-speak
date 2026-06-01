@@ -18,6 +18,12 @@ test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent-source-spritesheet.png"
 
 "$HOME/.codex/codex-speak/bin/codex-speak" models list >"$SMOKE_DIR/models.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" verify-install --allow-missing-models >"$SMOKE_DIR/verify-install.txt"
+"$SMOKE_DIR/codex-speak-macos/scripts/manual-qa-macos.sh" \
+  --cli-path "$HOME/.codex/codex-speak/bin/codex-speak" \
+  --output-dir "$SMOKE_DIR/manual-qa" \
+  --allow-missing-models \
+  --non-interactive \
+  >"$SMOKE_DIR/manual-qa.txt"
 "$HOME/.codex/codex-speak/bin/codex-speak" support-bundle --output "$SMOKE_DIR/support"
 test -f "$SMOKE_DIR/support/doctor.json"
 test -f "$SMOKE_DIR/support/status.json"

@@ -31,7 +31,7 @@ Tauri App / Native Desktop Pet
 
 ## 当前阶段
 
-项目已经进入产品化收尾阶段：macOS 端到端链路已跑通，GitHub Actions 已覆盖 macOS/Windows release 包构建和安装烟测；正式公开前主要还剩 Windows 真机验收和真实签名/公证验证。
+项目已经进入产品化收尾阶段：macOS 端到端链路已跑通，GitHub Actions 已覆盖 macOS/Windows release 包构建和安装烟测；正式公开前主要还剩外部真机交互验收和真实签名/公证验证。
 
 已完成：
 
@@ -52,7 +52,7 @@ Tauri App / Native Desktop Pet
 
 下一步：
 
-- Windows 真机验收：已补 `scripts/manual-qa-windows.ps1` 收集脚本，下一步是在真实 Windows 机器上跑交互验收。
+- 真机交互验收：已补 macOS/Windows QA 收集脚本，下一步是在外部机器上跑交互验收。
 - 配置真实签名 secrets，验证 macOS codesign/notarization 和 Windows signtool。
 - P2 通过后开始 P3：系统化优化语音清晰度、自然度和延迟。
 

@@ -53,6 +53,14 @@ cd codex-speak-macos
 ./installers/install-macos.sh --skip-tts-download
 ```
 
+推荐同时运行随包提供的 QA 收集脚本：
+
+```bash
+./scripts/manual-qa-macos.sh --allow-missing-models
+```
+
+它会自动运行自检、状态、模型列表和支持包收集，并在控制面板、桌面 Pet、试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
+
 检查项：
 
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。

@@ -93,12 +93,13 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
+- macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Release workflow 已增加稳定版签名门禁：`v*-rc*` 仍可无签名验证发布链路，正式 `v*` 且非 `-rc` 标签缺少签名或公证 secrets 时会直接失败。
 
 剩余外部验证：
 
-- 在 Windows 真机上确认控制面板实际启动、系统播放器播放/停止链路，以及非 CI 环境下的首次模型下载体验。
+- 在外部 macOS/Windows 真机上确认控制面板实际启动、Pet/播放器播放/停止链路，以及非 CI 环境下的首次模型下载体验。
 - 配置真实签名 secrets 后，验证 macOS codesign/notarization 和 Windows signtool。
 
 ### P3：语音效果优化计划

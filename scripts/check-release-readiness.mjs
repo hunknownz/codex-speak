@@ -93,6 +93,7 @@ function checkRequiredFiles() {
     ".github/workflows/release.yml",
     "scripts/package-macos-release.sh",
     "scripts/package-windows-release.ps1",
+    "scripts/manual-qa-macos.sh",
     "scripts/manual-qa-windows.ps1",
     "scripts/smoke-install-macos-release.sh",
     "scripts/smoke-install-windows-release.ps1",
@@ -120,6 +121,7 @@ function checkRequiredFiles() {
   const executableFiles = [
     "scripts/package-macos-release.sh",
     "scripts/smoke-install-macos-release.sh",
+    "scripts/manual-qa-macos.sh",
     "scripts/check-release-package.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/verify-local.sh"

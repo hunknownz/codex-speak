@@ -15,6 +15,7 @@ bash -n installers/uninstall-macos.sh
 bash -n scripts/package-macos-release.sh
 bash -n scripts/smoke-install-macos-release.sh
 bash -n scripts/sign-macos-release.sh
+bash -n scripts/manual-qa-macos.sh
 
 if command -v npm >/dev/null 2>&1; then
   (cd apps/codex-speak-control && npm run build:frontend)
