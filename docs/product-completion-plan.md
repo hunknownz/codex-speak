@@ -88,6 +88,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 发布 readiness 检查已补为脚本 `scripts/check-release-readiness.mjs`，人工验收清单已沉淀到 `docs/release-qa.md`。
 - `doctor --json` 已补齐机器可读自检结果，控制面板健康状态也会检查播放器可用性，方便 Windows 真机和外部用户反馈问题。
 - `doctor --json` 和控制面板健康状态已进一步覆盖 Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本，避免外部机器上出现“插件看起来安装了，但 side-channel/MCP 实际不可用”的隐性问题。
+- `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、插件、Hook 或播放器问题。
 
 剩余外部验证：
 

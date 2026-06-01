@@ -192,6 +192,8 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
+当某项检查失败或警告时，`doctor` 会在文本输出和 JSON 输出里给出 `hint`，告诉用户下一步应该重新安装、安装模型、刷新插件，还是检查系统播放器。
+
 期望看到这些检查通过：
 
 - CLI 已安装。

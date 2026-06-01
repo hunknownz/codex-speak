@@ -20,6 +20,8 @@ pub struct DoctorCheck {
     pub status: CheckStatus,
     pub required: bool,
     pub detail: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -166,6 +168,7 @@ impl DoctorCheck {
             status: CheckStatus::Ok,
             required: true,
             detail: detail.into(),
+            hint: None,
         }
     }
 
@@ -176,6 +179,7 @@ impl DoctorCheck {
             status: CheckStatus::Warn,
             required: false,
             detail: detail.into(),
+            hint: hint_for(id),
         }
     }
 
@@ -186,6 +190,7 @@ impl DoctorCheck {
             status: CheckStatus::Fail,
             required: true,
             detail: detail.into(),
+            hint: hint_for(id),
         }
     }
 
@@ -196,6 +201,7 @@ impl DoctorCheck {
             status: CheckStatus::Skip,
             required: false,
             detail: detail.into(),
+            hint: None,
         }
     }
 }
@@ -209,6 +215,39 @@ fn print_text(report: &DoctorReport) {
             CheckStatus::Skip => "SKIP",
         };
         println!("{prefix} {}: {}", check.label, check.detail);
+        if let Some(hint) = check.hint {
+            println!("     hint: {hint}");
+        }
+    }
+}
+
+fn hint_for(id: &str) -> Option<&'static str> {
+    match id {
+        "codex_home" | "config" | "cli" => {
+            Some("Run the Codex Speak installer again from the release package.")
+        }
+        "control_app" => Some(
+            "Rerun the installer without --skip-control-app, or install from a release package that includes the desktop app.",
+        ),
+        "pet_helper" => Some(
+            "On macOS, rerun install-macos.sh without --skip-control-app so the native desktop pet helper is copied or built.",
+        ),
+        "sherpa_tts" | "melo_model" | "melo_lexicon" | "melo_tokens" => Some(
+            "Run `codex-speak models install --provider sherpa_melo`, or switch the provider to `system` for a no-download fallback.",
+        ),
+        "codex_notify" => Some(
+            "Run `codex-speak install` so the Codex notify hook points at codex-speak-notify.",
+        ),
+        "plugin" | "plugin_skill" | "plugin_mcp_config" | "plugin_mcp_script" => Some(
+            "Run `codex-speak install` to refresh the local Codex Speak plugin files.",
+        ),
+        "plugin_marketplace" => Some(
+            "Run `codex-speak install` to add Codex Speak to the personal plugin marketplace.",
+        ),
+        "player" => Some(
+            "macOS needs /usr/bin/afplay. Windows needs powershell.exe available for SoundPlayer playback.",
+        ),
+        _ => None,
     }
 }
 
@@ -353,5 +392,17 @@ mod tests {
         )]);
         assert!(report.ok);
         assert_eq!(report.checks[0].status, CheckStatus::Warn);
+    }
+
+    #[test]
+    fn failed_checks_include_actionable_hint() {
+        let check = DoctorCheck::fail("plugin_mcp_script", "Codex Speak MCP script", "missing");
+        assert!(check.hint.is_some());
+    }
+
+    #[test]
+    fn ok_checks_do_not_include_hint() {
+        let check = DoctorCheck::ok("plugin", "Codex Speak plugin", "present");
+        assert!(check.hint.is_none());
     }
 }
