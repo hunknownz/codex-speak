@@ -33,6 +33,7 @@ if (platform === "macos") {
   requireExecutable("installers/install-macos.sh");
   requireExecutable("installers/uninstall-macos.sh");
   requireExecutable("scripts/manual-qa-macos.sh");
+  requireExecutable("scripts/check-manual-qa-report.mjs");
   requireFile("assets/pet/codex-agent.mov");
   requireFile("assets/pet/codex-agent-source-spritesheet.png");
   requireFile("assets/pet/codex-agent-hit.png");
@@ -44,6 +45,7 @@ if (platform === "macos") {
   requireFile("installers/install-windows.ps1");
   requireFile("installers/uninstall-windows.ps1");
   requireFile("scripts/manual-qa-windows.ps1");
+  requireFile("scripts/check-manual-qa-report.mjs");
 } else {
   fail(`Unsupported platform: ${platform}`);
 }

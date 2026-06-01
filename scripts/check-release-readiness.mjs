@@ -98,6 +98,7 @@ function checkRequiredFiles() {
     "scripts/smoke-install-macos-release.sh",
     "scripts/smoke-install-windows-release.ps1",
     "scripts/check-release-package.mjs",
+    "scripts/check-manual-qa-report.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/build-pet-assets-from-spritesheet.swift",
     "plugins/codex-speak/.codex-plugin/plugin.json",
@@ -123,6 +124,7 @@ function checkRequiredFiles() {
     "scripts/smoke-install-macos-release.sh",
     "scripts/manual-qa-macos.sh",
     "scripts/check-release-package.mjs",
+    "scripts/check-manual-qa-report.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/verify-local.sh"
   ];

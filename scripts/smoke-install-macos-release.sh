@@ -24,6 +24,10 @@ test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent-source-spritesheet.png"
   --allow-missing-models \
   --non-interactive \
   >"$SMOKE_DIR/manual-qa.txt"
+node "$SMOKE_DIR/codex-speak-macos/scripts/check-manual-qa-report.mjs" \
+  "$SMOKE_DIR/manual-qa" \
+  --allow-non-interactive \
+  >>"$SMOKE_DIR/manual-qa.txt"
 "$HOME/.codex/codex-speak/bin/codex-speak" support-bundle --output "$SMOKE_DIR/support"
 test -f "$SMOKE_DIR/support/doctor.json"
 test -f "$SMOKE_DIR/support/status.json"

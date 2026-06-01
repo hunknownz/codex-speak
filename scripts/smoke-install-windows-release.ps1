@@ -24,6 +24,8 @@ if (-not (Test-Path $InstalledApp)) {
 & $InstalledCli verify-install --allow-missing-models | Out-File -Encoding utf8 (Join-Path $Smoke "verify-install.txt")
 $ManualQaScript = Join-Path $Smoke "codex-speak-windows\scripts\manual-qa-windows.ps1"
 & $ManualQaScript -CliPath $InstalledCli -OutputDir (Join-Path $Smoke "manual-qa") -AllowMissingModels -NonInteractive | Out-File -Encoding utf8 (Join-Path $Smoke "manual-qa.txt")
+$ManualQaCheck = Join-Path $Smoke "codex-speak-windows\scripts\check-manual-qa-report.mjs"
+node $ManualQaCheck (Join-Path $Smoke "manual-qa") --allow-non-interactive | Out-File -Encoding utf8 -Append (Join-Path $Smoke "manual-qa.txt")
 $SupportDir = Join-Path $Smoke "support"
 & $InstalledCli support-bundle --output $SupportDir | Out-Null
 foreach ($SupportFile in @("doctor.json", "status.json", "models.json")) {
