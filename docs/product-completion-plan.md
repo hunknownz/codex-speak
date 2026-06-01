@@ -62,7 +62,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 
 ### P2：安装和分发
 
-状态：进行中，macOS 本地 release 包已经通过布局检查和跳过模型下载的安装烟测；Windows release 还需要 GitHub Actions 或真机验证。
+状态：第一版发布链路已跑通。macOS 本地 release 包已经通过布局检查和跳过模型下载的安装烟测；GitHub Actions 已在 macOS 和 Windows 上跑过 release package smoke；`v0.1.0-rc.1` draft prerelease 的 release workflow 已成功生成并上传发布 artifacts。
 
 目标：
 
@@ -84,12 +84,11 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 本机已打出 `codex-speak-macos.tar.gz`，通过 `scripts/check-release-package.mjs`，并从解包后的 release 目录完成一次安装烟测。
 - Release 打包和安装烟测已经抽成脚本，CI 会在 macOS 和 Windows 上执行同一套 package smoke 路径，避免 release workflow 与普通 CI 逻辑分叉。
 - Windows release 包只需要控制面板 `.exe`，CI 中的 Windows Tauri build 使用 `--no-bundle` 跳过额外安装器打包；真正的用户安装入口由 `install-windows.ps1` 负责。
+- `v0.1.0-rc.1` 已触发 release workflow，macOS/Windows build job 和 GitHub Release 发布 job 均通过。该 RC release 是 draft prerelease，用于验证 artifact 上传链路，不作为正式公开版本。
 
 剩余外部验证：
 
-- 在 GitHub Actions 上跑一次 release workflow，确认 `macos-14` 和 `windows-2022` 矩阵都能通过。
-- 推一个 `v*-rc*` 标签生成 draft prerelease，确认 GitHub Release artifact 上传链路能通过。
-- 在 Windows runner 或 Windows 真机上确认 `install-windows.ps1 -SkipTtsDownload`、`models list`、控制面板启动路径和 PowerShell 播放停止链路。
+- 在 Windows 真机上确认控制面板实际启动、系统播放器播放/停止链路，以及非 CI 环境下的首次模型下载体验。
 - 配置真实签名 secrets 后，验证 macOS codesign/notarization 和 Windows signtool。
 
 ### P3：语音效果优化计划
