@@ -90,6 +90,11 @@ fn run_doctor() -> Result<String, String> {
     run_cli(["doctor"])
 }
 
+#[tauri::command]
+fn write_support_bundle() -> Result<String, String> {
+    run_cli(["support-bundle"]).map(|output| output.trim().to_string())
+}
+
 fn cli_json<I, S>(args: I) -> Result<Value, String>
 where
     I: IntoIterator<Item = S>,
@@ -214,7 +219,8 @@ fn main() {
             install_current_model,
             stop_speech,
             open_control_window,
-            run_doctor
+            run_doctor,
+            write_support_bundle
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Codex Speak control app");

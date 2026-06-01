@@ -63,6 +63,7 @@ cd codex-speak-macos
 - 桌面 Pet 显示为透明原生窗口，没有白色或麦色背景块。
 - Pet 朗读中点击能停止朗读，双击能打开控制面板。
 - `models list` 能正常输出。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json` 和 `models.json` 的本地排障目录。
 
 完整模型下载验收至少覆盖一次：
 
@@ -92,6 +93,7 @@ cd codex-speak-macos
 - `codex-speak.exe stop` 能停止正在播放的声音。
 - PowerShell 播放链路不会留下持续运行的子进程。
 - `models list` 能正常输出。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json` 和 `models.json` 的本地排障目录。
 - 首次模型下载能显示进度和校验错误，不会静默失败。
 
 完整模型下载验收至少覆盖一次：

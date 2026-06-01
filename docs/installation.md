@@ -211,6 +211,14 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak models list
 ```
 
+如果需要把安装问题发给别人帮忙排查，可以生成一个本地支持包：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak support-bundle
+```
+
+它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。分享前请先快速看一下内容，因为里面可能包含本机路径和最近朗读记录。
+
 模型和 TTS runtime 下载会先写入临时文件，再在校验通过后替换目标文件。默认安装涉及的 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型都已经固定 sha256。
 
 ## 发布包
@@ -254,7 +262,7 @@ CI 会做三层检查：
 
 - 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
-- 烟测还会运行 `codex-speak doctor --json`，验证机器可读自检结果能解析，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
+- 烟测还会运行 `codex-speak doctor --json` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、支持包能生成，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 
 发布前可以运行 readiness 检查：
 

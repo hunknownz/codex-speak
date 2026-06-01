@@ -21,6 +21,14 @@ if (-not (Test-Path $InstalledApp)) {
 }
 
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
+$SupportDir = Join-Path $Smoke "support"
+& $InstalledCli support-bundle --output $SupportDir | Out-Null
+foreach ($SupportFile in @("doctor.json", "status.json", "models.json")) {
+  $Path = Join-Path $SupportDir $SupportFile
+  if (-not (Test-Path $Path)) {
+    throw "support bundle missing: $Path"
+  }
+}
 $DoctorJson = Join-Path $Smoke "doctor.json"
 $DoctorErr = Join-Path $Smoke "doctor.stderr.txt"
 $DoctorProcess = Start-Process `

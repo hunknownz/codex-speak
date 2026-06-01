@@ -98,6 +98,7 @@ codex-speak stop
 codex-speak doctor
 codex-speak doctor --json
 codex-speak status
+codex-speak support-bundle
 codex-speak pet-state
 codex-speak app open
 codex-speak app path
@@ -140,6 +141,12 @@ codex-speak uninstall
 
 ```bash
 ~/.codex/codex-speak/bin/codex-speak doctor --json
+```
+
+也可以生成一个本地支持包：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
 本地开发验证：

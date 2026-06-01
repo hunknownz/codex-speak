@@ -11,6 +11,7 @@ mod session;
 mod settings;
 mod side_channel;
 mod status;
+mod support;
 mod tts;
 
 use std::path::PathBuf;
@@ -53,6 +54,11 @@ enum Command {
     },
     /// Print machine-readable status for plugins and scripts.
     Status,
+    /// Write a local support bundle for installation or playback troubleshooting.
+    SupportBundle {
+        #[arg(long)]
+        output: Option<PathBuf>,
+    },
     /// Print the desktop pet state as JSON.
     PetState,
     /// Open or locate the installed control app.
@@ -149,6 +155,10 @@ fn main() -> Result<()> {
         Command::Status => {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
+        }
+        Command::SupportBundle { output } => {
+            let dir = support::write_bundle(output.as_deref())?;
+            println!("{}", dir.display());
         }
         Command::PetState => println!(
             "{}",

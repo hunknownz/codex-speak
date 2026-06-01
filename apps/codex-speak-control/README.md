@@ -15,6 +15,7 @@ Small Tauri control app for Codex Speak.
 - Stop current playback.
 - Play a local sample sentence.
 - Run `doctor` checks.
+- Write a local support bundle for troubleshooting.
 - Launch the native macOS desktop pet that reflects the current speech state.
 
 The app does not duplicate TTS logic. It calls the installed Rust CLI at:

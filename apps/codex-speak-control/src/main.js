@@ -212,4 +212,16 @@ $("doctor").addEventListener("click", async () => {
   }
 });
 
+$("supportBundle").addEventListener("click", async () => {
+  setBusy(true);
+  try {
+    const path = await invoke("write_support_bundle");
+    setLog(`支持包已生成：${path}`);
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
 refresh();

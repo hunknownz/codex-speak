@@ -17,6 +17,10 @@ test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent.mov"
 test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent-source-spritesheet.png"
 
 "$HOME/.codex/codex-speak/bin/codex-speak" models list >"$SMOKE_DIR/models.json"
+"$HOME/.codex/codex-speak/bin/codex-speak" support-bundle --output "$SMOKE_DIR/support"
+test -f "$SMOKE_DIR/support/doctor.json"
+test -f "$SMOKE_DIR/support/status.json"
+test -f "$SMOKE_DIR/support/models.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" doctor --json >"$SMOKE_DIR/doctor.json" || true
 node - "$SMOKE_DIR/doctor.json" <<'NODE'
 const fs = require("fs");
