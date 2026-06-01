@@ -47,7 +47,10 @@ enum Command {
     /// Stop current speech playback.
     Stop,
     /// Check installation, model, player, and Codex hook state.
-    Doctor,
+    Doctor {
+        #[arg(long)]
+        json: bool,
+    },
     /// Print machine-readable status for plugins and scripts.
     Status,
     /// Print the desktop pet state as JSON.
@@ -142,7 +145,7 @@ fn main() -> Result<()> {
             tts::speak(&cfg, &extracted, no_play)?;
         }
         Command::Stop => process::stop_speech()?,
-        Command::Doctor => doctor::run()?,
+        Command::Doctor { json } => doctor::run(json)?,
         Command::Status => {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);

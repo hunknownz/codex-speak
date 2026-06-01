@@ -3,67 +3,212 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::Result;
+use serde::Serialize;
 
 use crate::config;
 
-pub fn run() -> Result<()> {
-    let mut failed = false;
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorReport {
+    pub ok: bool,
+    pub checks: Vec<DoctorCheck>,
+}
 
-    check_dir("Codex home", &config::codex_home()?, &mut failed);
-    check_file("Config", &config::config_path()?, &mut failed);
-    check_file(
-        "Codex Speak CLI",
-        &config::bin_dir()?.join(binary_name()),
-        &mut failed,
-    );
-    check_optional_path("Control app", &config::control_app_path()?);
-    if config::pet_helper_supported() {
-        check_optional_path("Native pet helper", &config::pet_helper_path()?);
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorCheck {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub status: CheckStatus,
+    pub required: bool,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckStatus {
+    Ok,
+    Warn,
+    Fail,
+    Skip,
+}
+
+pub fn run(json: bool) -> Result<()> {
+    let report = collect()?;
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
-        println!("SKIP Native pet helper: macOS only");
+        print_text(&report);
     }
-    check_file("Sherpa TTS", &config::sherpa_bin()?, &mut failed);
-    check_file(
-        "Melo model",
-        &config::model_dir()?.join("model.onnx"),
-        &mut failed,
-    );
-    check_file(
-        "Melo lexicon",
-        &config::model_dir()?.join("lexicon.txt"),
-        &mut failed,
-    );
-    check_file(
-        "Melo tokens",
-        &config::model_dir()?.join("tokens.txt"),
-        &mut failed,
-    );
-    check_notify(&mut failed)?;
-    check_file(
-        "Codex Speak plugin",
-        &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
-        &mut failed,
-    );
-    check_marketplace(&mut failed)?;
-    check_player(&mut failed);
 
-    if failed {
+    if !report.ok {
         anyhow::bail!("doctor found problems");
     }
     Ok(())
 }
 
-fn check_notify(failed: &mut bool) -> Result<()> {
+pub fn collect() -> Result<DoctorReport> {
+    let mut checks = Vec::new();
+
+    check_dir(
+        "codex_home",
+        "Codex home",
+        &config::codex_home()?,
+        &mut checks,
+    );
+    check_file("config", "Config", &config::config_path()?, &mut checks);
+    check_file(
+        "cli",
+        "Codex Speak CLI",
+        &config::bin_dir()?.join(binary_name()),
+        &mut checks,
+    );
+    check_optional_path(
+        "control_app",
+        "Control app",
+        &config::control_app_path()?,
+        &mut checks,
+    );
+    if config::pet_helper_supported() {
+        check_optional_path(
+            "pet_helper",
+            "Native pet helper",
+            &config::pet_helper_path()?,
+            &mut checks,
+        );
+    } else {
+        checks.push(DoctorCheck::skip(
+            "pet_helper",
+            "Native pet helper",
+            "macOS only",
+        ));
+    }
+    check_file(
+        "sherpa_tts",
+        "Sherpa TTS",
+        &config::sherpa_bin()?,
+        &mut checks,
+    );
+    check_file(
+        "melo_model",
+        "Melo model",
+        &config::model_dir()?.join("model.onnx"),
+        &mut checks,
+    );
+    check_file(
+        "melo_lexicon",
+        "Melo lexicon",
+        &config::model_dir()?.join("lexicon.txt"),
+        &mut checks,
+    );
+    check_file(
+        "melo_tokens",
+        "Melo tokens",
+        &config::model_dir()?.join("tokens.txt"),
+        &mut checks,
+    );
+    check_notify(&mut checks)?;
+    check_file(
+        "plugin",
+        "Codex Speak plugin",
+        &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
+        &mut checks,
+    );
+    check_marketplace(&mut checks)?;
+    check_player(&mut checks);
+
+    Ok(DoctorReport::new(checks))
+}
+
+pub fn player_available() -> bool {
+    if cfg!(target_os = "macos") {
+        Path::new("/usr/bin/afplay").is_file()
+    } else if cfg!(windows) {
+        Command::new("powershell.exe")
+            .args(["-NoProfile", "-Command", "exit 0"])
+            .status()
+            .is_ok_and(|status| status.success())
+    } else {
+        false
+    }
+}
+
+impl DoctorReport {
+    fn new(checks: Vec<DoctorCheck>) -> Self {
+        let ok = checks
+            .iter()
+            .all(|check| !check.required || check.status != CheckStatus::Fail);
+        Self { ok, checks }
+    }
+}
+
+impl DoctorCheck {
+    fn ok(id: &'static str, label: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            id,
+            label,
+            status: CheckStatus::Ok,
+            required: true,
+            detail: detail.into(),
+        }
+    }
+
+    fn warn(id: &'static str, label: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            id,
+            label,
+            status: CheckStatus::Warn,
+            required: false,
+            detail: detail.into(),
+        }
+    }
+
+    fn fail(id: &'static str, label: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            id,
+            label,
+            status: CheckStatus::Fail,
+            required: true,
+            detail: detail.into(),
+        }
+    }
+
+    fn skip(id: &'static str, label: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            id,
+            label,
+            status: CheckStatus::Skip,
+            required: false,
+            detail: detail.into(),
+        }
+    }
+}
+
+fn print_text(report: &DoctorReport) {
+    for check in &report.checks {
+        let prefix = match check.status {
+            CheckStatus::Ok => "OK  ",
+            CheckStatus::Warn => "WARN",
+            CheckStatus::Fail => "FAIL",
+            CheckStatus::Skip => "SKIP",
+        };
+        println!("{prefix} {}: {}", check.label, check.detail);
+    }
+}
+
+fn check_notify(checks: &mut Vec<DoctorCheck>) -> Result<()> {
     let path = config::codex_home()?.join("config.toml");
     let raw = fs::read_to_string(&path).unwrap_or_default();
     if raw.contains("codex-speak-notify") {
-        println!("OK   Codex notify: codex-speak-notify is configured");
+        checks.push(DoctorCheck::ok(
+            "codex_notify",
+            "Codex notify",
+            "codex-speak-notify is configured",
+        ));
     } else {
-        println!(
-            "FAIL Codex notify: codex-speak-notify not found in {}",
-            path.display()
-        );
-        *failed = true;
+        checks.push(DoctorCheck::fail(
+            "codex_notify",
+            "Codex notify",
+            format!("codex-speak-notify not found in {}", path.display()),
+        ));
     }
     Ok(())
 }
@@ -76,66 +221,111 @@ fn binary_name() -> &'static str {
     }
 }
 
-fn check_dir(label: &str, path: &Path, failed: &mut bool) {
+fn check_dir(id: &'static str, label: &'static str, path: &Path, checks: &mut Vec<DoctorCheck>) {
     if path.is_dir() {
-        println!("OK   {label}: {}", path.display());
+        checks.push(DoctorCheck::ok(id, label, path.display().to_string()));
     } else {
-        println!("FAIL {label}: missing {}", path.display());
-        *failed = true;
+        checks.push(DoctorCheck::fail(
+            id,
+            label,
+            format!("missing {}", path.display()),
+        ));
     }
 }
 
-fn check_optional_path(label: &str, path: &Path) {
+fn check_optional_path(
+    id: &'static str,
+    label: &'static str,
+    path: &Path,
+    checks: &mut Vec<DoctorCheck>,
+) {
     if path.exists() {
-        println!("OK   {label}: {}", path.display());
+        checks.push(DoctorCheck::ok(id, label, path.display().to_string()));
     } else {
-        println!("WARN {label}: missing {}", path.display());
+        checks.push(DoctorCheck::warn(
+            id,
+            label,
+            format!("missing {}", path.display()),
+        ));
     }
 }
 
-fn check_file(label: &str, path: &Path, failed: &mut bool) {
+fn check_file(id: &'static str, label: &'static str, path: &Path, checks: &mut Vec<DoctorCheck>) {
     if path.is_file() {
-        println!("OK   {label}: {}", path.display());
+        checks.push(DoctorCheck::ok(id, label, path.display().to_string()));
     } else {
-        println!("FAIL {label}: missing {}", path.display());
-        *failed = true;
+        checks.push(DoctorCheck::fail(
+            id,
+            label,
+            format!("missing {}", path.display()),
+        ));
     }
 }
 
-fn check_marketplace(failed: &mut bool) -> Result<()> {
+fn check_marketplace(checks: &mut Vec<DoctorCheck>) -> Result<()> {
     let path = config::personal_marketplace_path()?;
     let raw = fs::read_to_string(&path).unwrap_or_default();
     if raw.contains("\"codex-speak\"") {
-        println!("OK   Plugin marketplace: codex-speak is configured");
+        checks.push(DoctorCheck::ok(
+            "plugin_marketplace",
+            "Plugin marketplace",
+            "codex-speak is configured",
+        ));
     } else {
-        println!(
-            "FAIL Plugin marketplace: codex-speak not found in {}",
-            path.display()
-        );
-        *failed = true;
+        checks.push(DoctorCheck::fail(
+            "plugin_marketplace",
+            "Plugin marketplace",
+            format!("codex-speak not found in {}", path.display()),
+        ));
     }
     Ok(())
 }
 
-fn check_player(failed: &mut bool) {
+fn check_player(checks: &mut Vec<DoctorCheck>) {
     if cfg!(target_os = "macos") {
         let path = Path::new("/usr/bin/afplay");
-        check_file("Player", path, failed);
+        check_file("player", "Player", path, checks);
     } else if cfg!(windows) {
-        match Command::new("powershell.exe")
-            .args(["-NoProfile", "-Command", "exit 0"])
-            .status()
-        {
-            Ok(status) if status.success() => {
-                println!("OK   Player: Windows PowerShell SoundPlayer");
-            }
-            _ => {
-                println!("FAIL Player: powershell.exe is not available");
-                *failed = true;
-            }
+        if player_available() {
+            checks.push(DoctorCheck::ok(
+                "player",
+                "Player",
+                "Windows PowerShell SoundPlayer",
+            ));
+        } else {
+            checks.push(DoctorCheck::fail(
+                "player",
+                "Player",
+                "powershell.exe is not available",
+            ));
         }
     } else {
-        println!("FAIL Player: unsupported platform");
-        *failed = true;
+        checks.push(DoctorCheck::fail(
+            "player",
+            "Player",
+            "unsupported platform",
+        ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CheckStatus, DoctorCheck, DoctorReport};
+
+    #[test]
+    fn required_fail_makes_report_not_ok() {
+        let report = DoctorReport::new(vec![DoctorCheck::fail("config", "Config", "missing")]);
+        assert!(!report.ok);
+    }
+
+    #[test]
+    fn optional_warn_does_not_fail_report() {
+        let report = DoctorReport::new(vec![DoctorCheck::warn(
+            "control_app",
+            "Control app",
+            "missing",
+        )]);
+        assert!(report.ok);
+        assert_eq!(report.checks[0].status, CheckStatus::Warn);
     }
 }

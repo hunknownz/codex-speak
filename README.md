@@ -96,6 +96,7 @@ codex-speak extract
 codex-speak speak
 codex-speak stop
 codex-speak doctor
+codex-speak doctor --json
 codex-speak status
 codex-speak pet-state
 codex-speak app open
@@ -133,6 +134,12 @@ codex-speak uninstall
 
 ```bash
 ~/.codex/codex-speak/bin/codex-speak doctor
+```
+
+需要给别人排查问题时，可以输出机器可读结果：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
 本地开发验证：

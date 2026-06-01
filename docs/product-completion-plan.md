@@ -58,7 +58,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 技术实现按 lil-agents 的路线：AppKit 透明浮窗 + `AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov` 动画素材 + display-link 驱动移动。
 - 轮廓清楚，颜色明亮，素材自带 alpha，不再用 WebView、HTML、CSS、SVG 或 canvas 绘制角色。
 - 动画轻，不影响工作。
-- 默认素材是项目自有的科技感小伙伴，由 `scripts/generate-pet-assets.swift` 生成；正式品牌角色仍然可以继续替换 `~/.codex/codex-speak/assets/pet/codex-agent.mov` 和 `codex-agent-hit.png`，只要保持透明视频和 alpha mask 约定即可。
+- 默认素材是项目自有的科技感小伙伴，由 `scripts/generate-pet-assets.swift` 生成；正式品牌角色仍然可以继续替换 `~/.codex/codex-speak/assets/pet/codex-agent.mov`、`codex-agent-hit.png` 和 `codex-agent-preview.png`，只要保持透明视频、alpha mask 和预览图约定即可。
 
 ### P2：安装和分发
 
@@ -86,6 +86,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - Windows release 包只需要控制面板 `.exe`，CI 中的 Windows Tauri build 使用 `--no-bundle` 跳过额外安装器打包；真正的用户安装入口由 `install-windows.ps1` 负责。
 - `v0.1.0-rc.1` 已触发 release workflow，macOS/Windows build job 和 GitHub Release 发布 job 均通过。该 RC release 是 draft prerelease，用于验证 artifact 上传链路，不作为正式公开版本。
 - 发布 readiness 检查已补为脚本 `scripts/check-release-readiness.mjs`，人工验收清单已沉淀到 `docs/release-qa.md`。
+- `doctor --json` 已补齐机器可读自检结果，控制面板健康状态也会检查播放器可用性，方便 Windows 真机和外部用户反馈问题。
 
 剩余外部验证：
 

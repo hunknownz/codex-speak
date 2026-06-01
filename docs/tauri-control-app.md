@@ -55,6 +55,7 @@ apps/codex-speak-pet-macos/
   assets/
     codex-agent.mov
     codex-agent-hit.png
+    codex-agent-preview.png
     ASSET-NOTICE.txt
 ```
 
@@ -79,10 +80,12 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 模型清单 | `codex-speak models list` |
 | 试听 | `codex-speak speak --text ...` |
 | 停止 | `codex-speak stop` |
-| 自检 | `codex-speak doctor` |
+| 自检 | `codex-speak doctor` / `codex-speak doctor --json` |
 | Pet 状态 | `codex-speak pet-state` |
 
 播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮和 MCP `stop` 工具会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
+
+控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果。
 
 ## 桌面 Pet
 

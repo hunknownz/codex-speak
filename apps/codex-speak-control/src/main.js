@@ -64,6 +64,7 @@ function renderStatus(status) {
     && status.checks.cli_exists
     && Boolean(provider?.installed)
     && status.checks.notify_configured
+    && status.checks.player_available
     && status.checks.control_app_exists
     && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists)
     && status.checks.plugin_installed

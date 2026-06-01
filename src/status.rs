@@ -50,6 +50,7 @@ pub struct StatusChecks {
     pub notify_configured: bool,
     pub plugin_installed: bool,
     pub marketplace_configured: bool,
+    pub player_available: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -110,6 +111,7 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             notify_configured: codex_config_raw.contains("codex-speak-notify"),
             plugin_installed: plugin_path.join(".codex-plugin/plugin.json").is_file(),
             marketplace_configured: marketplace_has_plugin(&marketplace_path),
+            player_available: crate::doctor::player_available(),
         },
         providers: provider_statuses()?,
         pet_state: crate::pet_state::read_state().unwrap_or_default(),

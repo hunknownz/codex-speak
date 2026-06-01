@@ -185,6 +185,12 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak doctor
 ```
 
+机器可读自检结果：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak doctor --json
+```
+
 期望看到这些检查通过：
 
 - CLI 已安装。
