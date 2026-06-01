@@ -28,7 +28,7 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 - Schema.org Microdata：用 HTML 属性表达可抽取的结构化内容，说明“可见内容 + 机器语义”是成熟路线。参考 [Schema.org item](https://schema.org/item)。
 - SSML：语音合成领域已有专门的朗读标记语言，但它更适合 TTS 内部，不适合直接放在 Chat Session 里。参考 [W3C SSML](https://www.w3.org/TR/speech-synthesis/)。
 
-结论：主路径使用 MCP side-channel；Chat Session 中的 HTML 微格式只作为 fallback；TTS 内部未来可以转换为 SSML。
+结论：主路径使用 MCP side-channel；正常情况下不需要在 Chat Session 中注入自定义 HTML/XML 协议；Chat Session 中的 HTML 微格式只作为 fallback；TTS 内部未来可以转换为 SSML。
 
 ## 主路径：MCP Side-Channel
 
@@ -69,6 +69,23 @@ Hook 在 Codex 回复结束后触发 Rust CLI。Rust CLI 优先读取这份文�
 
 这样可以保证 side-channel 是一次性消费的，避免下一轮回复误读上一轮朗读稿。
 
+对于长任务中的阶段性提示，可以使用另一个 MCP 工具：
+
+```text
+codex_speak_speak_text
+```
+
+输入示例：
+
+```json
+{
+  "text": "我正在运行测试，等一下会告诉你结果。",
+  "background": true
+}
+```
+
+`background: true` 表示由本地进程在后台生成并播放这句短提示，MCP 工具快速返回，Codex 可以继续执行任务。它适合少量进度节点，不适合逐句朗读所有思考过程。最终结果仍然用 `codex_speak_prepare` 写入完整导览，再由 Hook 在回复结束后朗读。
+
 ## Fallback：HTML 微格式
 
 ```html
@@ -99,7 +116,7 @@ Hook 在 Codex 回复结束后触发 Rust CLI。Rust CLI 优先读取这份文�
 
 - 如果 Codex 渲染器支持 `details`，用户会看到一个可展开的“朗读导览”。
 - 如果 Codex 渲染器不支持，Rust CLI 仍然能从里面找到 `aside[data-codex-speak="guide"]`。
-- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 MCP side-channel。
+- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 MCP side-channel；HTML 微格式只是插件或 MCP 不可用时的兼容兜底。
 
 ## 结构解释
 

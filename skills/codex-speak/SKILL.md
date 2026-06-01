@@ -24,6 +24,8 @@ Use these roles:
 
 The tool writes `~/.codex/codex-speak/spool/latest.json`. The Hook reads and consumes that file after the reply completes, so the full spoken guide does not need to be shown in the chat.
 
+For long-running tasks, you may also call `codex_speak_speak_text` with `background: true` for a short one-sentence progress prompt at a natural milestone. Use it sparingly: it is for "I am running the tests now" or "the build passed and I am checking packaging", not for reading every intermediate thought. Keep the final guide in `codex_speak_prepare`.
+
 When the side-channel succeeds:
 
 - Keep the final answer natural and concise.
@@ -41,7 +43,7 @@ When the user asks to control speech settings in natural language, use the avail
 - Use `codex_speak_install_model` for "安装这个声音", "下载 Kokoro 模型", or "把当前朗读引擎补全".
 - Use `codex_speak_update_config` when several settings should change together.
 - Use `codex_speak_stop` when the user asks to stop speech.
-- Use `codex_speak_speak_text` when the user asks to try or preview a voice.
+- Use `codex_speak_speak_text` when the user asks to try or preview a voice. For task progress speech, set `background: true` so Codex can keep working immediately.
 
 Available providers are `sherpa_melo`, `sherpa_kokoro`, `sherpa_zipvoice`, `piper`, and `system`. Extra local models may be required for everything except `system` and the default installed MeloTTS path.
 

@@ -16,9 +16,9 @@ Codex 的原始回复常常包含代码、命令、路径和技术词，直接�
 Codex Skill
   -> 让 Codex 生成儿童/初学者友好的朗读导览
 Codex Speak Plugin / MCP
-  -> 优先把朗读导览写入 side-channel
+  -> 写入 side-channel，也可触发少量后台进度朗读
 Codex Hook
-  -> 回复结束后自动触发
+  -> 回复结束后自动触发最终导览朗读
 speak-engine
   -> 消费 side-channel、提取 fallback 协议、清洗兜底、配置、调度
 本地 TTS
@@ -45,7 +45,7 @@ Tauri App / Native Desktop Pet
 - macOS 安装/卸载脚本
 - Sherpa-ONNX + MeloTTS 中文模型接入
 - Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
-- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路
+- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路、非阻塞进度朗读
 - Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、TTS 引擎切换、试听、停止、自检
 - 桌面 Pet 第一版：macOS 原生透明浮窗，按 lil-agents 的 `NSWindow + AVPlayerLayer + 1080x1920 HEVC-with-alpha .mov + CVDisplayLink` 方式显示角色，沿 Dock 区域行走，支持待命/待朗读/朗读中/完成/错误状态、拖动、点击停止、双击打开控制面板
 - 原创 Pet 透明动画素材：由 `scripts/generate-pet-assets.swift` 生成，不再依赖 lil-agents 参考角色素材
@@ -174,8 +174,9 @@ node scripts/check-release-readiness.mjs
 它提供：
 
 - Codex Speak Skill。
-- MCP 工具：状态、提取预览、停止、试听、开关、儿童模式、语速、声音档位、side-channel 写入。
+- MCP 工具：状态、提取预览、停止、试听、后台进度朗读、开关、儿童模式、语速、声音档位、side-channel 写入。
 - `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容，成功读取后移动为 `last-consumed.json`。
+- `codex_speak_speak_text background=true`：让 Codex 在长任务中播放一句简短进度提示，并马上继续工作。
 - 安装器会把插件复制到个人插件目录，并写入个人 marketplace，方便 Codex 发现和启用。
 
 当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 MCP side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。

@@ -6,26 +6,27 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 
 - 通过 Skill 要求 Codex 生成儿童友好的朗读导览。
 - 通过 MCP `codex_speak_prepare` 写入 side-channel。
+- 通过 MCP `codex_speak_speak_text` 的 `background: true` 做少量任务中途进度朗读。
 - 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速、声音档位和 TTS Provider。
-- 让朗读内容尽量不必出现在最终回答里。
+- 让朗读内容不必以自定义协议的形式出现在最终回答里。
 
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
 
-- 主路径：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里。
+- 主路径：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里；任务中途用 `codex_speak_speak_text background=true` 播放简短进度。
 - 兜底路径：协议块外包一层 HTML `details`，如果 Codex 渲染器支持，就折叠显示；如果不支持，也不影响解析和朗读。
 
 核心分工：
 
 ```text
 Skill：让 Codex 生成符合协议的朗读导览
-Plugin/MCP：把导览写入 side-channel，或提供状态/控制工具
+Plugin/MCP：把导览写入 side-channel，提供状态/控制工具，必要时触发后台进度朗读
 Hook：回复结束后触发朗读，并优先消费 side-channel
 Rust CLI：读取 side-channel、解析兜底协议、调用本地 TTS、播放声音
 ```
 
-## 第一阶段插件功能：Side-Channel 主路径
+## 当前插件功能：Side-Channel 主路径
 
-第一阶段 Plugin 已经进入主链路：Codex 优先调用 MCP 写入 side-channel，Hook 在回复结束后消费它。
+Plugin 已经进入主链路：Codex 优先调用 MCP 写入 side-channel，Hook 在回复结束后消费它。
 
 ### 1. Side-Channel 写入
 
@@ -66,7 +67,26 @@ Hook 触发后，Rust CLI 会：
 4. 朗读纯文本
 ```
 
-### 2. 状态面板
+### 2. 后台进度朗读
+
+工具：
+
+```text
+codex_speak_speak_text
+```
+
+输入：
+
+```json
+{
+  "text": "我正在运行测试，等一下会告诉你结果。",
+  "background": true
+}
+```
+
+`background: true` 会启动本地后台进程播放这句短提示，MCP 调用会快速返回。它用于长任务中的自然节点，例如开始测试、构建通过、正在打包；不用于逐字朗读代码、命令、日志或整段回答。
+
+### 3. 状态面板
 
 展示：
 
@@ -77,7 +97,7 @@ Hook 触发后，Rust CLI 会：
 - 最近一次 TTS 生成耗时。
 - `doctor` 自检结果。
 
-### 3. 快捷操作
+### 4. 快捷操作
 
 提供按钮：
 
@@ -104,7 +124,7 @@ codex-speak config set --child-mode true --speed 0.82
 codex-speak config set --provider sherpa_kokoro
 ```
 
-### 4. 配置管理
+### 5. 配置管理
 
 可调整：
 
@@ -251,7 +271,7 @@ Plugin 负责：
 
 - 让用户看见和控制这些能力。
 - 提供可视化状态。
-- 后续提供 side-channel。
+- 提供 side-channel 和后台进度朗读工具。
 
 ## 实施路线
 
@@ -267,6 +287,7 @@ Plugin 负责：
 - Rust CLI 支持读取并消费 spool。
 - Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
 - 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`。
+- `codex_speak_speak_text` 支持 `background: true`，用于长任务中的非阻塞进度提示。
 
 ### P3：Tauri 控制面板
 

@@ -1,4 +1,5 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
@@ -124,13 +125,14 @@ fn tools() -> Value {
         },
         {
             "name": "codex_speak_speak_text",
-            "description": "Speak or dry-run a short text using the local Codex Speak TTS settings.",
+            "description": "Speak or dry-run a short text using the local Codex Speak TTS settings. Set background=true for short progress prompts so the tool returns immediately.",
             "inputSchema": {
                 "type": "object",
                 "required": ["text"],
                 "properties": {
                     "text": { "type": "string" },
-                    "no_play": { "type": "boolean", "default": false }
+                    "no_play": { "type": "boolean", "default": false },
+                    "background": { "type": "boolean", "default": false }
                 },
                 "additionalProperties": false
             }
@@ -292,9 +294,18 @@ fn call_tool(request: &Value) -> Result<Value> {
                 .get("no_play")
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
+            let background = args
+                .get("background")
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let cleaned = extract::clean_for_speech(input, cfg.max_read_chars);
-            tts::speak(&cfg, &cleaned, no_play)?;
-            format!("ok: {}", cleaned)
+            if background && !no_play {
+                speak_text_in_background(&cleaned)?;
+                format!("queued: {}", cleaned)
+            } else {
+                tts::speak(&cfg, &cleaned, no_play)?;
+                format!("ok: {}", cleaned)
+            }
         }
         "codex_speak_stop" => {
             process::stop_speech()?;
@@ -422,6 +433,20 @@ fn update_config(cfg: Config, patch: settings::ConfigPatch) -> Result<String> {
     let update = settings::apply_patch(cfg, patch)?;
     update.config.save()?;
     Ok(serde_json::to_string_pretty(&update)?)
+}
+
+fn speak_text_in_background(text: &str) -> Result<()> {
+    let exe = std::env::current_exe().context("failed to locate current codex-speak binary")?;
+    Command::new(exe)
+        .arg("speak")
+        .arg("--text")
+        .arg(text)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("failed to start background speech process")?;
+    Ok(())
 }
 
 fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<Value>> {

@@ -8,9 +8,9 @@
 Codex Skill
   -> 让回答自然包含朗读导览
 Codex Speak Plugin / MCP
-  -> 优先写入 side-channel
+  -> 写入 side-channel，也可触发少量后台进度朗读
 Codex Hook
-  -> 回复结束后自动触发
+  -> 回复结束后自动触发最终导览朗读
 speak-engine
   -> 消费 side-channel、提取 fallback 协议、清洗、配置、调度
 本地 TTS
@@ -21,13 +21,13 @@ installer
   -> 安装、升级、卸载、自检
 ```
 
-第一阶段采用：
+当前采用：
 
 ```text
-Skill + Hook + 本地 TTS
+Skill + MCP side-channel + Hook + 本地 TTS + Tauri 控制面板
 ```
 
-Plugin 不作为 Hook 朗读的必需组件，但第一版已经可以提供 MCP 工具，用于状态查询、试听、停止朗读、开关配置、儿童模式、语速、声音档位和 side-channel 写入。
+Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览，并在 MCP 不可用时兜底清洗普通回复。
 
 ## 设计原则
 
@@ -40,14 +40,21 @@ Plugin 不作为 Hook 朗读的必需组件，但第一版已经可以提供 MCP
 
 ## Skill、Hook、Plugin 分工
 
-| 组件 | 是否第一阶段需要 | 职责 |
+| 组件 | 是否主路径需要 | 职责 |
 | --- | --- | --- |
-| Skill | 是 | 让 Codex 每次自然生成适合朗读的中文导览 |
-| Hook | 是 | Codex 回复结束后触发朗读流程 |
+| Skill | 是 | 让 Codex 理解任务上下文，并生成适合朗读的中文导览 |
+| Plugin/MCP | 是 | 写入 side-channel，控制配置，触发少量后台进度朗读 |
+| Hook | 是 | Codex 回复结束后触发最终导览朗读 |
 | 本地 TTS | 是 | 把朗读导览变成声音 |
-| Plugin | 否，第二阶段 | 做设置界面、重读、暂停、声音选择 |
+| Tauri 控制面板 | 是 | 给普通用户提供开关、语速、声音和停止按钮 |
 
-Skill 生成示例：
+不再要求 Chat Session 正常显示自定义协议。首选方式是 Codex 调用 MCP 工具：
+
+```text
+codex_speak_prepare
+```
+
+写入结构化 side-channel。只有 MCP 不可用时，才在最终回答里放 HTML fallback：
 
 ```html
 <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
@@ -83,6 +90,8 @@ Hook 提取策略：
 导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；HTML 微格式 `aside` 是 Plugin 不可用时的 fallback，`data-*` 供 Rust CLI 稳定解析，`class` 供未来 Plugin 渲染和校验。
 
 当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
+
+长任务中如果需要让孩子知道“正在做什么”，Codex 可以调用 `codex_speak_speak_text` 并设置 `background: true`，播放一句简短进度提示。这个通道不替代 Hook，也不朗读完整回复；它只负责任务中途的少量提示。
 
 ### 第二层：规则清洗兜底
 
