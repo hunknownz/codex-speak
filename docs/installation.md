@@ -39,6 +39,8 @@ docs/
 ./installers/install-macos.sh --skip-tts-download
 ```
 
+安装完成后，安装器会打印下一步命令：运行自检、打开控制面板、生成支持包；如果跳过了模型下载，还会提示之后如何安装默认中文模型。
+
 ### 源码安装
 
 开发机或源码 checkout 中运行：
@@ -122,6 +124,8 @@ docs\
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\installers\install-windows.ps1 -SkipTtsDownload
 ```
+
+安装完成后，安装器会打印下一步命令：运行自检、打开控制面板、生成支持包；如果跳过了模型下载，还会提示之后如何安装默认中文模型。
 
 ### 源码安装
 

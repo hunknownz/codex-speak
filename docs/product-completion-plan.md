@@ -90,6 +90,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `doctor --json` 和控制面板健康状态已进一步覆盖 Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本，避免外部机器上出现“插件看起来安装了，但 side-channel/MCP 实际不可用”的隐性问题。
 - `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、插件、Hook 或播放器问题。
 - `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，方便 Windows 真机和外部用户反馈问题；macOS/Windows release smoke 已覆盖该命令。
+- 安装器完成后会直接打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 
 剩余外部验证：
 

@@ -77,6 +77,7 @@ pub fn install(skip_tts_download: bool) -> Result<()> {
     }
 
     println!("Codex Speak installed at {}", config::app_home()?.display());
+    print_install_summary(skip_tts_download)?;
     Ok(())
 }
 
@@ -109,6 +110,26 @@ fn create_dirs() -> Result<()> {
         config::personal_plugins_root()?.join("plugins"),
     ] {
         fs::create_dir_all(dir)?;
+    }
+    Ok(())
+}
+
+fn print_install_summary(skip_tts_download: bool) -> Result<()> {
+    let cli = config::bin_dir()?.join(binary_name());
+    println!();
+    println!("Next steps:");
+    println!("  1. Run self-check:");
+    println!("     {} doctor", cli.display());
+    println!("  2. Open the control app:");
+    println!("     {} app open", cli.display());
+    println!("  3. If you need help, create a support bundle:");
+    println!("     {} support-bundle", cli.display());
+    if skip_tts_download {
+        println!("  4. Install the default local Chinese voice model when ready:");
+        println!(
+            "     {} models install --provider sherpa_melo",
+            cli.display()
+        );
     }
     Ok(())
 }
