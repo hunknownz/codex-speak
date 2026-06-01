@@ -251,14 +251,25 @@ invoke_qa_command "models list" 0 models list >/dev/null
 invoke_qa_command "verify codex integration" 0 verify-codex >/dev/null
 invoke_qa_command "verify controls" 0 verify-controls >/dev/null
 
-mixed_text="我运行 hello world，并检查 MCP、JSON、CLI 和 API。"
+mixed_text="我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"
 invoke_qa_command "mixed english extract" 0 extract --text "$mixed_text" >/dev/null
 mixed_stdout="$OUTPUT_DIR/mixed-english-extract.stdout.txt"
-if grep -q "插件通道" "$mixed_stdout" \
+if grep -q "说明文件" "$mixed_stdout" \
+  && grep -q "准备朗读导览的插件工具" "$mixed_stdout" \
+  && grep -q "命令参数" "$mixed_stdout" \
+  && grep -q "默认中文朗读引擎" "$mixed_stdout" \
+  && grep -q "插件通道" "$mixed_stdout" \
   && grep -q "数据格式" "$mixed_stdout" \
   && grep -q "命令行工具" "$mixed_stdout" \
+  && grep -q "处理器" "$mixed_stdout" \
+  && grep -q "英文缩写" "$mixed_stdout" \
+  && ! grep -q "README.md" "$mixed_stdout" \
+  && ! grep -q "codex_speak_prepare" "$mixed_stdout" \
+  && ! grep -q -- "--provider" "$mixed_stdout" \
+  && ! grep -q "sherpa_melo" "$mixed_stdout" \
   && ! grep -q "MCP" "$mixed_stdout" \
-  && ! grep -q "JSON" "$mixed_stdout"; then
+  && ! grep -q "JSON" "$mixed_stdout" \
+  && ! grep -q "XYZ" "$mixed_stdout"; then
   add_qa_check "mixed english normalization" "pass" "technical English terms normalized for speech"
 else
   add_qa_check "mixed english normalization" "fail" "expected technical English terms to be normalized in $mixed_stdout"

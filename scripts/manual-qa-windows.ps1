@@ -168,7 +168,7 @@ Invoke-QaCommand "models list" @("models", "list") | Out-Null
 Invoke-QaCommand "verify codex integration" @("verify-codex") | Out-Null
 Invoke-QaCommand "verify controls" @("verify-controls") | Out-Null
 
-$MixedText = "我运行 hello world，并检查 MCP、JSON、CLI 和 API。"
+$MixedText = "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"
 Invoke-QaCommand "mixed english extract" @("extract", "--text", $MixedText) | Out-Null
 $MixedStdout = Join-Path $OutputDir "mixed-english-extract.stdout.txt"
 try {
@@ -177,11 +177,22 @@ try {
   $MixedExtract = ""
 }
 if (
+  $MixedExtract.Contains("说明文件") -and
+  $MixedExtract.Contains("准备朗读导览的插件工具") -and
+  $MixedExtract.Contains("命令参数") -and
+  $MixedExtract.Contains("默认中文朗读引擎") -and
   $MixedExtract.Contains("插件通道") -and
   $MixedExtract.Contains("数据格式") -and
   $MixedExtract.Contains("命令行工具") -and
+  $MixedExtract.Contains("处理器") -and
+  $MixedExtract.Contains("英文缩写") -and
+  -not $MixedExtract.Contains("README.md") -and
+  -not $MixedExtract.Contains("codex_speak_prepare") -and
+  -not $MixedExtract.Contains("--provider") -and
+  -not $MixedExtract.Contains("sherpa_melo") -and
   -not $MixedExtract.Contains("MCP") -and
-  -not $MixedExtract.Contains("JSON")
+  -not $MixedExtract.Contains("JSON") -and
+  -not $MixedExtract.Contains("XYZ")
 ) {
   Add-QaCheck "mixed english normalization" "pass" "technical English terms normalized for speech"
 } else {

@@ -119,7 +119,8 @@ terminal -> 命令窗口
 
 英文逐字母朗读的处理分两层：
 
-- 文本层：`src/pronunciation.rs` 在进入 TTS 前统一替换常见技术英文和缩写，避免中文模型把 `MCP`、`JSON`、`CLI` 这类词按字母读。
+- 文本层：`src/pronunciation.rs` 在进入 TTS 前统一替换常见技术英文、文件名、脚本名、命令参数、代码标识符和缩写，避免中文模型把 `MCP`、`JSON`、`CLI`、`README.md`、`codex_speak_prepare`、`--provider` 这类内容按字母或符号逐个读出来。
+- 兜底层：常见缩写会转成中文意思；未收录的全大写短缩写会转成“英文缩写”，宁可少读一点原文，也不把孩子带进无意义的拼字母里。
 - 系统兜底层：当 provider 是 `system` 时，macOS/Windows 会把中英文分段，中文段使用中文系统声音，普通英文段使用英文系统声音。这样在没有本地模型时，`hello world` 这类普通英文短语不会被中文声音逐字母拼读。
 
 长期方案仍然是优先使用中英混读能力更好的本地 provider，例如 `sherpa_melo` 或 `sherpa_kokoro`；`system` 主要用于无模型安装和故障兜底。

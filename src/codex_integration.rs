@@ -233,19 +233,42 @@ fn main() {
 }
 
 fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
-    let raw = "我运行 hello world，并检查 MCP、JSON、CLI 和 API。";
+    let raw =
+        "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。";
     let cleaned = session::resolve_text(Some(raw.to_string()), None, cfg)?;
-    for required in ["插件通道", "数据格式", "命令行工具", "接口"] {
+    for required in [
+        "说明文件",
+        "准备朗读导览的插件工具",
+        "命令参数",
+        "默认中文朗读引擎",
+        "插件通道",
+        "数据格式",
+        "命令行工具",
+        "接口",
+        "处理器",
+        "英文缩写",
+    ] {
         if !cleaned.contains(required) {
             anyhow::bail!("mixed English normalization lost expected term {required}: {cleaned}");
         }
     }
-    for forbidden in ["MCP", "JSON", "CLI", "API"] {
+    for forbidden in [
+        "README.md",
+        "codex_speak_prepare",
+        "--provider",
+        "sherpa_melo",
+        "MCP",
+        "JSON",
+        "CLI",
+        "API",
+        "CPU",
+        "XYZ",
+    ] {
         if cleaned.contains(forbidden) {
             anyhow::bail!("mixed English normalization leaked raw term {forbidden}: {cleaned}");
         }
     }
-    Ok("common English technical terms are converted before speech".to_string())
+    Ok("English technical terms, file names, flags, identifiers, and acronyms are converted before speech".to_string())
 }
 
 fn print_text(report: &CodexIntegrationReport) {
