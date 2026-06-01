@@ -92,6 +92,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `doctor` 和 `status` 已加入集成文件一致性检查：Codex Speak Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本必须与当前 CLI 内置版本一致，旧文件会提示重新运行 `codex-speak install` 刷新。
 - `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、插件、Hook 或播放器问题。
 - `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，并默认脱敏 home 路径和最近朗读文本；macOS/Windows release smoke 已覆盖该命令。
+- `check-manual-qa-report.mjs` 已加入支持包隐私门禁，会验证默认支持包声明已脱敏、未开启 `includePrivate`，并扫描支持包中是否残留本机 home 路径或未脱敏的最近朗读文本。
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。

@@ -189,7 +189,7 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-支持包默认会脱敏本机 home 路径和最近朗读文本，并包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。只有深度排障时，才建议显式运行 `support-bundle --include-private`。
+支持包默认会脱敏本机 home 路径和最近朗读文本，并包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。QA 报告校验器会检查默认支持包的脱敏状态；只有深度排障时，才建议显式运行 `support-bundle --include-private`。
 
 解压 release 包后，可以用包里的 CLI 校验 manifest 记录的关键文件哈希：
 

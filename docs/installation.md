@@ -259,7 +259,7 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。默认支持包会脱敏本机 home 路径，并把最近朗读文本替换成提示文字，适合直接发给维护者排查安装问题。
+它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。默认支持包会脱敏本机 home 路径，并把最近朗读文本替换成提示文字，适合直接发给维护者排查安装问题。外部 QA 回传时，`check-manual-qa-report.mjs` 会自动验证默认支持包确实是脱敏的。
 
 如果确实需要完整本机路径和最近朗读日志做深度排障，再显式运行：
 

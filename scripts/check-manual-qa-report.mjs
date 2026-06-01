@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 const args = process.argv.slice(2);
@@ -46,6 +46,7 @@ const reportPath = resolveReportPath(reportArg);
 const reportDir = path.dirname(reportPath);
 const report = readJson(reportPath);
 const results = [];
+const supportDir = path.join(reportDir, "support-bundle");
 
 check(typeof report.generatedAt === "string" && report.generatedAt.length > 0, "generatedAt", report.generatedAt ?? "missing");
 check(typeof report.cliPath === "string" && report.cliPath.length > 0, "cliPath", report.cliPath ?? "missing");
@@ -79,16 +80,17 @@ if (report.nonInteractive && !allowNonInteractive) {
 }
 
 for (const file of ["doctor.json", "status.json", "models.json", "support-bundle-metadata.json"]) {
-  const supportPath = path.join(reportDir, "support-bundle", file);
+  const supportPath = path.join(supportDir, file);
   check(existsSync(supportPath) && statSync(supportPath).isFile(), `support file ${file}`, existsSync(supportPath) ? "present" : "missing");
 }
-const manifestPath = path.join(reportDir, "support-bundle", "release-manifest.json");
-const missingManifestPath = path.join(reportDir, "support-bundle", "release-manifest-missing.txt");
+const manifestPath = path.join(supportDir, "release-manifest.json");
+const missingManifestPath = path.join(supportDir, "release-manifest-missing.txt");
 check(
   existsSync(manifestPath) || existsSync(missingManifestPath),
   "support file release manifest",
   existsSync(manifestPath) ? "present" : existsSync(missingManifestPath) ? "missing marker present" : "missing"
 );
+validateSupportBundlePrivacy(supportDir, report);
 
 printResults();
 if (results.some((item) => item.status === "FAIL")) {
@@ -115,6 +117,83 @@ function readJson(file) {
   } catch (error) {
     failAndExit(`Could not parse QA report JSON: ${error.message}`);
   }
+}
+
+function validateSupportBundlePrivacy(dir, report) {
+  if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+    fail("support privacy", "support-bundle directory missing");
+    return;
+  }
+
+  const metadataPath = path.join(dir, "support-bundle-metadata.json");
+  const metadata = existsSync(metadataPath) ? readJson(metadataPath) : null;
+  if (metadata) {
+    check(metadata.redacted === true, "support metadata redacted", metadata.redacted);
+    check(metadata.includePrivate === false, "support metadata includePrivate", metadata.includePrivate);
+    check(metadata.redaction?.localPaths === true, "support metadata local path redaction", metadata.redaction?.localPaths);
+    check(metadata.redaction?.recentSpokenText === true, "support metadata spoken text redaction", metadata.redaction?.recentSpokenText);
+  }
+
+  const files = listFiles(dir);
+  const pathLeaks = [];
+  const homePathPatterns = [
+    /\/Users\/[^/\s:]+(?:\/[^\s:]+)*/g,
+    /\/home\/[^/\s:]+(?:\/[^\s:]+)*/g,
+    /[A-Z]:\\Users\\[^\\\s:]+(?:\\[^\s:]+)*/gi
+  ];
+  const username = typeof report.machine?.user === "string" ? report.machine.user.trim() : "";
+  for (const file of files) {
+    const text = readTextIfSmall(file);
+    if (text === null) continue;
+    for (const pattern of homePathPatterns) {
+      for (const match of text.matchAll(pattern)) {
+        pathLeaks.push(`${path.relative(dir, file)}: ${match[0]}`);
+      }
+    }
+    if (username && username.length >= 3 && text.includes(username) && !safeUsernameOccurrence(username, text)) {
+      pathLeaks.push(`${path.relative(dir, file)}: contains machine username ${username}`);
+    }
+  }
+  check(pathLeaks.length === 0, "support privacy local paths", pathLeaks.length === 0 ? "none found" : pathLeaks.slice(0, 3).join("; "));
+
+  const lastSpokenPath = path.join(dir, "logs", "last-spoken.txt");
+  if (existsSync(lastSpokenPath)) {
+    const text = readFileSync(lastSpokenPath, "utf8");
+    check(
+      text.includes("[redacted by codex-speak support-bundle]"),
+      "support privacy last-spoken",
+      text.includes("[redacted by codex-speak support-bundle]") ? "redacted" : "not redacted"
+    );
+  } else {
+    ok("support privacy last-spoken", "no recent spoken text log present");
+  }
+}
+
+function listFiles(dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...listFiles(file));
+    } else if (entry.isFile()) {
+      out.push(file);
+    }
+  }
+  return out;
+}
+
+function readTextIfSmall(file) {
+  const stats = statSync(file);
+  if (stats.size > 512 * 1024) return null;
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function safeUsernameOccurrence(username, text) {
+  return username === "runner" && !/\/Users\/runner|\\Users\\runner|\/home\/runner/i.test(text);
 }
 
 function expectedManualChecks(report) {

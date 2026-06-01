@@ -64,6 +64,7 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 - 传入 `--require-manual-qa` 时，macOS 和 Windows 真机 QA 报告必须都存在、通过 `check-manual-qa-report.mjs`，且回传支持包里的 `release-manifest.json` 必须匹配当前 git commit。
 - release 包内包含 `release-manifest.json`，可以追踪版本、git commit、平台和关键文件 sha256。
 - release 包内包含 `scripts/check-release-manifest.mjs`，解压后可以校验 manifest 和关键文件 sha256。
+- `check-manual-qa-report.mjs` 会校验支持包默认脱敏：`support-bundle-metadata.json` 必须声明 `redacted=true`、`includePrivate=false`，支持包里不能残留本机 home 路径，`logs/last-spoken.txt` 如果存在也必须是脱敏提示。
 
 ## macOS 人工验收
 
@@ -109,7 +110,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - 桌面 Pet 显示为透明原生窗口，没有白色或麦色背景块。
 - Pet 朗读中点击能停止朗读，双击能打开控制面板。
 - `models list` 能正常输出。
-- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径和最近朗读文本。
 
 完整模型下载验收至少覆盖一次：
 
@@ -162,7 +163,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `codex-speak.exe stop` 能停止正在播放的声音。
 - PowerShell 播放链路不会留下持续运行的子进程。
 - `models list` 能正常输出。
-- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径和最近朗读文本。
 - 首次模型下载能显示进度和校验错误，不会静默失败。
 
 完整模型下载验收至少覆盖一次：
