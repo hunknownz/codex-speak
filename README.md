@@ -173,6 +173,12 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 
 支持包会包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。
 
+解压 release 包后，如果机器上有 Node.js，也可以先校验包内 manifest 记录的关键文件哈希：
+
+```bash
+node scripts/check-release-manifest.mjs .
+```
+
 本地开发验证：
 
 ```bash

@@ -20,7 +20,8 @@ const commonFiles = [
   "docs/release-qa.md",
   "docs/requirements.md",
   "docs/technical-design.md",
-  "docs/tauri-control-app.md"
+  "docs/tauri-control-app.md",
+  "scripts/check-release-manifest.mjs"
 ];
 
 for (const file of commonFiles) {
@@ -36,6 +37,7 @@ if (platform === "macos") {
   requireExecutable("installers/uninstall-macos.sh");
   requireExecutable("scripts/manual-qa-macos.sh");
   requireExecutable("scripts/check-manual-qa-report.mjs");
+  requireExecutable("scripts/check-release-manifest.mjs");
   requireFile("assets/pet/codex-agent.mov");
   requireFile("assets/pet/codex-agent-source-spritesheet.png");
   requireFile("assets/pet/codex-agent-hit.png");
@@ -48,6 +50,7 @@ if (platform === "macos") {
   requireFile("installers/uninstall-windows.ps1");
   requireFile("scripts/manual-qa-windows.ps1");
   requireFile("scripts/check-manual-qa-report.mjs");
+  requireFile("scripts/check-release-manifest.mjs");
 } else {
   fail(`Unsupported platform: ${platform}`);
 }
@@ -102,6 +105,11 @@ function checkReleaseManifest(expectedPlatform) {
   }
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
     fail("release-manifest.json files list is missing");
+  }
+  for (const key of ["install", "verifyInstall", "verifyCodex", "manualQa", "checkQaReport", "verifyManifest"]) {
+    if (typeof manifest.verification?.[key] !== "string" || manifest.verification[key].length === 0) {
+      fail(`release-manifest.json verification.${key} is missing`);
+    }
   }
   for (const file of manifest.files) {
     if (typeof file.path !== "string" || !file.path) {

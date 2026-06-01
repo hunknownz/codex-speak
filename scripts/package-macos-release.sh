@@ -15,14 +15,19 @@ cp "$ROOT_DIR/target/release/codex-speak-pet-macos" "$PACKAGE/bin/codex-speak-pe
 ditto "$APP_SOURCE" "$PACKAGE/apps/Codex Speak.app"
 ditto "$ROOT_DIR/apps/codex-speak-pet-macos/assets" "$PACKAGE/assets/pet"
 cp "$ROOT_DIR/installers/install-macos.sh" "$ROOT_DIR/installers/uninstall-macos.sh" "$PACKAGE/installers/"
-cp "$ROOT_DIR/scripts/manual-qa-macos.sh" "$ROOT_DIR/scripts/check-manual-qa-report.mjs" "$PACKAGE/scripts/"
+cp \
+  "$ROOT_DIR/scripts/manual-qa-macos.sh" \
+  "$ROOT_DIR/scripts/check-manual-qa-report.mjs" \
+  "$ROOT_DIR/scripts/check-release-manifest.mjs" \
+  "$PACKAGE/scripts/"
 chmod +x \
   "$PACKAGE/bin/codex-speak" \
   "$PACKAGE/bin/codex-speak-pet-macos" \
   "$PACKAGE/installers/install-macos.sh" \
   "$PACKAGE/installers/uninstall-macos.sh" \
   "$PACKAGE/scripts/manual-qa-macos.sh" \
-  "$PACKAGE/scripts/check-manual-qa-report.mjs"
+  "$PACKAGE/scripts/check-manual-qa-report.mjs" \
+  "$PACKAGE/scripts/check-release-manifest.mjs"
 
 cp "$ROOT_DIR/README.md" "$PACKAGE/README.md"
 cp \

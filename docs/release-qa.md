@@ -43,6 +43,7 @@ node scripts/check-release-readiness.mjs --offline --allow-dirty
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 需要正式签名发布时，签名环境变量已经配置。
 - release 包内包含 `release-manifest.json`，可以追踪版本、git commit、平台和关键文件 sha256。
+- release 包内包含 `scripts/check-release-manifest.mjs`，解压后可以校验 manifest 和关键文件 sha256。
 
 ## macOS 人工验收
 
@@ -71,6 +72,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `macos`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
+- 有 Node.js 时，`node scripts/check-release-manifest.mjs .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
 - 安装后 `~/.codex/codex-speak/release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。
@@ -120,6 +122,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `windows`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
+- 有 Node.js 时，`node .\scripts\check-release-manifest.mjs .` 应通过，用来证明 manifest 中记录的关键文件没有缺失或被替换。
 - 安装后 `%USERPROFILE%\.codex\codex-speak\release-manifest.json` 应存在，并且 `support-bundle` 应把它复制出来。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor` 能运行。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；失败或警告项应带有可执行的 `hint`。

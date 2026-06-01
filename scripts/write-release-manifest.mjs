@@ -54,7 +54,8 @@ function manifestFiles(targetPlatform) {
       "assets/pet/codex-agent.mov",
       "assets/pet/codex-agent-source-spritesheet.png",
       "scripts/manual-qa-macos.sh",
-      "scripts/check-manual-qa-report.mjs"
+      "scripts/check-manual-qa-report.mjs",
+      "scripts/check-release-manifest.mjs"
     ];
   }
   if (targetPlatform === "windows") {
@@ -62,7 +63,8 @@ function manifestFiles(targetPlatform) {
       "bin/codex-speak.exe",
       "apps/codex-speak-control.exe",
       "scripts/manual-qa-windows.ps1",
-      "scripts/check-manual-qa-report.mjs"
+      "scripts/check-manual-qa-report.mjs",
+      "scripts/check-release-manifest.mjs"
     ];
   }
   fail(`Unsupported platform: ${targetPlatform}`);
@@ -85,16 +87,20 @@ function verificationCommands(targetPlatform) {
     return {
       install: "./installers/install-macos.sh --skip-tts-download",
       verifyInstall: "~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models",
+      verifyCodex: "~/.codex/codex-speak/bin/codex-speak verify-codex",
       manualQa: "./scripts/manual-qa-macos.sh --allow-missing-models",
-      checkQaReport: "node scripts/check-manual-qa-report.mjs <qa-output-dir>"
+      checkQaReport: "node scripts/check-manual-qa-report.mjs <qa-output-dir>",
+      verifyManifest: "node scripts/check-release-manifest.mjs ."
     };
   }
   if (targetPlatform === "windows") {
     return {
       install: ".\\installers\\install-windows.ps1 -SkipTtsDownload",
       verifyInstall: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-install --allow-missing-models",
+      verifyCodex: "%USERPROFILE%\\.codex\\codex-speak\\bin\\codex-speak.exe verify-codex",
       manualQa: ".\\scripts\\manual-qa-windows.ps1 -AllowMissingModels",
-      checkQaReport: "node .\\scripts\\check-manual-qa-report.mjs <qa-output-dir>"
+      checkQaReport: "node .\\scripts\\check-manual-qa-report.mjs <qa-output-dir>",
+      verifyManifest: "node .\\scripts\\check-release-manifest.mjs ."
     };
   }
   fail(`Unsupported platform: ${targetPlatform}`);

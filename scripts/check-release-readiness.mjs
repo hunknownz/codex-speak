@@ -99,6 +99,7 @@ function checkRequiredFiles() {
     "scripts/smoke-install-windows-release.ps1",
     "scripts/check-release-package.mjs",
     "scripts/check-manual-qa-report.mjs",
+    "scripts/check-release-manifest.mjs",
     "scripts/write-release-manifest.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/build-pet-assets-from-spritesheet.swift",
@@ -126,6 +127,7 @@ function checkRequiredFiles() {
     "scripts/manual-qa-macos.sh",
     "scripts/check-release-package.mjs",
     "scripts/check-manual-qa-report.mjs",
+    "scripts/check-release-manifest.mjs",
     "scripts/write-release-manifest.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/verify-local.sh"

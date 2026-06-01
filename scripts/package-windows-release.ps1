@@ -16,7 +16,11 @@ New-Item -ItemType Directory -Force -Path "$Package\bin", "$Package\apps", "$Pac
 Copy-Item -Force "$RootDir\target\release\codex-speak.exe" "$Package\bin\codex-speak.exe"
 Copy-Item -Force "$RootDir\apps\codex-speak-control\src-tauri\target\release\codex-speak-control.exe" "$Package\apps\codex-speak-control.exe"
 Copy-Item -Force -Path @("$RootDir\installers\install-windows.ps1", "$RootDir\installers\uninstall-windows.ps1") -Destination "$Package\installers\"
-Copy-Item -Force -Path @("$RootDir\scripts\manual-qa-windows.ps1", "$RootDir\scripts\check-manual-qa-report.mjs") -Destination "$Package\scripts\"
+Copy-Item -Force -Path @(
+  "$RootDir\scripts\manual-qa-windows.ps1",
+  "$RootDir\scripts\check-manual-qa-report.mjs",
+  "$RootDir\scripts\check-release-manifest.mjs"
+) -Destination "$Package\scripts\"
 Copy-Item -Force "$RootDir\README.md" "$Package\README.md"
 Copy-Item -Force -Path @(
   "$RootDir\docs\installation.md",

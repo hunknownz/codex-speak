@@ -9,6 +9,7 @@ Remove-Item -Recurse -Force $Smoke -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Smoke | Out-Null
 Expand-Archive -Force -Path $Archive -DestinationPath $Smoke
 
+node (Join-Path $Smoke "codex-speak-windows\scripts\check-release-manifest.mjs") (Join-Path $Smoke "codex-speak-windows") | Out-File -Encoding utf8 (Join-Path $Smoke "check-release-manifest.txt")
 & (Join-Path $Smoke "codex-speak-windows\installers\install-windows.ps1") -SkipTtsDownload
 
 $InstalledCli = Join-Path $env:USERPROFILE ".codex\codex-speak\bin\codex-speak.exe"
