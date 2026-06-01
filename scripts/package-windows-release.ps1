@@ -28,6 +28,11 @@ Copy-Item -Force -Path @(
 
 & "$RootDir\scripts\sign-windows-release.ps1" -PackageDir $Package
 
+node "$RootDir\scripts\write-release-manifest.mjs" windows $Package
+if ($LASTEXITCODE -ne 0) {
+  throw "write-release-manifest.mjs failed with exit code $LASTEXITCODE"
+}
+
 node "$RootDir\scripts\check-release-package.mjs" windows $Package
 if ($LASTEXITCODE -ne 0) {
   throw "check-release-package.mjs failed with exit code $LASTEXITCODE"

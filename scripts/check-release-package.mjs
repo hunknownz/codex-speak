@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { accessSync, constants, existsSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const [platform, packageDir] = process.argv.slice(2);
@@ -15,6 +15,7 @@ if (!existsSync(root) || !statSync(root).isDirectory()) {
 
 const commonFiles = [
   "README.md",
+  "release-manifest.json",
   "docs/installation.md",
   "docs/release-qa.md",
   "docs/requirements.md",
@@ -25,6 +26,7 @@ const commonFiles = [
 for (const file of commonFiles) {
   requireFile(file);
 }
+checkReleaseManifest(platform);
 
 if (platform === "macos") {
   requireExecutable("bin/codex-speak");
@@ -73,6 +75,46 @@ function requireExecutable(relativePath) {
       accessSync(path.join(root, relativePath), constants.X_OK);
     } catch {
       fail(`File is not executable: ${relativePath}`);
+    }
+  }
+}
+
+function checkReleaseManifest(expectedPlatform) {
+  const manifestPath = path.join(root, "release-manifest.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    fail(`Invalid release-manifest.json: ${error.message}`);
+  }
+
+  if (manifest.product !== "codex-speak") {
+    fail("release-manifest.json product must be codex-speak");
+  }
+  if (manifest.platform !== expectedPlatform) {
+    fail(`release-manifest.json platform must be ${expectedPlatform}`);
+  }
+  if (typeof manifest.version !== "string" || manifest.version.length === 0) {
+    fail("release-manifest.json version is missing");
+  }
+  if (typeof manifest.git?.commit !== "string" || !/^[0-9a-f]{40}$/.test(manifest.git.commit)) {
+    fail("release-manifest.json git.commit must be a full 40-character SHA");
+  }
+  if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
+    fail("release-manifest.json files list is missing");
+  }
+  for (const file of manifest.files) {
+    if (typeof file.path !== "string" || !file.path) {
+      fail("release-manifest.json file entry is missing path");
+    }
+    if (!existsSync(path.join(root, file.path))) {
+      fail(`release-manifest.json file does not exist: ${file.path}`);
+    }
+    if (!Number.isInteger(file.bytes) || file.bytes < 0) {
+      fail(`release-manifest.json file has invalid byte size: ${file.path}`);
+    }
+    if (typeof file.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(file.sha256)) {
+      fail(`release-manifest.json file has invalid sha256: ${file.path}`);
     }
   }
 }

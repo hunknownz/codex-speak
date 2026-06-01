@@ -34,6 +34,7 @@ cp \
   "$PACKAGE/docs/"
 
 "$ROOT_DIR/scripts/sign-macos-release.sh" "$PACKAGE"
+node "$ROOT_DIR/scripts/write-release-manifest.mjs" macos "$PACKAGE"
 node "$ROOT_DIR/scripts/check-release-package.mjs" macos "$PACKAGE"
 
 tar -czf "$ROOT_DIR/dist/codex-speak-macos.tar.gz" -C "$ROOT_DIR/dist" codex-speak-macos

@@ -32,6 +32,7 @@ assets/pet/
 installers/
 scripts/manual-qa-macos.sh
 scripts/check-manual-qa-report.mjs
+release-manifest.json
 docs/
 ```
 
@@ -120,6 +121,7 @@ apps\codex-speak-control.exe
 installers\
 scripts\manual-qa-windows.ps1
 scripts\check-manual-qa-report.mjs
+release-manifest.json
 docs\
 ```
 
@@ -261,6 +263,7 @@ Release workflow 会构建：
 
 - `codex-speak-macos.tar.gz`：包含 macOS CLI、Tauri `.app`、原生 Pet helper、透明 Pet 素材、安装/卸载脚本和文档。
 - `codex-speak-windows.zip`：包含 Windows CLI、Tauri 控制面板 exe、安装/卸载脚本和文档。
+- 包内 `release-manifest.json`：记录版本、git commit、平台、生成时间、关键二进制 sha256 和推荐验证命令。
 - 对应的 `.sha256` 校验文件。
 
 打 tag 时，workflow 会把这些文件发布到 GitHub Release。普通用户下载后可以先校验：
@@ -282,7 +285,7 @@ Get-Content .\codex-speak-windows.zip.sha256
 
 CI 会做三层检查：
 
-- 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
+- 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保 release manifest、安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
 - 烟测还会运行 `codex-speak doctor --json` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、支持包能生成，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 - macOS/Windows 烟测还会用非交互模式运行 release 包里的手工 QA 收集脚本，并用 `check-manual-qa-report.mjs` 校验生成的 `qa-report.json`，确保真机 QA 收集和回传校验脚本本身没有随包损坏。
