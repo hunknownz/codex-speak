@@ -41,6 +41,7 @@ async function main() {
 
   checkRequiredFiles();
   checkWorkflowRuntime();
+  checkStableReleaseSigningPolicy();
   checkSigningEnv();
 
   if (!offline && repo) {
@@ -145,6 +146,25 @@ function checkWorkflowRuntime() {
       deprecated ? `deprecated pattern ${deprecated.source}` : "Node 24 action runtime"
     );
   }
+}
+
+function checkStableReleaseSigningPolicy() {
+  const content = readFileSync(".github/workflows/release.yml", "utf8");
+  check(
+    content.includes("Require macOS signing secrets for stable release"),
+    "stable release macOS signing guard",
+    content.includes("Require macOS signing secrets for stable release") ? "present" : "missing"
+  );
+  check(
+    content.includes("Require Windows signing secrets for stable release"),
+    "stable release Windows signing guard",
+    content.includes("Require Windows signing secrets for stable release") ? "present" : "missing"
+  );
+  check(
+    content.includes("!contains(github.ref_name, '-rc')"),
+    "stable release RC signing exception",
+    content.includes("!contains(github.ref_name, '-rc')") ? "RC tags may remain unsigned test builds" : "missing"
+  );
 }
 
 function checkSigningEnv() {

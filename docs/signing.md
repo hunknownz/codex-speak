@@ -1,6 +1,6 @@
 # 签名与公证
 
-Codex Speak 的 release workflow 支持“有证书就签名，没有证书就跳过”。这样个人开发阶段不会被证书阻塞，正式分发时也不用重写发布流程。
+Codex Speak 的 release workflow 支持“测试版本可跳过签名，稳定版本必须签名”。这样个人开发和 RC 验证不会被证书阻塞，但正式 `v*` 且非 `-rc` 的 tag 会在缺少签名或公证 Secret 时直接失败，避免意外发布未签名包。
 
 ## macOS
 
@@ -18,8 +18,10 @@ Codex Speak 的 release workflow 支持“有证书就签名，没有证书就�
 
 workflow 行为：
 
-- 如果没有 `MACOS_CERTIFICATE_P12_BASE64`，跳过证书导入。
-- 如果没有 `MACOS_CODESIGN_IDENTITY`，跳过签名。
+- `workflow_dispatch` 和 `v*-rc*` 可以没有这些 Secret，此时会跳过签名或公证，便于测试发布链路。
+- 稳定版 `v*` 且不包含 `-rc` 时，缺少任一 macOS 签名或公证 Secret 都会让 release workflow 失败。
+- 如果没有 `MACOS_CERTIFICATE_P12_BASE64`，测试构建会跳过证书导入。
+- 如果没有 `MACOS_CODESIGN_IDENTITY`，测试构建会跳过签名。
 - 如果有签名证书，会签名：
   - `bin/codex-speak`
   - `bin/codex-speak-pet-macos`
@@ -43,7 +45,9 @@ scripts/sign-macos-release.sh dist/codex-speak-macos
 
 workflow 行为：
 
-- 如果没有 `WINDOWS_SIGN_CERT_PFX_BASE64`，跳过签名。
+- `workflow_dispatch` 和 `v*-rc*` 可以没有这些 Secret，此时会跳过签名，便于测试发布链路。
+- 稳定版 `v*` 且不包含 `-rc` 时，缺少任一 Windows 签名 Secret 都会让 release workflow 失败。
+- 如果没有 `WINDOWS_SIGN_CERT_PFX_BASE64`，测试构建会跳过签名。
 - 如果有证书，会用 `signtool.exe` 签名：
   - `bin/codex-speak.exe`
   - `apps/codex-speak-control.exe`

@@ -40,6 +40,7 @@ node scripts/check-release-readiness.mjs --offline --allow-dirty
 - CI 对当前 `HEAD` 已经成功。
 - 指定 tag 已经推到远端，且 release workflow 成功。
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
+- release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 需要正式签名发布时，签名环境变量已经配置。
 
 ## macOS 人工验收
@@ -148,4 +149,4 @@ Windows：
 - release 包仍是 `.tar.gz` 和 `.zip`，不是 DMG、PKG、MSI 或 MSIX。
 - macOS Pet helper 仅支持 macOS；Windows 第一版只提供控制面板和朗读状态，不提供原生桌面 Pet。
 - Windows 音频链路依赖 PowerShell/.NET 播放能力，真机差异需要持续验收。
-- 没有真实签名 secrets 时，CI 会跳过签名步骤。
+- 没有真实签名 secrets 时，日常 CI、手动 release workflow 和 `v*-rc*` 测试标签会跳过签名；稳定版 `v*` 且不包含 `-rc` 时 release workflow 会失败，不会继续发布未签名包。
