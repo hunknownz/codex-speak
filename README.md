@@ -52,7 +52,7 @@ Tauri App / Native Desktop Pet
 
 下一步：
 
-- Windows 真机验收：控制面板启动、试听、停止、首次模型下载。
+- Windows 真机验收：已补 `scripts/manual-qa-windows.ps1` 收集脚本，下一步是在真实 Windows 机器上跑交互验收。
 - 配置真实签名 secrets，验证 macOS codesign/notarization 和 Windows signtool。
 - P2 通过后开始 P3：系统化优化语音清晰度、自然度和延迟。
 

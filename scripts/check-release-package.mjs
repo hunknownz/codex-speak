@@ -42,6 +42,7 @@ if (platform === "macos") {
   requireFile("apps/codex-speak-control.exe");
   requireFile("installers/install-windows.ps1");
   requireFile("installers/uninstall-windows.ps1");
+  requireFile("scripts/manual-qa-windows.ps1");
 } else {
   fail(`Unsupported platform: ${platform}`);
 }
