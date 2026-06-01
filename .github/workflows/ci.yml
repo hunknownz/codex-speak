@@ -52,3 +52,49 @@ jobs:
       - name: Build native macOS pet helper
         if: runner.os == 'macOS'
         run: swiftc -O -framework AppKit -framework AVFoundation -o /tmp/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift
+
+  release-package-smoke:
+    name: Release package smoke
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build CLI
+        run: cargo build --release
+      - name: Build native macOS pet helper
+        if: runner.os == 'macOS'
+        run: swiftc -O -framework AppKit -framework AVFoundation -o target/release/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift
+      - name: Install frontend dependencies
+        working-directory: apps/codex-speak-control
+        run: npm install
+      - name: Build Tauri app on macOS
+        if: runner.os == 'macOS'
+        working-directory: apps/codex-speak-control
+        run: npm run build -- --bundles app
+      - name: Build Tauri app on Windows
+        if: runner.os == 'Windows'
+        working-directory: apps/codex-speak-control
+        run: npm run build
+      - name: Package macOS release
+        if: runner.os == 'macOS'
+        run: scripts/package-macos-release.sh
+      - name: Smoke install macOS release package
+        if: runner.os == 'macOS'
+        run: scripts/smoke-install-macos-release.sh
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\package-windows-release.ps1
+      - name: Smoke install Windows release package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\smoke-install-windows-release.ps1
