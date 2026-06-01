@@ -42,7 +42,7 @@ jobs:
       - name: Build Tauri app on Windows
         if: runner.os == 'Windows'
         working-directory: apps/codex-speak-control
-        run: npm run build
+        run: npm run build -- --no-bundle
       - name: Import macOS signing certificate
         if: runner.os == 'macOS'
         env:

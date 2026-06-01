@@ -83,6 +83,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 下载资产完整性校验已补齐到 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型。
 - 本机已打出 `codex-speak-macos.tar.gz`，通过 `scripts/check-release-package.mjs`，并从解包后的 release 目录完成一次安装烟测。
 - Release 打包和安装烟测已经抽成脚本，CI 会在 macOS 和 Windows 上执行同一套 package smoke 路径，避免 release workflow 与普通 CI 逻辑分叉。
+- Windows release 包只需要控制面板 `.exe`，CI 中的 Windows Tauri build 使用 `--no-bundle` 跳过额外安装器打包；真正的用户安装入口由 `install-windows.ps1` 负责。
 
 剩余外部验证：
 
