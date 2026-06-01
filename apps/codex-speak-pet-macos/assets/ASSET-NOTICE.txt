@@ -1,13 +1,16 @@
 Codex Speak Pet Assets
 
-These assets are generated from scripts/generate-pet-assets.swift for the Codex Speak project.
-They are original project assets and are intended for distribution with Codex Speak.
+These assets are built from an original AI-assisted 2D sprite sheet for the Codex Speak project.
+They are intended for distribution with Codex Speak.
 
 The display pipeline intentionally matches the lil-agents style of desktop companion:
 - 1080x1920 HEVC-with-alpha .mov.
 - Native transparent AppKit window.
 - AVPlayerLayer playback on macOS.
-- A small walking character designed as a transparent video sprite, not a WebView/canvas.
+- A 2D walking character designed as a transparent video sprite, not a WebView/canvas/3D render.
+
+Source:
+- codex-agent-source-spritesheet.png: original six-frame image-generated 2D sprite sheet, converted to alpha before video encoding.
 
 Files:
 - codex-agent.mov: transparent animated desktop companion.

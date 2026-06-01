@@ -14,6 +14,7 @@ test -x "$HOME/.codex/codex-speak/bin/codex-speak"
 test -x "$HOME/.codex/codex-speak/bin/codex-speak-pet-macos"
 test -d "$HOME/.codex/codex-speak/apps/Codex Speak.app"
 test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent.mov"
+test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent-source-spritesheet.png"
 
 "$HOME/.codex/codex-speak/bin/codex-speak" models list >"$SMOKE_DIR/models.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" doctor --json >"$SMOKE_DIR/doctor.json" || true

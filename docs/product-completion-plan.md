@@ -58,7 +58,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 技术实现按 lil-agents 的路线：AppKit 透明浮窗 + `AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov` 动画素材 + display-link 驱动移动。
 - 轮廓清楚，颜色明亮，素材自带 alpha，不再用 WebView、HTML、CSS、SVG 或 canvas 绘制角色。
 - 动画轻，不影响工作。
-- 默认素材是项目自有的科技感小伙伴，由 `scripts/generate-pet-assets.swift` 生成；正式品牌角色仍然可以继续替换 `~/.codex/codex-speak/assets/pet/codex-agent.mov`、`codex-agent-hit.png` 和 `codex-agent-preview.png`，只要保持透明视频、alpha mask 和预览图约定即可。
+- 默认素材已经改成项目自有的 2D walking companion，由 `scripts/build-pet-assets-from-spritesheet.swift` 从 `codex-agent-source-spritesheet.png` 生成；正式品牌角色继续替换 sprite sheet 并重新生成 `~/.codex/codex-speak/assets/pet/codex-agent.mov`、`codex-agent-hit.png` 和 `codex-agent-preview.png` 即可，只要保持透明视频、alpha mask 和预览图约定。
 
 ### P2：安装和分发
 

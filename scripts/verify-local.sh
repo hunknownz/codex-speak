@@ -32,6 +32,10 @@ fi
 if [ "$(uname -s)" = "Darwin" ] && command -v swiftc >/dev/null 2>&1; then
   swiftc -O -framework AppKit -framework AVFoundation -o /tmp/codex-speak-pet-macos-check apps/codex-speak-pet-macos/CodexSpeakPet.swift
   swift scripts/generate-pet-assets.swift /tmp/codex-speak-pet-assets-check >/tmp/codex-speak-pet-assets-check.log
+  swift scripts/build-pet-assets-from-spritesheet.swift \
+    apps/codex-speak-pet-macos/assets/codex-agent-source-spritesheet.png \
+    /tmp/codex-speak-pet-spritesheet-assets-check \
+    >/tmp/codex-speak-pet-spritesheet-assets-check.log
 fi
 
 echo "Codex Speak local verification passed."

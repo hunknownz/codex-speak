@@ -76,12 +76,13 @@ Pet 透明动画素材安装位置：
 ```text
 ~/.codex/codex-speak/assets/pet/
   codex-agent.mov
+  codex-agent-source-spritesheet.png
   codex-agent-hit.png
   codex-agent-preview.png
   ASSET-NOTICE.txt
 ```
 
-`codex-agent.mov` 是 1080x1920、约 10 秒的 HEVC-with-alpha 透明动画，macOS helper 会用原生 `AVPlayerLayer` 显示它；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`codex-agent-preview.png` 是透明静帧预览，方便快速确认角色形象。
+`codex-agent.mov` 是 1080x1920、约 10 秒的 HEVC-with-alpha 透明动画，macOS helper 会用原生 `AVPlayerLayer` 显示它；`codex-agent-source-spritesheet.png` 是 6 帧二维行走素材源；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`codex-agent-preview.png` 是透明静帧预览，方便快速确认角色形象。
 
 打开控制面板：
 

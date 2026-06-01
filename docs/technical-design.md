@@ -308,16 +308,17 @@ macOS 桌面 Pet 不放在 Tauri WebView 里画，而是单独的原生 helper�
 apps/codex-speak-pet-macos/CodexSpeakPet.swift
 ```
 
-实现路线对齐 lil-agents：无边框透明 `NSWindow`、`AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov`、`CVDisplayLink` 驱动沿 Dock 区域行走、独立透明气泡窗口。角色素材由 `scripts/generate-pet-assets.swift` 生成，默认输出：
+实现路线对齐 lil-agents：无边框透明 `NSWindow`、`AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov`、`CVDisplayLink` 驱动沿 Dock 区域行走、独立透明气泡窗口。角色素材由 `scripts/build-pet-assets-from-spritesheet.swift` 从二维 sprite sheet 生成，默认输出：
 
 ```text
 codex-agent.mov
+codex-agent-source-spritesheet.png
 codex-agent-hit.png
 codex-agent-preview.png
 ASSET-NOTICE.txt
 ```
 
-点击命中优先采样窗口实际 alpha 像素；如果 macOS 15 SDK 或系统环境不允许旧的窗口采样 API，就退回 `codex-agent-hit.png`。默认角色是侧身 walking sprite，显示主体始终是透明视频，不会回到 HTML、SVG、canvas 或白底 WebView。
+点击命中优先采样窗口实际 alpha 像素；如果 macOS 15 SDK 或系统环境不允许旧的窗口采样 API，就退回 `codex-agent-hit.png`。默认角色是侧身 2D walking sprite，显示主体始终是透明视频，不会回到 HTML、SVG、canvas、3D 实时渲染或白底 WebView。`scripts/generate-pet-assets.swift` 保留为纯代码 fallback 和测试素材生成器。
 
 实现语言建议：
 

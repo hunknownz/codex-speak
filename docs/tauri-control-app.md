@@ -124,12 +124,13 @@ Pet 交互：
 ```text
 ~/.codex/codex-speak/assets/pet/
   codex-agent.mov
+  codex-agent-source-spritesheet.png
   codex-agent-hit.png
   codex-agent-preview.png
   ASSET-NOTICE.txt
 ```
 
-`codex-agent.mov` 是真正显示的原创透明动画素材，规格与 lil-agents 参考项目一致：1080x1920、约 10 秒、HEVC with Alpha；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`codex-agent-preview.png` 是透明静帧预览；`ASSET-NOTICE.txt` 说明素材来源。后续换角色时，只要保持同名素材或扩展同一素材目录，helper 的透明浮窗和移动逻辑不用重写。
+`codex-agent.mov` 是真正显示的原创透明动画素材，规格与 lil-agents 参考项目一致：1080x1920、约 10 秒、HEVC with Alpha；`codex-agent-source-spritesheet.png` 是 6 帧二维行走素材源；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`codex-agent-preview.png` 是透明静帧预览；`ASSET-NOTICE.txt` 说明素材来源。后续换角色时，优先替换 sprite sheet 并运行 `scripts/build-pet-assets-from-spritesheet.swift`，helper 的透明浮窗和移动逻辑不用重写。
 
 ## 朗读引擎
 

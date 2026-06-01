@@ -33,6 +33,7 @@ if (platform === "macos") {
   requireExecutable("installers/install-macos.sh");
   requireExecutable("installers/uninstall-macos.sh");
   requireFile("assets/pet/codex-agent.mov");
+  requireFile("assets/pet/codex-agent-source-spritesheet.png");
   requireFile("assets/pet/codex-agent-hit.png");
   requireFile("assets/pet/codex-agent-preview.png");
   requireFile("assets/pet/ASSET-NOTICE.txt");

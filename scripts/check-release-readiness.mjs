@@ -96,11 +96,13 @@ function checkRequiredFiles() {
     "scripts/smoke-install-windows-release.ps1",
     "scripts/check-release-package.mjs",
     "scripts/check-release-readiness.mjs",
+    "scripts/build-pet-assets-from-spritesheet.swift",
     "docs/installation.md",
     "docs/release-qa.md",
     "docs/signing.md",
     "docs/product-completion-plan.md",
     "apps/codex-speak-pet-macos/assets/codex-agent.mov",
+    "apps/codex-speak-pet-macos/assets/codex-agent-source-spritesheet.png",
     "apps/codex-speak-pet-macos/assets/codex-agent-preview.png",
     "apps/codex-speak-control/src-tauri/icons/icon.ico"
   ];
