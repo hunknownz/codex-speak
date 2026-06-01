@@ -120,6 +120,19 @@ pub fn collect() -> Result<CodexIntegrationReport> {
         )),
     }
 
+    match verify_mixed_english_normalization(&cfg) {
+        Ok(detail) => checks.push(CodexIntegrationCheck::ok(
+            "mixed_english_normalization",
+            "Mixed English speech normalization",
+            detail,
+        )),
+        Err(err) => checks.push(CodexIntegrationCheck::fail(
+            "mixed_english_normalization",
+            "Mixed English speech normalization",
+            format!("{err:#}"),
+        )),
+    }
+
     if let Err(err) = backup.restore() {
         checks.push(CodexIntegrationCheck::fail(
             "spool_restore",
@@ -219,6 +232,22 @@ fn main() {
     Ok("code blocks, commands, and long paths were skipped".to_string())
 }
 
+fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
+    let raw = "我运行 hello world，并检查 MCP、JSON、CLI 和 API。";
+    let cleaned = session::resolve_text(Some(raw.to_string()), None, cfg)?;
+    for required in ["插件通道", "数据格式", "命令行工具", "接口"] {
+        if !cleaned.contains(required) {
+            anyhow::bail!("mixed English normalization lost expected term {required}: {cleaned}");
+        }
+    }
+    for forbidden in ["MCP", "JSON", "CLI", "API"] {
+        if cleaned.contains(forbidden) {
+            anyhow::bail!("mixed English normalization leaked raw term {forbidden}: {cleaned}");
+        }
+    }
+    Ok("common English technical terms are converted before speech".to_string())
+}
+
 fn print_text(report: &CodexIntegrationReport) {
     println!(
         "Codex integration verification {} on {} {}",
@@ -227,6 +256,17 @@ fn print_text(report: &CodexIntegrationReport) {
     for check in &report.checks {
         let prefix = if check.status == "ok" { "OK  " } else { "FAIL" };
         println!("{prefix} {}: {}", check.label, check.detail);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verify_mixed_english_normalization;
+    use crate::config::Config;
+
+    #[test]
+    fn verifies_mixed_english_normalization() {
+        verify_mixed_english_normalization(&Config::default()).unwrap();
     }
 }
 

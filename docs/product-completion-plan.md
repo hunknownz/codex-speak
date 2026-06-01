@@ -94,7 +94,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
-- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费和普通回复兜底清洗链路。
+- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费、普通回复兜底清洗和常见英文技术缩写归一化链路。
 - `verify-controls` 已补齐为控制项验收命令；release smoke 和手工 QA 收集脚本会验证自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能写入、重新读取，并恢复原配置。
 - 英文朗读已补齐第一层兜底：常见技术缩写会在进入 TTS 前变成中文可懂词，系统语音兜底会按中英文分段选择系统声音，减少英文单词逐字母读的问题。
 - 手工 QA 和外部 QA 交付说明已加入混合中英文验收：自动检查提取文本是否把 `MCP`、`JSON`、`CLI` 归一化为中文说法，交互式测试还会让测试者实际听一次混合中英文样例。
