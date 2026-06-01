@@ -17,6 +17,7 @@ test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent.mov"
 test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent-source-spritesheet.png"
 
 "$HOME/.codex/codex-speak/bin/codex-speak" models list >"$SMOKE_DIR/models.json"
+"$HOME/.codex/codex-speak/bin/codex-speak" verify-install --allow-missing-models >"$SMOKE_DIR/verify-install.txt"
 "$HOME/.codex/codex-speak/bin/codex-speak" support-bundle --output "$SMOKE_DIR/support"
 test -f "$SMOKE_DIR/support/doctor.json"
 test -f "$SMOKE_DIR/support/status.json"

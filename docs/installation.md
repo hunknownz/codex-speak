@@ -200,6 +200,18 @@ marketplace 条目使用本地路径：
 
 `doctor --json` 和 `status` 都会包含版本、系统和 CPU 架构信息，方便远程排障时确认用户正在运行哪个构建。
 
+刚安装完、想确认这台机器是否已经具备可交付的基础链路，可以运行：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-install
+```
+
+如果安装时跳过了默认模型下载，可以允许模型项暂时缺失，但仍然检查 CLI、Hook、Plugin、控制面板和播放器：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
+```
+
 期望看到这些检查通过：
 
 - CLI 已安装。

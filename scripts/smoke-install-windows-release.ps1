@@ -21,6 +21,7 @@ if (-not (Test-Path $InstalledApp)) {
 }
 
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
+& $InstalledCli verify-install --allow-missing-models | Out-File -Encoding utf8 (Join-Path $Smoke "verify-install.txt")
 $SupportDir = Join-Path $Smoke "support"
 & $InstalledCli support-bundle --output $SupportDir | Out-Null
 foreach ($SupportFile in @("doctor.json", "status.json", "models.json")) {

@@ -53,6 +53,11 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Verify the installed app layout and Codex integration after setup.
+    VerifyInstall {
+        #[arg(long)]
+        allow_missing_models: bool,
+    },
     /// Print machine-readable status for plugins and scripts.
     Status,
     /// Write a local support bundle for installation or playback troubleshooting.
@@ -155,6 +160,9 @@ fn main() -> Result<()> {
         }
         Command::Stop => process::stop_speech()?,
         Command::Doctor { json } => doctor::run(json)?,
+        Command::VerifyInstall {
+            allow_missing_models,
+        } => doctor::verify_install(allow_missing_models)?,
         Command::Status => {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);

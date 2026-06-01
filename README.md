@@ -97,6 +97,7 @@ codex-speak speak
 codex-speak stop
 codex-speak doctor
 codex-speak doctor --json
+codex-speak verify-install --allow-missing-models
 codex-speak status
 codex-speak support-bundle
 codex-speak pet-state
@@ -141,6 +142,18 @@ codex-speak uninstall
 
 ```bash
 ~/.codex/codex-speak/bin/codex-speak doctor --json
+```
+
+如果是刚装完、想快速确认安装链路是否可交付，可以运行：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-install
+```
+
+release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺失，但仍然要求 CLI、Hook、Plugin、控制面板和播放器这些核心项通过：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
 ```
 
 也可以生成一个本地支持包：

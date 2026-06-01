@@ -92,6 +92,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，方便 Windows 真机和外部用户反馈问题；macOS/Windows release smoke 已覆盖该命令。
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
+- `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
 
 剩余外部验证：
 

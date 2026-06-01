@@ -8,6 +8,8 @@ use serde::Serialize;
 
 use crate::config;
 
+const MODEL_CHECK_IDS: &[&str] = &["sherpa_tts", "melo_model", "melo_lexicon", "melo_tokens"];
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DoctorReport {
     pub ok: bool,
@@ -50,6 +52,28 @@ pub fn run(json: bool) -> Result<()> {
         anyhow::bail!("doctor found problems");
     }
     Ok(())
+}
+
+pub fn verify_install(allow_missing_models: bool) -> Result<()> {
+    let report = collect()?;
+    print_install_verification(&report, allow_missing_models);
+
+    let failures = blocking_failures(&report, allow_missing_models);
+    if failures.is_empty() {
+        println!("Install verification passed.");
+        return Ok(());
+    }
+
+    println!();
+    println!("Install verification failed. Blocking checks:");
+    for check in failures {
+        println!("- {} ({})", check.label, check.id);
+    }
+    println!(
+        "Run `codex-speak support-bundle` and share the output directory for troubleshooting."
+    );
+
+    anyhow::bail!("install verification failed");
 }
 
 pub fn collect() -> Result<DoctorReport> {
@@ -233,6 +257,50 @@ fn print_text(report: &DoctorReport) {
     }
 }
 
+fn print_install_verification(report: &DoctorReport, allow_missing_models: bool) {
+    println!(
+        "Codex Speak install verification {} on {} {}",
+        report.version, report.os, report.arch
+    );
+
+    for check in &report.checks {
+        let allowed_model_failure =
+            allow_missing_models && check.status == CheckStatus::Fail && is_model_check(check.id);
+        let prefix = match (check.status, allowed_model_failure) {
+            (_, true) => "WARN",
+            (CheckStatus::Ok, false) => "OK  ",
+            (CheckStatus::Warn, false) => "WARN",
+            (CheckStatus::Fail, false) => "FAIL",
+            (CheckStatus::Skip, false) => "SKIP",
+        };
+        println!("{prefix} {}: {}", check.label, check.detail);
+
+        if allowed_model_failure {
+            println!(
+                "     hint: model check allowed because --allow-missing-models was set; run `codex-speak models install --provider sherpa_melo` later."
+            );
+        } else if let Some(hint) = check.hint {
+            println!("     hint: {hint}");
+        }
+    }
+}
+
+fn blocking_failures<'a>(
+    report: &'a DoctorReport,
+    allow_missing_models: bool,
+) -> Vec<&'a DoctorCheck> {
+    report
+        .checks
+        .iter()
+        .filter(|check| check.required && check.status == CheckStatus::Fail)
+        .filter(|check| !(allow_missing_models && is_model_check(check.id)))
+        .collect()
+}
+
+fn is_model_check(id: &str) -> bool {
+    MODEL_CHECK_IDS.contains(&id)
+}
+
 fn hint_for(id: &str) -> Option<&'static str> {
     match id {
         "codex_home" | "config" | "cli" => {
@@ -387,7 +455,7 @@ fn check_player(checks: &mut Vec<DoctorCheck>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{CheckStatus, DoctorCheck, DoctorReport};
+    use super::{blocking_failures, CheckStatus, DoctorCheck, DoctorReport};
 
     #[test]
     fn required_fail_makes_report_not_ok() {
@@ -413,6 +481,31 @@ mod tests {
         assert!(!report.os.is_empty());
         assert!(!report.arch.is_empty());
         assert!(!report.generated_at.is_empty());
+    }
+
+    #[test]
+    fn verify_can_allow_missing_models() {
+        let report = DoctorReport::new(vec![
+            DoctorCheck::ok("cli", "Codex Speak CLI", "present"),
+            DoctorCheck::fail("melo_model", "Melo model", "missing"),
+            DoctorCheck::fail("melo_tokens", "Melo tokens", "missing"),
+        ]);
+
+        assert!(!report.ok);
+        assert!(blocking_failures(&report, true).is_empty());
+        assert_eq!(blocking_failures(&report, false).len(), 2);
+    }
+
+    #[test]
+    fn verify_does_not_allow_core_failures() {
+        let report = DoctorReport::new(vec![
+            DoctorCheck::fail("cli", "Codex Speak CLI", "missing"),
+            DoctorCheck::fail("melo_model", "Melo model", "missing"),
+        ]);
+
+        let failures = blocking_failures(&report, true);
+        assert_eq!(failures.len(), 1);
+        assert_eq!(failures[0].id, "cli");
     }
 
     #[test]
