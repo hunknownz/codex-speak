@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  rust:
+    name: Rust core
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run tests
+        run: cargo test
+      - name: Build release CLI
+        run: cargo build --release
+
+  tauri-control:
+    name: Tauri control app
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-14
+          - windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install frontend dependencies
+        working-directory: apps/codex-speak-control
+        run: npm install
+      - name: Build frontend
+        working-directory: apps/codex-speak-control
+        run: npm run build:frontend
+      - name: Check Tauri backend
+        run: cargo check --manifest-path apps/codex-speak-control/src-tauri/Cargo.toml
+      - name: Build native macOS pet helper
+        if: runner.os == 'macOS'
+        run: swiftc -O -framework AppKit -framework AVFoundation -o /tmp/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift

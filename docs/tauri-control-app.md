@@ -16,6 +16,7 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 - 停止当前朗读。
 - 试听一句话。
 - 运行自检。
+- 显示桌面 Pet，并根据朗读状态切换动画。
 
 ## 为什么需要 Tauri
 
@@ -27,7 +28,7 @@ Plugin 目前不能稳定地在 Codex 聊天窗口里增加自定义按钮。MCP
 Codex Plugin / MCP
   -> Codex 可以主动写入 side-channel、改配置、停止朗读
 Tauri App
-  -> 用户可以点按钮改配置、停止朗读、试听声音
+  -> 用户可以点按钮改配置、停止朗读、试听声音，并看到桌面 Pet 状态
 Hook
   -> 回复结束后自动触发朗读
 Rust CLI
@@ -40,14 +41,21 @@ Rust CLI
 
 ```text
 apps/codex-speak-control/
+  vite.config.js
+  index.html
   src/
-    index.html
     main.js
     styles.css
   src-tauri/
     Cargo.toml
     tauri.conf.json
     src/main.rs
+apps/codex-speak-pet-macos/
+  CodexSpeakPet.swift
+  assets/
+    codex-agent.mov
+    codex-agent-hit.png
+    ASSET-NOTICE.txt
 ```
 
 Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 CLI：
@@ -68,9 +76,56 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 声音档位 | `codex-speak config set --voice-profile ...` |
 | 最大朗读字数 | `codex-speak config set --max-read-chars ...` |
 | 安装模型 | `codex-speak models install` |
+| 模型清单 | `codex-speak models list` |
 | 试听 | `codex-speak speak --text ...` |
 | 停止 | `codex-speak stop` |
 | 自检 | `codex-speak doctor` |
+| Pet 状态 | `codex-speak pet-state` |
+
+播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮和 MCP `stop` 工具会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
+
+## 桌面 Pet
+
+macOS 桌面 Pet 已经从 Tauri WebView 迁移为原生 AppKit helper：
+
+```text
+~/.codex/codex-speak/bin/codex-speak-pet-macos
+```
+
+控制面板启动时会拉起这个 helper。它不直接跑 TTS，也不理解 Codex 内容，而是读取统一的状态文件：
+
+```text
+~/.codex/codex-speak/state/pet-state.json
+```
+
+状态由核心链路写入：
+
+| 写入方 | 状态 | 含义 |
+| --- | --- | --- |
+| MCP `codex_speak_prepare` | `ready` | Codex 已经准备好适合朗读的导览 |
+| TTS 开始播放 | `speaking` | 正在朗读 |
+| TTS 播放完成 | `done` | 本次朗读完成 |
+| TTS 出错 | `error` | 模型、播放器或系统命令遇到问题 |
+| 停止命令 | `idle` | 用户停止或回到待命 |
+
+Pet 交互：
+
+- 拖动 Pet 可以移动原生透明窗口。
+- 朗读中点击 Pet 可以停止朗读。
+- 双击 Pet 可以打开控制面板。
+
+实现方式按 lil-agents 的核心路线落地：无边框透明原生窗口、贴近屏幕底部、`AVPlayerLayer` 播放 1080x1920 的 HEVC-with-alpha 透明 `.mov` 动画、display-link 驱动位置更新、独立气泡窗口。点击命中优先采样窗口实际 alpha 像素；在 macOS 15 SDK 或系统不允许采样时，退回 `codex-agent-hit.png` 透明 mask，尽量让空白区域不拦截鼠标。
+
+角色显示不再依赖 Tauri WebView、HTML、CSS、SVG 或 canvas。默认素材安装到：
+
+```text
+~/.codex/codex-speak/assets/pet/
+  codex-agent.mov
+  codex-agent-hit.png
+  ASSET-NOTICE.txt
+```
+
+`codex-agent.mov` 是真正显示的原创透明动画素材，规格与 lil-agents 参考项目一致：1080x1920、约 10 秒、HEVC with Alpha；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`ASSET-NOTICE.txt` 说明素材来源。后续换角色时，只要保持同名素材或扩展同一素材目录，helper 的透明浮窗和移动逻辑不用重写。
 
 ## 朗读引擎
 
@@ -87,6 +142,14 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 状态区会显示当前 Provider 是否可用。如果用户选了一个还没安装模型的 Provider，试听会显示缺失原因；这样用户能明确知道“还没装模型”，而不是误以为这个声音不好听。
 
 “安装模型”按钮会安装当前下拉框选中的 Provider。模型安装可能需要几十秒到几分钟，取决于包大小和网络速度。
+
+CLI 也提供同一份模型清单：
+
+```bash
+codex-speak models list
+```
+
+这份清单来自 `src/model_catalog.rs`，包含 Provider 名称、语言优先级、体积提示、推荐状态和本机安装状态。控制面板和 CLI 复用同一份信息，避免 UI 里写死一套、命令行里再写一套。
 
 ## 声音档位
 

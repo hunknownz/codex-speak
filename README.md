@@ -23,13 +23,15 @@ speak-engine
   -> 消费 side-channel、提取 fallback 协议、清洗兜底、配置、调度
 本地 TTS
   -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
+Tauri App / Native Desktop Pet
+  -> 点按钮调配置，macOS 原生透明小伙伴展示朗读状态
 安装器
   -> macOS / Windows 自动部署
 ```
 
 ## 当前阶段
 
-项目已经进入 Rust CLI 原型阶段，macOS 端到端链路已跑通。
+项目已经进入产品化补全阶段，macOS 端到端链路已跑通，Windows 安装链路正在补齐。
 
 已完成：
 
@@ -45,15 +47,24 @@ speak-engine
 - Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
 - Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路
 - Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、TTS 引擎切换、试听、停止、自检
+- 桌面 Pet 第一版：macOS 原生透明浮窗，按 lil-agents 的 `AVPlayerLayer + 1080x1920 HEVC-with-alpha .mov` 方式显示角色，支持待命/待朗读/朗读中/完成/错误状态、拖动、点击停止、双击打开控制面板
+- 原创 Pet 透明动画素材：由 `scripts/generate-pet-assets.swift` 生成，不再依赖 lil-agents 参考角色素材
 
 下一步：
 
 - 完善 Windows 安装脚本。
 - 增加 GitHub Actions 跨平台构建。
 - 增加模型 manifest 和校验。
-- 完善 Plugin 和 Tauri App 的正式安装打包流程。
+- 完善 Plugin、Tauri App 和 Desktop Pet 的正式安装打包流程。
 
-## 开发安装
+发布构建：
+
+- CI：`.github/workflows/ci.yml`
+- 手动或 tag 发布构建：`.github/workflows/release.yml`。打 `v*` tag 时会上传 macOS/Windows release 包和 `.sha256` 校验文件到 GitHub Release；workflow 会先解包并执行一次跳过模型下载的安装烟测。
+
+## 安装
+
+release 包安装时，下载并解压 `codex-speak-macos.tar.gz` 或 `codex-speak-windows.zip`，进入解压后的目录运行对应安装脚本。release 包自带 CLI、控制面板和 Pet helper，普通用户不需要安装 Rust 或 Node.js。
 
 macOS:
 
@@ -65,6 +76,12 @@ macOS:
 
 ```bash
 ./installers/install-macos.sh --skip-tts-download
+```
+
+如果暂时不安装控制面板 App 和桌面 Pet：
+
+```bash
+./installers/install-macos.sh --skip-control-app
 ```
 
 卸载：
@@ -81,6 +98,10 @@ codex-speak speak
 codex-speak stop
 codex-speak doctor
 codex-speak status
+codex-speak pet-state
+codex-speak app open
+codex-speak app path
+codex-speak models list
 codex-speak mcp
 codex-speak config get
 codex-speak config set --child-mode true --speed 0.9
@@ -115,11 +136,20 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak doctor
 ```
 
+本地开发验证：
+
+```bash
+./scripts/verify-local.sh
+```
+
 ## 文档
 
 - [需求文档](docs/requirements.md)
 - [技术文档](docs/technical-design.md)
 - [商业价值分析](docs/business-value.md)
+- [产品完成计划](docs/product-completion-plan.md)
+- [安装与分发](docs/installation.md)
+- [签名与公证](docs/signing.md)
 - [Codex Speak Protocol v1](docs/protocol-v1.md)
 - [Plugin 设计](docs/plugin-design.md)
 - [Tauri 控制面板](docs/tauri-control-app.md)
@@ -133,6 +163,7 @@ codex-speak uninstall
 - Codex Speak Skill。
 - MCP 工具：状态、提取预览、停止、试听、开关、儿童模式、语速、声音档位、side-channel 写入。
 - `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容，成功读取后移动为 `last-consumed.json`。
+- 安装器会把插件复制到个人插件目录，并写入个人 marketplace，方便 Codex 发现和启用。
 
 当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 MCP side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。
 
@@ -150,6 +181,7 @@ codex-speak uninstall
 - 朗读引擎选择。
 - 当前朗读引擎模型安装。
 - 试听、停止、刷新、自检。
+- macOS 原生透明桌面 Pet：显示朗读状态，朗读中点击可停止，双击可打开控制面板。
 
 开发运行：
 

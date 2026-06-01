@@ -5,6 +5,7 @@ use std::process::Command;
 use anyhow::{Context, Result};
 
 use crate::config::{self, Config};
+use crate::pet_state;
 use crate::process;
 
 pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
@@ -16,20 +17,29 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     fs::create_dir_all(config::cache_dir()?)?;
 
     process::stop_speech()?;
+    let _ = pet_state::write_state("speaking", Some(text), "tts");
 
-    if let Err(err) = speak_with_provider(cfg, text, no_play) {
+    let result = if let Err(err) = speak_with_provider(cfg, text, no_play) {
         fs::write(
             config::logs_dir()?.join("last-error.log"),
             format!("{err:#}\n"),
         )?;
         if cfg.provider == "sherpa_melo" && cfg.fallback_provider == "system" {
-            speak_with_system(text, no_play)?;
+            speak_with_system(text, no_play)
         } else {
-            return Err(err);
+            Err(err)
         }
+    } else {
+        Ok(())
+    };
+
+    if let Err(err) = result {
+        let _ = pet_state::write_state("error", Some(&err.to_string()), "tts");
+        return Err(err);
     }
 
     fs::write(config::logs_dir()?.join("last-spoken.txt"), text)?;
+    let _ = pet_state::write_state("done", Some("朗读完成。"), "tts");
     Ok(())
 }
 
@@ -265,21 +275,19 @@ fn speak_with_system(text: &str, no_play: bool) -> Result<()> {
         return Ok(());
     }
     if cfg!(target_os = "macos") {
-        Command::new("/usr/bin/say")
-            .args(["-v", "Tingting", "-r", "175", text])
-            .status()
-            .context("failed to run macOS say")?;
+        let mut command = Command::new("/usr/bin/say");
+        command.args(["-v", "Tingting", "-r", "175", text]);
+        process::run_tracked(command, "macOS say")?;
     } else if cfg!(windows) {
         let script = format!(
             "Add-Type -AssemblyName System.Speech; \
              $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-             $s.Speak({:?});",
-            text
+             $s.Speak({});",
+            ps_literal(text)
         );
-        Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
-            .status()
-            .context("failed to run Windows system speech")?;
+        let mut command = Command::new("powershell.exe");
+        command.args(["-NoProfile", "-Command", &script]);
+        process::run_tracked(command, "Windows system speech")?;
     } else {
         anyhow::bail!("no system speech fallback for this platform");
     }
@@ -288,29 +296,25 @@ fn speak_with_system(text: &str, no_play: bool) -> Result<()> {
 
 fn play_wav(path: &Path) -> Result<()> {
     if cfg!(target_os = "macos") {
-        let status = Command::new("/usr/bin/afplay")
-            .arg(path)
-            .status()
-            .context("failed to run afplay")?;
-        if !status.success() {
-            anyhow::bail!("afplay failed with status {status}");
-        }
+        let mut command = Command::new("/usr/bin/afplay");
+        command.arg(path);
+        process::run_tracked(command, "afplay")?;
     } else if cfg!(windows) {
         let script = format!(
-            "(New-Object Media.SoundPlayer {:?}).PlaySync();",
-            path.display().to_string()
+            "(New-Object Media.SoundPlayer {}).PlaySync();",
+            ps_literal(&path.display().to_string())
         );
-        let status = Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
-            .status()
-            .context("failed to play wav with PowerShell")?;
-        if !status.success() {
-            anyhow::bail!("PowerShell audio playback failed with status {status}");
-        }
+        let mut command = Command::new("powershell.exe");
+        command.args(["-NoProfile", "-Command", &script]);
+        process::run_tracked(command, "PowerShell audio playback")?;
     } else {
         anyhow::bail!("no wav player configured for this platform");
     }
     Ok(())
+}
+
+fn ps_literal(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "''"))
 }
 
 fn require_file(path: &Path) -> Result<()> {
@@ -362,4 +366,15 @@ fn first_existing(candidates: &[PathBuf]) -> Result<PathBuf> {
                     .join(", ")
             )
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn powershell_literal_escapes_single_quotes() {
+        assert_eq!(ps_literal("C:\\Kids\\莎莎.wav"), "'C:\\Kids\\莎莎.wav'");
+        assert_eq!(ps_literal("it's ok"), "'it''s ok'");
+    }
 }

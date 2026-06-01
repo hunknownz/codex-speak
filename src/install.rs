@@ -1,44 +1,75 @@
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
 use chrono::Local;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 use crate::config::{self, Config};
 
-const MODEL_URL: &str =
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-melo-tts-zh_en.tar.bz2";
-const KOKORO_URL: &str =
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2";
-const ZIPVOICE_URL: &str =
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-zipvoice-distill-int8-zh-en-emilia.tar.bz2";
-const ZIPVOICE_VOCODER_URL: &str =
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos_24khz.onnx";
-const PIPER_ONNX_URL: &str =
-    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx";
-const PIPER_JSON_URL: &str =
-    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx.json";
-const PIPER_TOKENS_URL: &str =
-    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/tokens.txt";
-const PIPER_LEXICON_URL: &str =
-    "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/lexicon.txt";
-const SHERPA_MACOS_URL: &str =
-    "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-osx-universal2-shared.tar.bz2";
+const PLUGIN_NAME: &str = "codex-speak";
+
+struct DownloadAsset {
+    url: &'static str,
+    sha256: Option<&'static str>,
+}
+
+const MELO_MODEL: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-melo-tts-zh_en.tar.bz2",
+    sha256: Some("e58351ed7149f290a54534538badd4077cdbe6fddc964b24d0bee870415d1514"),
+};
+const KOKORO_MODEL: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
+    sha256: Some("c133d26353d776da730870dac7da07dbfc9a5e3bc80cc5e8e83ab6e823be7046"),
+};
+const ZIPVOICE_MODEL: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-zipvoice-distill-int8-zh-en-emilia.tar.bz2",
+    sha256: Some("77219c8b40f4ee8d73a7f902305ff6c1128ef9b54461c41b4ca6ed890b6c2803"),
+};
+const ZIPVOICE_VOCODER: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos_24khz.onnx",
+    sha256: Some("bcb3b970e384161c4d634f0bb9e999ff1c471b34c9bc0b1049a5014065ed3cc0"),
+};
+const PIPER_ONNX: DownloadAsset = DownloadAsset {
+    url: "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx",
+    sha256: Some("74ab713ba7c6d5e8b0b690a85d468c8fe7a4bc531759dbada9a47ced6007af71"),
+};
+const PIPER_JSON: DownloadAsset = DownloadAsset {
+    url: "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/zh_CN-huayan-x_low.onnx.json",
+    sha256: Some("5521dcb09adf68a9bee289032f7f5af18d29bff020953429b5d223ec1f881816"),
+};
+const PIPER_TOKENS: DownloadAsset = DownloadAsset {
+    url: "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/tokens.txt",
+    sha256: Some("42d1a69ed2b91a51928a711aa228ed9f3dc021c6d359a3e9c4f37eb1d20f80bd"),
+};
+const PIPER_LEXICON: DownloadAsset = DownloadAsset {
+    url: "https://huggingface.co/csukuangfj/vits-piper-zh_CN-huayan-x_low/resolve/main/lexicon.txt",
+    sha256: Some("13e5192297791d93f8d63c353a0568f8ebb57a3a229dfb041043bcd230b3059d"),
+};
+const SHERPA_MACOS: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-osx-universal2-shared.tar.bz2",
+    sha256: Some("5cb77e97dabff363e9cb5a94e20b98de642fff7cb07b0062082ae254e1edfa4c"),
+};
+const SHERPA_WINDOWS: DownloadAsset = DownloadAsset {
+    url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.2/sherpa-onnx-v1.13.2-win-x64-shared-MD-Release.tar.bz2",
+    sha256: Some("f91f488186e797dd9e9bc2a3dcbe18ddd244627af5d9fa3707f7a2f3bc4032ce"),
+};
 
 pub fn install(skip_tts_download: bool) -> Result<()> {
     create_dirs()?;
     install_self_binary()?;
     install_skill()?;
+    install_plugin()?;
     install_hook()?;
 
     let previous = install_notify()?;
-    let cfg = Config {
-        previous_notify: previous,
-        ..Config::default()
-    };
+    let mut cfg = Config::load_or_default()?;
+    cfg.previous_notify = previous;
     cfg.save()?;
 
     if !skip_tts_download {
@@ -52,7 +83,9 @@ pub fn install(skip_tts_download: bool) -> Result<()> {
 pub fn uninstall(remove_models: bool) -> Result<()> {
     restore_notify()?;
     let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify"));
+    let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify.ps1"));
     let _ = fs::remove_dir_all(config::codex_home()?.join("skills/codex-speak"));
+    let _ = uninstall_plugin();
     if remove_models {
         let _ = fs::remove_dir_all(config::models_dir()?);
     }
@@ -64,6 +97,7 @@ fn create_dirs() -> Result<()> {
     for dir in [
         config::app_home()?,
         config::bin_dir()?,
+        config::apps_dir()?,
         config::tools_dir()?,
         config::models_dir()?,
         config::cache_dir()?,
@@ -72,6 +106,7 @@ fn create_dirs() -> Result<()> {
         config::app_home()?.join("backups"),
         config::codex_home()?.join("hooks"),
         config::codex_home()?.join("skills"),
+        config::personal_plugins_root()?.join("plugins"),
     ] {
         fs::create_dir_all(dir)?;
     }
@@ -81,10 +116,25 @@ fn create_dirs() -> Result<()> {
 fn install_self_binary() -> Result<()> {
     let current = std::env::current_exe()?;
     let target = config::bin_dir()?.join(binary_name());
-    fs::copy(&current, &target).with_context(|| {
+    let temp = target.with_extension(format!("tmp.{}", std::process::id()));
+    fs::copy(&current, &temp)
+        .with_context(|| format!("failed to copy {} to {}", current.display(), temp.display()))?;
+    make_executable(&temp)?;
+    replace_file(&temp, &target)?;
+    Ok(())
+}
+
+fn replace_file(source: &Path, target: &Path) -> Result<()> {
+    #[cfg(windows)]
+    if target.exists() {
+        fs::remove_file(target)
+            .with_context(|| format!("failed to remove {}", target.display()))?;
+    }
+
+    fs::rename(source, target).with_context(|| {
         format!(
-            "failed to copy {} to {}",
-            current.display(),
+            "failed to move {} to {}",
+            source.display(),
             target.display()
         )
     })?;
@@ -102,17 +152,70 @@ fn install_skill() -> Result<()> {
     Ok(())
 }
 
+fn install_plugin() -> Result<()> {
+    let root = config::installed_plugin_dir()?;
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join(".codex-plugin"))?;
+    fs::create_dir_all(root.join("skills/codex-speak"))?;
+    fs::create_dir_all(root.join("scripts"))?;
+
+    fs::write(
+        root.join(".codex-plugin/plugin.json"),
+        include_str!("../plugins/codex-speak/.codex-plugin/plugin.json"),
+    )?;
+    fs::write(
+        root.join(".mcp.json"),
+        include_str!("../plugins/codex-speak/.mcp.json"),
+    )?;
+    fs::write(
+        root.join("README.md"),
+        include_str!("../plugins/codex-speak/README.md"),
+    )?;
+    fs::write(
+        root.join("skills/codex-speak/SKILL.md"),
+        include_str!("../plugins/codex-speak/skills/codex-speak/SKILL.md"),
+    )?;
+
+    let script = root.join("scripts/codex-speak-mcp");
+    fs::write(
+        &script,
+        include_str!("../plugins/codex-speak/scripts/codex-speak-mcp"),
+    )?;
+    make_executable(&script)?;
+    fs::write(
+        root.join("scripts/codex-speak-mcp.ps1"),
+        include_str!("../plugins/codex-speak/scripts/codex-speak-mcp.ps1"),
+    )?;
+
+    upsert_personal_marketplace_entry()
+}
+
+fn uninstall_plugin() -> Result<()> {
+    let _ = fs::remove_dir_all(config::installed_plugin_dir()?);
+    remove_personal_marketplace_entry()
+}
+
 fn install_hook() -> Result<()> {
-    let hook_path = config::codex_home()?.join("hooks/codex-speak-notify");
+    let hook_path = hook_path()?;
     let cli_path = config::bin_dir()?.join(binary_name());
-    let content = format!(
-        r#"#!/usr/bin/env bash
+    let content = if cfg!(windows) {
+        format!(
+            r#"$ErrorActionPreference = "SilentlyContinue"
+& "{}" speak *> $null
+exit 0
+"#,
+            cli_path.display()
+        )
+    } else {
+        format!(
+            r#"#!/usr/bin/env bash
 set -u
 "{}" speak >/dev/null 2>&1 || true
 exit 0
 "#,
-        cli_path.display()
-    );
+            cli_path.display()
+        )
+    };
     fs::write(&hook_path, content)?;
     make_executable(&hook_path)?;
     Ok(())
@@ -123,17 +226,14 @@ fn install_notify() -> Result<Option<Vec<String>>> {
     let existing = fs::read_to_string(&codex_config).unwrap_or_default();
     backup_codex_config(&codex_config, &existing)?;
 
-    let previous = parse_previous_notify(&existing);
+    let previous = parse_previous_notify(&existing).or_else(read_saved_previous_notify);
     fs::write(
         config::state_dir()?.join("previous-notify.json"),
         serde_json::to_string_pretty(&previous)?,
     )?;
 
-    let hook = config::codex_home()?.join("hooks/codex-speak-notify");
-    let notify_line = format!(
-        "notify = [\"{}\"]",
-        toml_escape(&hook.display().to_string())
-    );
+    let hook = hook_path()?;
+    let notify_line = format_notify_line(&notify_command(&hook));
     let updated = replace_notify_line(&existing, &notify_line);
     fs::write(&codex_config, updated)?;
     Ok(previous)
@@ -182,6 +282,153 @@ fn backup_codex_config(path: &Path, content: &str) -> Result<()> {
     Ok(())
 }
 
+fn upsert_personal_marketplace_entry() -> Result<()> {
+    let path = config::personal_marketplace_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let marketplace = read_marketplace_json(&path)?;
+    let updated = upsert_plugin_entry(marketplace);
+    fs::write(&path, serde_json::to_string_pretty(&updated)?)?;
+    Ok(())
+}
+
+fn remove_personal_marketplace_entry() -> Result<()> {
+    let path = config::personal_marketplace_path()?;
+    if !path.exists() {
+        return Ok(());
+    }
+    let marketplace = read_marketplace_json(&path)?;
+    let updated = remove_plugin_entry(marketplace);
+    fs::write(&path, serde_json::to_string_pretty(&updated)?)?;
+    Ok(())
+}
+
+fn read_marketplace_json(path: &Path) -> Result<Value> {
+    if !path.exists() {
+        return Ok(seed_marketplace());
+    }
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("failed to parse {}", path.display()))
+}
+
+fn seed_marketplace() -> Value {
+    json!({
+        "name": "personal",
+        "interface": {
+            "displayName": "Personal"
+        },
+        "plugins": []
+    })
+}
+
+fn upsert_plugin_entry(value: Value) -> Value {
+    let mut marketplace = normalize_marketplace(value);
+    let entry = plugin_marketplace_entry();
+    let plugins = marketplace
+        .as_object_mut()
+        .expect("marketplace is normalized object")
+        .get_mut("plugins")
+        .and_then(Value::as_array_mut)
+        .expect("marketplace plugins is normalized array");
+
+    if let Some(existing) = plugins
+        .iter_mut()
+        .find(|item| item.get("name").and_then(Value::as_str) == Some(PLUGIN_NAME))
+    {
+        *existing = entry;
+    } else {
+        plugins.push(entry);
+    }
+    marketplace
+}
+
+fn remove_plugin_entry(value: Value) -> Value {
+    let mut marketplace = normalize_marketplace(value);
+    let plugins = marketplace
+        .as_object_mut()
+        .expect("marketplace is normalized object")
+        .get_mut("plugins")
+        .and_then(Value::as_array_mut)
+        .expect("marketplace plugins is normalized array");
+    plugins.retain(|item| item.get("name").and_then(Value::as_str) != Some(PLUGIN_NAME));
+    marketplace
+}
+
+fn normalize_marketplace(value: Value) -> Value {
+    let mut marketplace = if value.is_object() {
+        value
+    } else {
+        seed_marketplace()
+    };
+    let object = marketplace
+        .as_object_mut()
+        .expect("seeded marketplace must be an object");
+    object
+        .entry("name")
+        .or_insert_with(|| Value::String("personal".to_string()));
+    object.entry("interface").or_insert_with(|| {
+        json!({
+            "displayName": "Personal"
+        })
+    });
+    if !object.get("plugins").is_some_and(Value::is_array) {
+        object.insert("plugins".to_string(), Value::Array(Vec::new()));
+    }
+    marketplace
+}
+
+fn plugin_marketplace_entry() -> Value {
+    json!({
+        "name": PLUGIN_NAME,
+        "source": {
+            "source": "local",
+            "path": "./plugins/codex-speak"
+        },
+        "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL"
+        },
+        "category": "Productivity"
+    })
+}
+
+fn hook_path() -> Result<PathBuf> {
+    let name = if cfg!(windows) {
+        "codex-speak-notify.ps1"
+    } else {
+        "codex-speak-notify"
+    };
+    Ok(config::codex_home()?.join("hooks").join(name))
+}
+
+fn notify_command(hook: &Path) -> Vec<String> {
+    if cfg!(windows) {
+        vec![
+            "powershell.exe".to_string(),
+            "-NoProfile".to_string(),
+            "-ExecutionPolicy".to_string(),
+            "Bypass".to_string(),
+            "-File".to_string(),
+            hook.display().to_string(),
+        ]
+    } else {
+        vec![hook.display().to_string()]
+    }
+}
+
+fn format_notify_line(command: &[String]) -> String {
+    format!(
+        "notify = [{}]",
+        command
+            .iter()
+            .map(|item| format!("\"{}\"", toml_escape(item)))
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
 fn parse_previous_notify(config_text: &str) -> Option<Vec<String>> {
     let value = toml::from_str::<toml::Value>(config_text).ok()?;
     let notify = value.get("notify")?.as_array()?;
@@ -203,6 +450,14 @@ fn parse_previous_notify(config_text: &str) -> Option<Vec<String>> {
     } else {
         Some(items)
     }
+}
+
+fn read_saved_previous_notify() -> Option<Vec<String>> {
+    let path = config::state_dir().ok()?.join("previous-notify.json");
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<Option<Vec<String>>>(&raw)
+        .ok()
+        .flatten()
 }
 
 fn replace_notify_line(existing: &str, notify_line: &str) -> String {
@@ -267,6 +522,8 @@ pub fn install_model(provider: &str) -> Result<()> {
 fn install_tts_runtime() -> Result<()> {
     if cfg!(target_os = "macos") {
         install_sherpa_macos()?;
+    } else if cfg!(windows) {
+        install_sherpa_windows()?;
     } else {
         eprintln!("Skipping Sherpa download on this platform for now");
     }
@@ -278,7 +535,7 @@ fn install_sherpa_macos() -> Result<()> {
         return Ok(());
     }
     let archive = config::cache_dir()?.join("sherpa-onnx.tar.bz2");
-    download(SHERPA_MACOS_URL, &archive)?;
+    download(&SHERPA_MACOS, &archive)?;
     let extract_dir = config::cache_dir()?.join("sherpa-onnx-extract");
     let _ = fs::remove_dir_all(&extract_dir);
     fs::create_dir_all(&extract_dir)?;
@@ -294,12 +551,32 @@ fn install_sherpa_macos() -> Result<()> {
     Ok(())
 }
 
+fn install_sherpa_windows() -> Result<()> {
+    if config::sherpa_bin()?.exists() {
+        return Ok(());
+    }
+    let archive = config::cache_dir()?.join("sherpa-onnx-win-x64.tar.bz2");
+    download(&SHERPA_WINDOWS, &archive)?;
+    let extract_dir = config::cache_dir()?.join("sherpa-onnx-win-extract");
+    let _ = fs::remove_dir_all(&extract_dir);
+    fs::create_dir_all(&extract_dir)?;
+    untar_bzip2(&archive, &extract_dir)?;
+
+    let target_dir = config::tools_dir()?.join("sherpa-onnx");
+    let _ = fs::remove_dir_all(&target_dir);
+    fs::create_dir_all(&target_dir)?;
+    let root =
+        find_sherpa_root(&extract_dir).context("could not find sherpa-onnx root in archive")?;
+    copy_dir_recursive(&root, &target_dir)?;
+    Ok(())
+}
+
 fn install_melo_model() -> Result<()> {
     if config::model_dir()?.join("model.onnx").exists() {
         return Ok(());
     }
     let archive = config::cache_dir()?.join("vits-melo-tts-zh_en.tar.bz2");
-    download(MODEL_URL, &archive)?;
+    download(&MELO_MODEL, &archive)?;
     untar_bzip2(&archive, &config::models_dir()?)?;
     Ok(())
 }
@@ -310,7 +587,7 @@ fn install_kokoro_model() -> Result<()> {
         return Ok(());
     }
     let archive = config::cache_dir()?.join("kokoro-multi-lang-v1_0.tar.bz2");
-    download(KOKORO_URL, &archive)?;
+    download(&KOKORO_MODEL, &archive)?;
     let extract_dir = config::cache_dir()?.join("kokoro-extract");
     let _ = fs::remove_dir_all(&extract_dir);
     fs::create_dir_all(&extract_dir)?;
@@ -330,7 +607,7 @@ fn install_zipvoice_model() -> Result<()> {
         return Ok(());
     }
     let archive = config::cache_dir()?.join("zipvoice-zh-en.tar.bz2");
-    download(ZIPVOICE_URL, &archive)?;
+    download(&ZIPVOICE_MODEL, &archive)?;
     let extract_dir = config::cache_dir()?.join("zipvoice-extract");
     let _ = fs::remove_dir_all(&extract_dir);
     fs::create_dir_all(&extract_dir)?;
@@ -342,7 +619,7 @@ fn install_zipvoice_model() -> Result<()> {
     .context("could not find ZipVoice model root in archive")?;
     replace_dir(&root, &target)?;
     normalize_zipvoice_files(&target)?;
-    download(ZIPVOICE_VOCODER_URL, &target.join("vocoder.onnx"))?;
+    download(&ZIPVOICE_VOCODER, &target.join("vocoder.onnx"))?;
     ensure_zipvoice_reference(&target)?;
     Ok(())
 }
@@ -356,25 +633,89 @@ fn install_piper_model() -> Result<()> {
         return Ok(());
     }
     fs::create_dir_all(&target)?;
-    download(PIPER_ONNX_URL, &target.join("model.onnx"))?;
-    download(PIPER_JSON_URL, &target.join("model.onnx.json"))?;
-    download(PIPER_TOKENS_URL, &target.join("tokens.txt"))?;
-    download(PIPER_LEXICON_URL, &target.join("lexicon.txt"))?;
+    download(&PIPER_ONNX, &target.join("model.onnx"))?;
+    download(&PIPER_JSON, &target.join("model.onnx.json"))?;
+    download(&PIPER_TOKENS, &target.join("tokens.txt"))?;
+    download(&PIPER_LEXICON, &target.join("lexicon.txt"))?;
     Ok(())
 }
 
-fn download(url: &str, dest: &Path) -> Result<()> {
-    eprintln!("Downloading {url}");
-    let status = Command::new("curl")
-        .args(["-L", "--fail", "--progress-bar", "-o"])
-        .arg(dest)
-        .arg(url)
-        .status()
-        .with_context(|| format!("failed to run curl for {url}"))?;
-    if !status.success() {
-        anyhow::bail!("download failed: {url}");
+fn download(asset: &DownloadAsset, dest: &Path) -> Result<()> {
+    if dest.exists() && verify_download(dest, asset)? {
+        eprintln!("Using cached {}", dest.display());
+        return Ok(());
     }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let temp = dest.with_extension(format!("download.{}", std::process::id()));
+    let _ = fs::remove_file(&temp);
+    eprintln!("Downloading {}", asset.url);
+    let status = Command::new("curl")
+        .args([
+            "-L",
+            "--fail",
+            "--retry",
+            "3",
+            "--connect-timeout",
+            "20",
+            "--progress-bar",
+            "-o",
+        ])
+        .arg(&temp)
+        .arg(asset.url)
+        .status()
+        .with_context(|| format!("failed to run curl for {}", asset.url))?;
+    if !status.success() {
+        let _ = fs::remove_file(&temp);
+        anyhow::bail!("download failed: {}", asset.url);
+    }
+    if !verify_download(&temp, asset)? {
+        let _ = fs::remove_file(&temp);
+        anyhow::bail!("download checksum mismatch: {}", asset.url);
+    }
+    replace_download(&temp, dest)?;
     Ok(())
+}
+
+fn verify_download(path: &Path, asset: &DownloadAsset) -> Result<bool> {
+    let Some(expected) = asset.sha256 else {
+        return Ok(path.exists());
+    };
+    let actual = sha256_file(path)?;
+    Ok(actual.eq_ignore_ascii_case(expected))
+}
+
+fn sha256_file(path: &Path) -> Result<String> {
+    let mut file = fs::File::open(path)
+        .with_context(|| format!("failed to open {} for checksum", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 1024 * 64];
+    loop {
+        let n = file.read(&mut buffer)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buffer[..n]);
+    }
+    let digest = hasher.finalize();
+    Ok(digest.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn replace_download(source: &Path, target: &Path) -> Result<()> {
+    #[cfg(windows)]
+    if target.exists() {
+        fs::remove_file(target)
+            .with_context(|| format!("failed to remove {}", target.display()))?;
+    }
+
+    fs::rename(source, target).with_context(|| {
+        format!(
+            "failed to move {} to {}",
+            source.display(),
+            target.display()
+        )
+    })
 }
 
 fn untar_bzip2(archive: &Path, dest: &Path) -> Result<()> {
@@ -399,7 +740,7 @@ fn find_sherpa_root(root: &Path) -> Option<PathBuf> {
         .filter_map(Result::ok)
     {
         let path = entry.path();
-        if path.join("bin/sherpa-onnx-offline-tts").exists() && path.join("lib").is_dir() {
+        if path.join("bin").join(sherpa_tts_binary_name()).exists() && path.join("lib").is_dir() {
             return Some(path.to_path_buf());
         }
     }
@@ -522,6 +863,14 @@ fn binary_name() -> &'static str {
     }
 }
 
+fn sherpa_tts_binary_name() -> &'static str {
+    if cfg!(windows) {
+        "sherpa-onnx-offline-tts.exe"
+    } else {
+        "sherpa-onnx-offline-tts"
+    }
+}
+
 fn toml_escape(text: &str) -> String {
     text.replace('\\', "\\\\").replace('"', "\\\"")
 }
@@ -542,5 +891,103 @@ mod tests {
         let raw = r#"notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old/codex-speak-notify\"]"]"#;
         let previous = parse_previous_notify(raw).unwrap();
         assert_eq!(previous, vec!["/a/SkyComputerUseClient", "turn-ended"]);
+    }
+
+    #[test]
+    fn formats_notify_command_array() {
+        let line = format_notify_line(&[
+            "powershell.exe".to_string(),
+            "-File".to_string(),
+            "C:\\Users\\me\\.codex\\hooks\\codex-speak-notify.ps1".to_string(),
+        ]);
+        assert!(line.contains("\"powershell.exe\""));
+        assert!(line.contains("C:\\\\Users\\\\me"));
+    }
+
+    #[test]
+    fn verifies_download_checksum() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("asset.txt");
+        fs::write(&file, b"codex-speak").unwrap();
+        let asset = DownloadAsset {
+            url: "https://example.invalid/asset.txt",
+            sha256: Some("5859d5fa93e61d7200b470d310972a2c3b2907a96339f9de03f47807e4641b4c"),
+        };
+        assert!(verify_download(&file, &asset).unwrap());
+        let wrong = DownloadAsset {
+            url: "https://example.invalid/asset.txt",
+            sha256: Some("0000000000000000000000000000000000000000000000000000000000000000"),
+        };
+        assert!(!verify_download(&file, &wrong).unwrap());
+    }
+
+    #[test]
+    fn all_download_assets_have_fixed_checksums() {
+        let assets = [
+            &MELO_MODEL,
+            &KOKORO_MODEL,
+            &ZIPVOICE_MODEL,
+            &ZIPVOICE_VOCODER,
+            &PIPER_ONNX,
+            &PIPER_JSON,
+            &PIPER_TOKENS,
+            &PIPER_LEXICON,
+            &SHERPA_MACOS,
+            &SHERPA_WINDOWS,
+        ];
+        for asset in assets {
+            assert_eq!(
+                asset.sha256.map(str::len),
+                Some(64),
+                "missing or invalid sha256 for {}",
+                asset.url
+            );
+        }
+    }
+
+    #[test]
+    fn upserts_marketplace_entry_without_removing_others() {
+        let marketplace = json!({
+            "name": "personal",
+            "plugins": [
+                {
+                    "name": "other",
+                    "source": { "source": "local", "path": "./plugins/other" },
+                    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+                    "category": "Productivity"
+                }
+            ]
+        });
+        let updated = upsert_plugin_entry(marketplace);
+        let plugins = updated.get("plugins").and_then(Value::as_array).unwrap();
+        assert_eq!(plugins.len(), 2);
+        assert!(plugins
+            .iter()
+            .any(|item| item.get("name").and_then(Value::as_str) == Some(PLUGIN_NAME)));
+        assert!(plugins
+            .iter()
+            .any(|item| item.get("name").and_then(Value::as_str) == Some("other")));
+    }
+
+    #[test]
+    fn removes_only_codex_speak_marketplace_entry() {
+        let marketplace = upsert_plugin_entry(json!({
+            "name": "personal",
+            "plugins": [
+                {
+                    "name": "other",
+                    "source": { "source": "local", "path": "./plugins/other" },
+                    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+                    "category": "Productivity"
+                }
+            ]
+        }));
+        let updated = remove_plugin_entry(marketplace);
+        let plugins = updated.get("plugins").and_then(Value::as_array).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(
+            plugins[0].get("name").and_then(Value::as_str),
+            Some("other")
+        );
     }
 }

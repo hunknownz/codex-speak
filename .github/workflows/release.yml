@@ -1,0 +1,166 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            artifact_name: codex-speak-macos
+          - os: windows-2022
+            artifact_name: codex-speak-windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build CLI
+        run: cargo build --release
+      - name: Build native macOS pet helper
+        if: runner.os == 'macOS'
+        run: swiftc -O -framework AppKit -framework AVFoundation -o target/release/codex-speak-pet-macos apps/codex-speak-pet-macos/CodexSpeakPet.swift
+      - name: Install frontend dependencies
+        working-directory: apps/codex-speak-control
+        run: npm install
+      - name: Build Tauri app on macOS
+        if: runner.os == 'macOS'
+        working-directory: apps/codex-speak-control
+        run: npm run build -- --bundles app
+      - name: Build Tauri app on Windows
+        if: runner.os == 'Windows'
+        working-directory: apps/codex-speak-control
+        run: npm run build
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MACOS_CERTIFICATE_P12_BASE64:-}" ]; then
+            echo "Skipping macOS certificate import: MACOS_CERTIFICATE_P12_BASE64 is not set."
+            exit 0
+          fi
+          keychain_password="${MACOS_KEYCHAIN_PASSWORD:-temporary-keychain-password}"
+          security create-keychain -p "$keychain_password" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$keychain_password" build.keychain
+          echo "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "${MACOS_CERTIFICATE_PASSWORD:-}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" build.keychain
+          rm -f certificate.p12
+      - name: Package macOS release
+        if: runner.os == 'macOS'
+        env:
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          package="dist/codex-speak-macos"
+          rm -rf "$package"
+          mkdir -p "$package/bin" "$package/apps" "$package/assets/pet" "$package/installers" "$package/docs"
+          cp target/release/codex-speak "$package/bin/codex-speak"
+          cp target/release/codex-speak-pet-macos "$package/bin/codex-speak-pet-macos"
+          ditto "apps/codex-speak-control/src-tauri/target/release/bundle/macos/Codex Speak.app" "$package/apps/Codex Speak.app"
+          ditto apps/codex-speak-pet-macos/assets "$package/assets/pet"
+          cp installers/install-macos.sh installers/uninstall-macos.sh "$package/installers/"
+          chmod +x "$package/bin/codex-speak" "$package/bin/codex-speak-pet-macos" "$package/installers/install-macos.sh" "$package/installers/uninstall-macos.sh"
+          cp README.md "$package/README.md"
+          cp docs/installation.md docs/requirements.md docs/technical-design.md docs/tauri-control-app.md "$package/docs/"
+          scripts/sign-macos-release.sh "$package"
+          node scripts/check-release-package.mjs macos "$package"
+          tar -czf dist/codex-speak-macos.tar.gz -C dist codex-speak-macos
+          (cd dist && shasum -a 256 codex-speak-macos.tar.gz > codex-speak-macos.tar.gz.sha256)
+      - name: Smoke install macOS release package
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/codex-speak-release-smoke
+          mkdir -p /tmp/codex-speak-release-smoke
+          tar -xzf dist/codex-speak-macos.tar.gz -C /tmp/codex-speak-release-smoke
+          /tmp/codex-speak-release-smoke/codex-speak-macos/installers/install-macos.sh --skip-tts-download
+          test -x "$HOME/.codex/codex-speak/bin/codex-speak"
+          test -x "$HOME/.codex/codex-speak/bin/codex-speak-pet-macos"
+          test -d "$HOME/.codex/codex-speak/apps/Codex Speak.app"
+          test -f "$HOME/.codex/codex-speak/assets/pet/codex-agent.mov"
+          "$HOME/.codex/codex-speak/bin/codex-speak" models list >/tmp/codex-speak-models.json
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_SIGN_CERT_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_CERT_PFX_BASE64 }}
+          WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Package = "dist\codex-speak-windows"
+          Remove-Item -Recurse -Force $Package -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path "$Package\bin", "$Package\apps", "$Package\installers", "$Package\docs" | Out-Null
+          Copy-Item -Force "target\release\codex-speak.exe" "$Package\bin\codex-speak.exe"
+          Copy-Item -Force "apps\codex-speak-control\src-tauri\target\release\codex-speak-control.exe" "$Package\apps\codex-speak-control.exe"
+          Copy-Item -Force -Path @("installers\install-windows.ps1", "installers\uninstall-windows.ps1") -Destination "$Package\installers\"
+          Copy-Item -Force "README.md" "$Package\README.md"
+          Copy-Item -Force -Path @("docs\installation.md", "docs\requirements.md", "docs\technical-design.md", "docs\tauri-control-app.md") -Destination "$Package\docs\"
+          if ($env:WINDOWS_SIGN_CERT_PFX_BASE64) {
+            $CertPath = Join-Path $env:RUNNER_TEMP "codex-speak-signing.pfx"
+            [IO.File]::WriteAllBytes($CertPath, [Convert]::FromBase64String($env:WINDOWS_SIGN_CERT_PFX_BASE64))
+            $env:WINDOWS_SIGN_CERT_PATH = $CertPath
+          }
+          .\scripts\sign-windows-release.ps1 -PackageDir $Package
+          node scripts/check-release-package.mjs windows $Package
+          Compress-Archive -Force -Path $Package -DestinationPath "dist\codex-speak-windows.zip"
+          $Hash = (Get-FileHash -Algorithm SHA256 "dist\codex-speak-windows.zip").Hash.ToLower()
+          "$Hash  codex-speak-windows.zip" | Set-Content -NoNewline "dist\codex-speak-windows.zip.sha256"
+      - name: Smoke install Windows release package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $Smoke = Join-Path $env:TEMP "codex-speak-release-smoke"
+          Remove-Item -Recurse -Force $Smoke -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $Smoke | Out-Null
+          Expand-Archive -Force -Path "dist\codex-speak-windows.zip" -DestinationPath $Smoke
+          & (Join-Path $Smoke "codex-speak-windows\installers\install-windows.ps1") -SkipTtsDownload
+          $InstalledCli = Join-Path $env:USERPROFILE ".codex\codex-speak\bin\codex-speak.exe"
+          $InstalledApp = Join-Path $env:USERPROFILE ".codex\codex-speak\apps\codex-speak-control.exe"
+          if (-not (Test-Path $InstalledCli)) { throw "Installed CLI missing: $InstalledCli" }
+          if (-not (Test-Path $InstalledApp)) { throw "Installed control app missing: $InstalledApp" }
+          & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $env:TEMP "codex-speak-models.json")
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}.*
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/codex-speak-macos.tar.gz
+            dist/codex-speak-macos.tar.gz.sha256
+            dist/codex-speak-windows.zip
+            dist/codex-speak-windows.zip.sha256

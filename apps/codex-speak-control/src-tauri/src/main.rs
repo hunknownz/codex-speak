@@ -1,9 +1,10 @@
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use serde_json::Value;
+use tauri::Manager;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -75,6 +76,16 @@ fn stop_speech() -> Result<(), String> {
 }
 
 #[tauri::command]
+fn open_control_window(app: tauri::AppHandle) -> Result<(), String> {
+    let Some(window) = app.get_webview_window("main") else {
+        return Err("main window is not available".to_string());
+    };
+    window.show().map_err(to_string)?;
+    window.set_focus().map_err(to_string)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn run_doctor() -> Result<String, String> {
     run_cli(["doctor"])
 }
@@ -123,7 +134,67 @@ fn cli_path() -> Result<PathBuf, String> {
     if installed.is_file() {
         return Ok(installed);
     }
+    for candidate in local_binary_candidates() {
+        if candidate.is_file() {
+            return Ok(candidate);
+        }
+    }
     Ok(PathBuf::from("codex-speak"))
+}
+
+fn local_binary_candidates() -> Vec<PathBuf> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let Some(repo_root) = manifest_dir
+        .parent()
+        .and_then(|path| path.parent())
+        .and_then(|path| path.parent())
+    else {
+        return Vec::new();
+    };
+    let name = if cfg!(windows) {
+        "codex-speak.exe"
+    } else {
+        "codex-speak"
+    };
+    vec![
+        repo_root.join("target/release").join(name),
+        repo_root.join("target/debug").join(name),
+    ]
+}
+
+fn app_home() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".codex")
+        .join("codex-speak")
+}
+
+fn pet_helper_path() -> PathBuf {
+    app_home().join("bin").join("codex-speak-pet-macos")
+}
+
+fn launch_native_pet() {
+    if !cfg!(target_os = "macos") {
+        return;
+    }
+    let helper = pet_helper_path();
+    if !helper.is_file() {
+        return;
+    }
+    let cli = cli_path().unwrap_or_else(|_| PathBuf::from("codex-speak"));
+    let _ = Command::new(helper)
+        .arg("--state")
+        .arg(app_home().join("state").join("pet-state.json"))
+        .arg("--cli")
+        .arg(cli)
+        .arg("--asset-dir")
+        .arg(app_home().join("assets").join("pet"))
+        .arg("--parent")
+        .arg(std::process::id().to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
 }
 
 fn to_string(error: impl std::fmt::Display) -> String {
@@ -132,12 +203,17 @@ fn to_string(error: impl std::fmt::Display) -> String {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|_app| {
+            launch_native_pet();
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             load_status,
             update_settings,
             speak_sample,
             install_current_model,
             stop_speech,
+            open_control_window,
             run_doctor
         ])
         .run(tauri::generate_context!())

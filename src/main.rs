@@ -1,8 +1,11 @@
 mod config;
+mod control_app;
 mod doctor;
 mod extract;
 mod install;
 mod mcp;
+mod model_catalog;
+mod pet_state;
 mod process;
 mod session;
 mod settings;
@@ -47,6 +50,13 @@ enum Command {
     Doctor,
     /// Print machine-readable status for plugins and scripts.
     Status,
+    /// Print the desktop pet state as JSON.
+    PetState,
+    /// Open or locate the installed control app.
+    App {
+        #[command(subcommand)]
+        command: AppCommand,
+    },
     /// Read or update Codex Speak configuration.
     Config {
         #[command(subcommand)]
@@ -94,6 +104,8 @@ enum ConfigCommand {
 
 #[derive(Debug, Subcommand)]
 enum ModelsCommand {
+    /// Print supported local TTS providers and their install status.
+    List,
     /// Install the current provider model, a named provider, or every supported local model.
     Install {
         #[arg(long)]
@@ -101,6 +113,14 @@ enum ModelsCommand {
         #[arg(long)]
         all: bool,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum AppCommand {
+    /// Open the installed Tauri control app.
+    Open,
+    /// Print the expected installed control app path.
+    Path,
 }
 
 fn main() -> Result<()> {
@@ -127,6 +147,14 @@ fn main() -> Result<()> {
             let cfg = config::Config::load_or_default()?;
             println!("{}", serde_json::to_string_pretty(&status::collect(&cfg)?)?);
         }
+        Command::PetState => println!(
+            "{}",
+            serde_json::to_string_pretty(&pet_state::read_state()?)?
+        ),
+        Command::App { command } => match command {
+            AppCommand::Open => control_app::open()?,
+            AppCommand::Path => control_app::print_path()?,
+        },
         Command::Config { command } => match command {
             ConfigCommand::Get => {
                 let cfg = config::Config::load_or_default()?;
@@ -157,6 +185,10 @@ fn main() -> Result<()> {
             }
         },
         Command::Models { command } => match command {
+            ModelsCommand::List => {
+                let providers = status::provider_statuses()?;
+                println!("{}", serde_json::to_string_pretty(&providers)?);
+            }
             ModelsCommand::Install { provider, all } => {
                 if all {
                     install::install_all_models()?;

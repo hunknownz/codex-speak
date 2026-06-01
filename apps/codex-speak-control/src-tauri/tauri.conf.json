@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Codex Speak",
         "width": 760,
         "height": 720,

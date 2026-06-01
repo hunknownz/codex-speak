@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use serde::Serialize;
 
 use crate::config::Config;
+use crate::model_catalog;
 
 #[derive(Debug, Default, Clone)]
 pub struct ConfigPatch {
@@ -57,13 +58,7 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
 }
 
 pub fn supported_providers() -> &'static [&'static str] {
-    &[
-        "sherpa_melo",
-        "sherpa_kokoro",
-        "sherpa_zipvoice",
-        "piper",
-        "system",
-    ]
+    model_catalog::supported_provider_ids()
 }
 
 fn validate_provider(provider: &str) -> Result<()> {

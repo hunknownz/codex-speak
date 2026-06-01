@@ -73,6 +73,22 @@ pub fn codex_home() -> Result<PathBuf> {
     Ok(home_dir()?.join(".codex"))
 }
 
+pub fn agents_home() -> Result<PathBuf> {
+    Ok(home_dir()?.join(".agents"))
+}
+
+pub fn personal_plugins_root() -> Result<PathBuf> {
+    Ok(agents_home()?.join("plugins"))
+}
+
+pub fn personal_marketplace_path() -> Result<PathBuf> {
+    Ok(personal_plugins_root()?.join("marketplace.json"))
+}
+
+pub fn installed_plugin_dir() -> Result<PathBuf> {
+    Ok(personal_plugins_root()?.join("plugins").join(APP_DIR_NAME))
+}
+
 pub fn app_home() -> Result<PathBuf> {
     Ok(codex_home()?.join(APP_DIR_NAME))
 }
@@ -93,12 +109,43 @@ pub fn state_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("state"))
 }
 
+pub fn pet_state_path() -> Result<PathBuf> {
+    Ok(state_dir()?.join("pet-state.json"))
+}
+
+pub fn playback_pid_path() -> Result<PathBuf> {
+    Ok(state_dir()?.join("playback.pid"))
+}
+
 pub fn spool_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("spool"))
 }
 
 pub fn bin_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("bin"))
+}
+
+pub fn apps_dir() -> Result<PathBuf> {
+    Ok(app_home()?.join("apps"))
+}
+
+pub fn control_app_path() -> Result<PathBuf> {
+    let name = if cfg!(target_os = "macos") {
+        "Codex Speak.app"
+    } else if cfg!(windows) {
+        "codex-speak-control.exe"
+    } else {
+        "codex-speak-control"
+    };
+    Ok(apps_dir()?.join(name))
+}
+
+pub fn pet_helper_path() -> Result<PathBuf> {
+    Ok(bin_dir()?.join("codex-speak-pet-macos"))
+}
+
+pub fn pet_helper_supported() -> bool {
+    cfg!(target_os = "macos")
 }
 
 pub fn tools_dir() -> Result<PathBuf> {

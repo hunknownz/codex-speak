@@ -3,5 +3,7 @@
   "identifier": "default",
   "description": "Default permissions for the Codex Speak control window.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default"
+  ]
 }

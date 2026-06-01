@@ -12,9 +12,14 @@ const controls = {
   speedValue: $("speedValue"),
   maxCharsValue: $("maxCharsValue"),
   providerState: $("providerState"),
+  providerHint: $("providerHint"),
   modelState: $("modelState"),
   hookState: $("hookState"),
   configState: $("configState"),
+  controlAppState: $("controlAppState"),
+  pluginState: $("pluginState"),
+  marketplaceState: $("marketplaceState"),
+  petState: $("petState"),
   lastSpoken: $("lastSpoken"),
   health: $("health"),
   log: $("log")
@@ -43,18 +48,50 @@ function renderStatus(status) {
   controls.maxCharsValue.value = status.max_read_chars;
   const provider = (status.providers || []).find((item) => item.id === status.provider);
   controls.providerState.textContent = provider?.label || status.provider || "-";
+  controls.providerHint.textContent = provider
+    ? `${provider.role} · ${provider.languages} · ${provider.footprint}`
+    : "-";
   controls.modelState.textContent = provider?.installed ? "正常" : (provider?.reason || "缺失");
   controls.hookState.textContent = status.checks.notify_configured ? "已连接" : "未连接";
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
+  controls.controlAppState.textContent = status.checks.control_app_exists ? "已安装" : "未安装";
+  controls.pluginState.textContent = status.checks.plugin_installed ? "已安装" : "缺失";
+  controls.marketplaceState.textContent = status.checks.marketplace_configured ? "已连接" : "缺失";
+  controls.petState.textContent = petStateLabel(status.pet_state?.state, status.checks);
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
 
   const ok = status.checks.config_exists
     && status.checks.cli_exists
     && Boolean(provider?.installed)
-    && status.checks.notify_configured;
+    && status.checks.notify_configured
+    && status.checks.control_app_exists
+    && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists)
+    && status.checks.plugin_installed
+    && status.checks.marketplace_configured;
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";
   applying = false;
+}
+
+function petStateLabel(state, checks = {}) {
+  if (!checks.pet_helper_supported) {
+    return "本机状态";
+  }
+  if (!checks.pet_helper_exists) {
+    return "未安装";
+  }
+  switch (state) {
+    case "ready":
+      return "待朗读";
+    case "speaking":
+      return "朗读中";
+    case "done":
+      return "刚完成";
+    case "error":
+      return "有问题";
+    default:
+      return "待命";
+  }
 }
 
 async function refresh() {

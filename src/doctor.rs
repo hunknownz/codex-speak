@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 use anyhow::Result;
 
@@ -15,6 +16,12 @@ pub fn run() -> Result<()> {
         &config::bin_dir()?.join(binary_name()),
         &mut failed,
     );
+    check_optional_path("Control app", &config::control_app_path()?);
+    if config::pet_helper_supported() {
+        check_optional_path("Native pet helper", &config::pet_helper_path()?);
+    } else {
+        println!("SKIP Native pet helper: macOS only");
+    }
     check_file("Sherpa TTS", &config::sherpa_bin()?, &mut failed);
     check_file(
         "Melo model",
@@ -32,6 +39,12 @@ pub fn run() -> Result<()> {
         &mut failed,
     );
     check_notify(&mut failed)?;
+    check_file(
+        "Codex Speak plugin",
+        &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
+        &mut failed,
+    );
+    check_marketplace(&mut failed)?;
     check_player(&mut failed);
 
     if failed {
@@ -72,6 +85,14 @@ fn check_dir(label: &str, path: &Path, failed: &mut bool) {
     }
 }
 
+fn check_optional_path(label: &str, path: &Path) {
+    if path.exists() {
+        println!("OK   {label}: {}", path.display());
+    } else {
+        println!("WARN {label}: missing {}", path.display());
+    }
+}
+
 fn check_file(label: &str, path: &Path, failed: &mut bool) {
     if path.is_file() {
         println!("OK   {label}: {}", path.display());
@@ -81,12 +102,38 @@ fn check_file(label: &str, path: &Path, failed: &mut bool) {
     }
 }
 
+fn check_marketplace(failed: &mut bool) -> Result<()> {
+    let path = config::personal_marketplace_path()?;
+    let raw = fs::read_to_string(&path).unwrap_or_default();
+    if raw.contains("\"codex-speak\"") {
+        println!("OK   Plugin marketplace: codex-speak is configured");
+    } else {
+        println!(
+            "FAIL Plugin marketplace: codex-speak not found in {}",
+            path.display()
+        );
+        *failed = true;
+    }
+    Ok(())
+}
+
 fn check_player(failed: &mut bool) {
     if cfg!(target_os = "macos") {
         let path = Path::new("/usr/bin/afplay");
         check_file("Player", path, failed);
     } else if cfg!(windows) {
-        println!("OK   Player: Windows PowerShell SoundPlayer");
+        match Command::new("powershell.exe")
+            .args(["-NoProfile", "-Command", "exit 0"])
+            .status()
+        {
+            Ok(status) if status.success() => {
+                println!("OK   Player: Windows PowerShell SoundPlayer");
+            }
+            _ => {
+                println!("FAIL Player: powershell.exe is not available");
+                *failed = true;
+            }
+        }
     } else {
         println!("FAIL Player: unsupported platform");
         *failed = true;

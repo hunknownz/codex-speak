@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use crate::config::Config;
-use crate::{extract, install, process, settings, side_channel, status, tts};
+use crate::{extract, install, pet_state, process, settings, side_channel, status, tts};
 
 pub fn run() -> Result<()> {
     let stdin = io::stdin();
@@ -273,6 +273,7 @@ fn call_tool(request: &Value) -> Result<Value> {
                 items: parse_items(args.get("items").context("missing items")?)?,
             };
             let written = side_channel::write_latest(&spool, cfg.max_read_chars)?;
+            let _ = pet_state::write_state("ready", Some(&written.text), "mcp");
             serde_json::to_string_pretty(&written)?
         }
         "codex_speak_extract" => {

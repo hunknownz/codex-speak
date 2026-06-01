@@ -1,0 +1,13 @@
+Codex Speak Pet Assets
+
+These assets are generated from scripts/generate-pet-assets.swift for the Codex Speak project.
+They are original project assets and are intended for distribution with Codex Speak.
+
+The display pipeline intentionally matches the lil-agents style of desktop companion:
+- 1080x1920 HEVC-with-alpha .mov.
+- Native transparent AppKit window.
+- AVPlayerLayer playback on macOS.
+
+Files:
+- codex-agent.mov: transparent animated desktop companion.
+- codex-agent-hit.png: alpha mask fallback used by the native macOS helper.

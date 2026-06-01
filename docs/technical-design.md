@@ -300,6 +300,24 @@ apps/codex-speak-control
 
 这样可以把“普通用户点击配置”和“Codex 通过 MCP 改配置”统一到同一份 `config.toml`。
 
+## 桌面 Pet
+
+macOS 桌面 Pet 不放在 Tauri WebView 里画，而是单独的原生 helper：
+
+```text
+apps/codex-speak-pet-macos/CodexSpeakPet.swift
+```
+
+实现路线对齐 lil-agents：无边框透明 `NSWindow`、`AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov`、display-link 驱动贴近屏幕底部的移动、独立透明气泡窗口。角色素材由 `scripts/generate-pet-assets.swift` 生成，默认输出：
+
+```text
+codex-agent.mov
+codex-agent-hit.png
+ASSET-NOTICE.txt
+```
+
+点击命中优先采样窗口实际 alpha 像素；如果 macOS 15 SDK 或系统环境不允许旧的窗口采样 API，就退回 `codex-agent-hit.png`。这样核心显示仍然是透明视频，不会回到 HTML、SVG、canvas 或白底 WebView。
+
 实现语言建议：
 
 | 方案 | 优点 | 缺点 | 建议 |
@@ -333,6 +351,8 @@ sha256 = "..."
 ```
 
 安装器必须校验下载文件，避免模型损坏或被替换。
+
+当前实现中，下载器会先写入临时文件，校验通过后再替换目标文件。已经固定校验值的资产包括 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型。单元测试会确认所有下载资产都有 64 位十六进制 sha256，避免新增模型时遗漏完整性校验。
 
 ## 配置示例
 

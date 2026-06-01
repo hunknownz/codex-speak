@@ -31,3 +31,20 @@ The current Codex plugin surface does not provide a documented API for rewriting
 - `codex_speak_install_model`
 
 The plugin expects the Rust CLI to be installed at `~/.codex/codex-speak/bin/codex-speak` or available on `PATH`.
+
+## Installation
+
+The product installer copies this plugin into the user's personal plugin marketplace:
+
+```text
+~/.agents/plugins/plugins/codex-speak
+~/.agents/plugins/marketplace.json
+```
+
+The marketplace entry uses a local source path:
+
+```text
+./plugins/codex-speak
+```
+
+That keeps Plugin, Skill, MCP scripts, Hook, and the installed Rust CLI on the same local version.

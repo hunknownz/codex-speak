@@ -5,6 +5,8 @@ use anyhow::Result;
 use serde::Serialize;
 
 use crate::config::{self, Config};
+use crate::model_catalog;
+use crate::pet_state::PetState;
 use crate::settings;
 
 #[derive(Debug, Serialize)]
@@ -20,6 +22,7 @@ pub struct Status {
     pub paths: StatusPaths,
     pub checks: StatusChecks,
     pub providers: Vec<ProviderStatus>,
+    pub pet_state: PetState,
     pub last_spoken: Option<String>,
 }
 
@@ -27,23 +30,37 @@ pub struct Status {
 pub struct StatusPaths {
     pub config: String,
     pub cli: String,
+    pub control_app: String,
+    pub pet_helper: String,
     pub model: String,
     pub spool: String,
+    pub plugin: String,
+    pub marketplace: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct StatusChecks {
     pub config_exists: bool,
     pub cli_exists: bool,
+    pub control_app_exists: bool,
+    pub pet_helper_supported: bool,
+    pub pet_helper_exists: bool,
     pub model_exists: bool,
     pub sherpa_exists: bool,
     pub notify_configured: bool,
+    pub plugin_installed: bool,
+    pub marketplace_configured: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ProviderStatus {
     pub id: String,
     pub label: String,
+    pub languages: String,
+    pub footprint: String,
+    pub role: String,
+    pub recommended: bool,
+    pub requires_model: bool,
     pub installed: bool,
     pub reason: Option<String>,
 }
@@ -51,8 +68,12 @@ pub struct ProviderStatus {
 pub fn collect(cfg: &Config) -> Result<Status> {
     let config_path = config::config_path()?;
     let cli_path = config::bin_dir()?.join(binary_name());
+    let control_app_path = config::control_app_path()?;
+    let pet_helper_path = config::pet_helper_path()?;
     let model_path = config::model_dir()?.join("model.onnx");
     let sherpa_path = config::sherpa_bin()?;
+    let plugin_path = config::installed_plugin_dir()?;
+    let marketplace_path = config::personal_marketplace_path()?;
     let codex_config = config::codex_home()?.join("config.toml");
     let codex_config_raw = fs::read_to_string(codex_config).unwrap_or_default();
     let last_spoken = fs::read_to_string(config::logs_dir()?.join("last-spoken.txt"))
@@ -71,22 +92,49 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         paths: StatusPaths {
             config: config_path.display().to_string(),
             cli: cli_path.display().to_string(),
+            control_app: control_app_path.display().to_string(),
+            pet_helper: pet_helper_path.display().to_string(),
             model: model_path.display().to_string(),
             spool: config::spool_dir()?.display().to_string(),
+            plugin: plugin_path.display().to_string(),
+            marketplace: marketplace_path.display().to_string(),
         },
         checks: StatusChecks {
             config_exists: config_path.is_file(),
             cli_exists: cli_path.is_file(),
+            control_app_exists: control_app_path.exists(),
+            pet_helper_supported: config::pet_helper_supported(),
+            pet_helper_exists: pet_helper_path.is_file(),
             model_exists: model_path.is_file(),
             sherpa_exists: sherpa_path.is_file(),
             notify_configured: codex_config_raw.contains("codex-speak-notify"),
+            plugin_installed: plugin_path.join(".codex-plugin/plugin.json").is_file(),
+            marketplace_configured: marketplace_has_plugin(&marketplace_path),
         },
         providers: provider_statuses()?,
+        pet_state: crate::pet_state::read_state().unwrap_or_default(),
         last_spoken,
     })
 }
 
-fn provider_statuses() -> Result<Vec<ProviderStatus>> {
+fn marketplace_has_plugin(path: &Path) -> bool {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    value
+        .get("plugins")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|plugins| {
+            plugins.iter().any(|plugin| {
+                plugin.get("name").and_then(serde_json::Value::as_str) == Some("codex-speak")
+            })
+        })
+}
+
+pub fn provider_statuses() -> Result<Vec<ProviderStatus>> {
     let mut providers = Vec::new();
     for id in settings::supported_providers() {
         providers.push(provider_status(id)?);
@@ -95,18 +143,15 @@ fn provider_statuses() -> Result<Vec<ProviderStatus>> {
 }
 
 fn provider_status(id: &str) -> Result<ProviderStatus> {
-    let (label, installed, reason) = match id {
+    let meta = model_catalog::provider_meta(id);
+    let (installed, reason) = match id {
         "sherpa_melo" => {
             let model = config::model_dir()?;
             let ok = config::sherpa_bin()?.is_file()
                 && model.join("model.onnx").is_file()
                 && model.join("tokens.txt").is_file()
                 && model.join("lexicon.txt").is_file();
-            (
-                "MeloTTS 中文女声".to_string(),
-                ok,
-                missing_reason(ok, "MeloTTS 模型或 Sherpa-ONNX 未安装"),
-            )
+            (ok, missing_reason(ok, "MeloTTS 模型或 Sherpa-ONNX 未安装"))
         }
         "sherpa_kokoro" => {
             let model = config::kokoro_model_dir()?;
@@ -115,11 +160,7 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
                 && model.join("voices.bin").is_file()
                 && model.join("tokens.txt").is_file()
                 && (!kokoro_lexicons(&model).is_empty() || model.join("espeak-ng-data").is_dir());
-            (
-                "Kokoro".to_string(),
-                ok,
-                missing_reason(ok, "Kokoro 模型未安装"),
-            )
+            (ok, missing_reason(ok, "Kokoro 模型未安装"))
         }
         "sherpa_zipvoice" => {
             let model = config::zipvoice_model_dir()?;
@@ -133,11 +174,7 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
                     model.join("test_wavs/leijun-1.wav"),
                     model.join("test_wavs/en-1.wav"),
                 ]);
-            (
-                "ZipVoice 中文/英文".to_string(),
-                ok,
-                missing_reason(ok, "ZipVoice 模型或参考音频未安装"),
-            )
+            (ok, missing_reason(ok, "ZipVoice 模型或参考音频未安装"))
         }
         "piper" => {
             let model = config::piper_model_dir()?;
@@ -145,23 +182,23 @@ fn provider_status(id: &str) -> Result<ProviderStatus> {
                 && model.join("model.onnx").is_file()
                 && model.join("tokens.txt").is_file()
                 && model.join("lexicon.txt").is_file();
-            (
-                "Piper 中文轻量音色".to_string(),
-                ok,
-                missing_reason(ok, "Piper 中文模型未安装"),
-            )
+            (ok, missing_reason(ok, "Piper 中文模型未安装"))
         }
-        "system" => (
-            "系统语音".to_string(),
-            system_voice_available(),
-            missing_reason(system_voice_available(), "系统语音不可用"),
-        ),
-        other => (other.to_string(), false, Some("未知引擎".to_string())),
+        "system" => {
+            let ok = system_voice_available();
+            (ok, missing_reason(ok, "系统语音不可用"))
+        }
+        _ => (false, Some("未知引擎".to_string())),
     };
 
     Ok(ProviderStatus {
         id: id.to_string(),
-        label,
+        label: meta.map(|item| item.label).unwrap_or(id).to_string(),
+        languages: meta.map(|item| item.languages).unwrap_or("-").to_string(),
+        footprint: meta.map(|item| item.footprint).unwrap_or("-").to_string(),
+        role: meta.map(|item| item.role).unwrap_or("-").to_string(),
+        recommended: meta.map(|item| item.recommended).unwrap_or(false),
+        requires_model: meta.map(|item| item.requires_model).unwrap_or(true),
         installed,
         reason,
     })

@@ -46,6 +46,12 @@ select {
   margin-top: 14px;
 }
 
+.hint {
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 h1,
 h2,
 p {
@@ -62,7 +68,8 @@ h2 {
 }
 
 small,
-#subtitle {
+#subtitle,
+.hint {
   color: #66736e;
 }
 
@@ -154,7 +161,7 @@ button:hover {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 12px;
 }
 

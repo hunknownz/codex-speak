@@ -1,0 +1,107 @@
+# Codex Speak 产品完成计划
+
+## 一句话目标
+
+Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让孩子和初学者听懂 Codex 做了什么、结果是什么、下一步怎么推动。
+
+## 完整产品定义
+
+第一版完整产品不追求语音效果最终最优，先追求普通用户能安装、能看见、能控制、能稳定朗读。
+
+必须具备：
+
+- Codex 结束回复后自动朗读。
+- Codex 可以通过 Skill/MCP 生成适合朗读的儿童友好导览。
+- Hook 可以优先消费 side-channel，兜底清洗普通回复。
+- 本地 TTS 至少有一个默认中文方案可用，并有系统语音兜底。
+- Tauri App 可以切换儿童模式、语速、音色档位、TTS 引擎，能试听和停止。
+- 桌面 Pet 可以浮在桌面上，展示待命、待朗读、朗读中、完成、错误状态。
+- macOS 和 Windows 都有清楚的安装入口。
+- 有自检能力，让用户知道 Hook、配置、模型、CLI 哪个环节有问题。
+
+## 阶段计划
+
+### P0：核心朗读链路
+
+状态：已基本完成，继续补测试和安装边界。
+
+包括：
+
+- Rust CLI。
+- 配置文件。
+- Hook wrapper。
+- Skill。
+- MCP side-channel。
+- HTML 协议 fallback。
+- 文本清洗。
+- 本地 TTS Provider 切换。
+
+补齐项：
+
+- 更完整的 Windows 安装逻辑。
+- 更清楚的错误提示。
+- 更多自动化测试覆盖 side-channel、配置和状态输出。
+
+### P1：桌面 Pet 和控制台
+
+状态：第一版已落地，本机已验证透明显示、Tauri App 构建和 macOS release 包安装烟测。
+
+目标：
+
+- Tauri App 默认打开控制台，并拉起 macOS 原生透明 Pet helper。
+- Pet 通过 `~/.codex/codex-speak/state/pet-state.json` 获取状态。
+- TTS、MCP、停止命令都会更新同一份 Pet 状态。
+- Pet 可以拖动，朗读中点击可停止，双击打开控制台。
+
+第一版 Pet 风格：
+
+- 技术实现按 lil-agents 的路线：AppKit 透明浮窗 + `AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov` 动画素材 + display-link 驱动移动。
+- 轮廓清楚，颜色明亮，素材自带 alpha，不再用 WebView、HTML、CSS、SVG 或 canvas 绘制角色。
+- 动画轻，不影响工作。
+- 默认素材是项目自有的科技感小伙伴，由 `scripts/generate-pet-assets.swift` 生成；正式品牌角色仍然可以继续替换 `~/.codex/codex-speak/assets/pet/codex-agent.mov` 和 `codex-agent-hit.png`，只要保持透明视频和 alpha mask 约定即可。
+
+### P2：安装和分发
+
+状态：进行中，macOS 本地 release 包已经通过布局检查和跳过模型下载的安装烟测；Windows release 还需要 GitHub Actions 或真机验证。
+
+目标：
+
+- macOS 安装脚本负责 CLI、Hook、Skill、Plugin、Tauri App。
+- Windows 安装脚本负责 CLI、Hook、Skill、Plugin、Tauri App。
+- 模型安装支持跳过、修复、单独安装。
+- GitHub Actions 构建 macOS 和 Windows 包。
+- 发布物包含校验说明和最小系统要求。
+
+本轮已推进：
+
+- Windows 安装脚本不再只是占位，会构建 Rust CLI 并调用安装命令。
+- Rust 安装器会安装个人 Codex Plugin marketplace 条目。
+- 重复安装会保留已有用户配置，不会重置语速、Provider 或儿童模式。
+- CI 已覆盖 macOS 和 Windows 的 Rust 核心、Tauri 后端和前端构建。
+- Release workflow 会在 tag 或手动触发时构建 CLI、macOS `.app` 和 Windows 桌面包。macOS DMG 等签名/公证稳定后再打开。
+- 安装脚本会把 Tauri 控制面板安装到 `~/.codex/codex-speak/apps`，没有 npm 时可以显式跳过。
+- 下载资产完整性校验已补齐到 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型。
+- 本机已打出 `codex-speak-macos.tar.gz`，通过 `scripts/check-release-package.mjs`，并从解包后的 release 目录完成一次安装烟测。
+
+剩余外部验证：
+
+- 在 GitHub Actions 上跑一次 release workflow，确认 `macos-14` 和 `windows-2022` 矩阵都能通过。
+- 在 Windows runner 或 Windows 真机上确认 `install-windows.ps1 -SkipTtsDownload`、`models list`、控制面板启动路径和 PowerShell 播放停止链路。
+- 配置真实签名 secrets 后，验证 macOS codesign/notarization 和 Windows signtool。
+
+### P3：语音效果优化计划
+
+状态：等完整产品稳定后开始。
+
+优化方向：
+
+- 建立同一句话的多 Provider 试听面板。
+- 固定一组儿童友好测试语料。
+- 评估清晰度、自然度、延迟、中文数字/英文混读、低配机器表现。
+- 对 MeloTTS、Kokoro、Piper、ZipVoice 分别建立推荐参数。
+- 最终给出默认音色、低配音色、自然音色、实验音色四种方案。
+
+## 当前优先级
+
+当前优先完成 P2：安装分发的跨平台外部验证。
+P2 通过后，再正式开始 P3：语音播报效果优化。
