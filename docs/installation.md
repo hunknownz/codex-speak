@@ -337,6 +337,14 @@ CI 会做三层检查：
 node scripts/check-release-readiness.mjs
 ```
 
+给外部测试者发包前，可以生成一份 QA 交付说明：
+
+```bash
+node scripts/prepare-qa-handoff.mjs --allow-missing
+```
+
+它会读取 `dist` 里已经构建好的 release 包和 manifest，输出 `dist/qa-handoff/README.md` 与 `qa-handoff.json`，列出包哈希、安装命令、验收命令、测试者需要回传的 QA 目录，以及维护者收到回传后要跑的校验命令。
+
 完整人工验收清单见：
 
 ```text

@@ -99,6 +99,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断 release 包 manifest、自检、支持包和人工确认项是否通过。
+- `prepare-qa-handoff.mjs` 已补齐为外部 QA 交付说明生成器，会把 release 包 sha256、安装命令、验收命令和 QA 回传要求写入 `dist/qa-handoff`，降低外部测试漏步骤的概率。
 - Release 包已包含 `release-manifest.json`，记录版本、git commit、平台、生成时间、关键文件 sha256 和推荐验证命令，方便外部反馈时确认构建来源。
 - CLI 已支持 `verify-package --package-dir .`，release 包解压后不依赖 Node.js 也能校验 manifest 和关键文件 sha256；release smoke 会先跑 CLI 版校验，再跑 Node 脚本版交叉校验。
 - Release 包已包含 `check-release-manifest.mjs`，有 Node.js 时可作为 manifest 校验的脚本版交叉验证。

@@ -207,6 +207,14 @@ node scripts/check-release-manifest.mjs .
 node scripts/check-release-readiness.mjs
 ```
 
+给外部测试者准备 QA 交付说明：
+
+```bash
+node scripts/prepare-qa-handoff.mjs --allow-missing
+```
+
+脚本会读取已构建的 release 包和 `release-manifest.json`，生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`，里面包含包哈希、安装命令、验收命令和 QA 回传要求。
+
 正式发布前可以把真机 QA 回传目录也纳入门禁：
 
 ```bash

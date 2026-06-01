@@ -43,6 +43,14 @@ node scripts/check-release-readiness.mjs \
 node scripts/check-release-readiness.mjs --offline --allow-dirty
 ```
 
+发给外部测试者前，可以生成 QA 交付说明：
+
+```bash
+node scripts/prepare-qa-handoff.mjs --allow-missing
+```
+
+这个脚本会检查已构建包的 `release-manifest.json` 是否匹配当前 `HEAD`，计算 release 包 sha256，并生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`。测试者照 README 执行后，把整个 `codex-speak-macos-qa-*` 或 `codex-speak-windows-qa-*` 输出目录发回即可。
+
 脚本会检查：
 
 - 当前分支是 `main`。
