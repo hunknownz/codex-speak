@@ -24,6 +24,7 @@ chmod +x \
 cp "$ROOT_DIR/README.md" "$PACKAGE/README.md"
 cp \
   "$ROOT_DIR/docs/installation.md" \
+  "$ROOT_DIR/docs/release-qa.md" \
   "$ROOT_DIR/docs/requirements.md" \
   "$ROOT_DIR/docs/technical-design.md" \
   "$ROOT_DIR/docs/tauri-control-app.md" \

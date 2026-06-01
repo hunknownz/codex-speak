@@ -19,6 +19,7 @@ Copy-Item -Force -Path @("$RootDir\installers\install-windows.ps1", "$RootDir\in
 Copy-Item -Force "$RootDir\README.md" "$Package\README.md"
 Copy-Item -Force -Path @(
   "$RootDir\docs\installation.md",
+  "$RootDir\docs\release-qa.md",
   "$RootDir\docs\requirements.md",
   "$RootDir\docs\technical-design.md",
   "$RootDir\docs\tauri-control-app.md"

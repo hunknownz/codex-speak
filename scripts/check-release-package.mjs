@@ -16,6 +16,7 @@ if (!existsSync(root) || !statSync(root).isDirectory()) {
 const commonFiles = [
   "README.md",
   "docs/installation.md",
+  "docs/release-qa.md",
   "docs/requirements.md",
   "docs/technical-design.md",
   "docs/tauri-control-app.md"

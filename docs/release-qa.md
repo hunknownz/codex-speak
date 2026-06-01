@@ -55,7 +55,7 @@ cd codex-speak-macos
 检查项：
 
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。
-- `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，且 `ok` 为 `true`。
+- `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Plugin、控制面板、Pet helper 和播放器检查必须通过。
 - `~/.codex/codex-speak/bin/codex-speak app open` 能打开控制面板。
 - 控制面板能显示当前 provider、儿童模式、语速、模型状态。
 - 点击试听后能听到系统兜底或已安装模型的声音。
@@ -69,7 +69,10 @@ cd codex-speak-macos
 ```bash
 ~/.codex/codex-speak/bin/codex-speak models install --provider sherpa_melo
 ~/.codex/codex-speak/bin/codex-speak speak --text "你好，这是 Codex Speak 的中文朗读测试。"
+~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
+
+模型安装完成后，`doctor --json` 的 `ok` 应为 `true`。
 
 ## Windows 真机验收
 
@@ -82,7 +85,7 @@ cd codex-speak-macos
 检查项：
 
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor` 能运行。
-- `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，且 `ok` 为 `true`。
+- `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Plugin、控制面板和播放器检查必须通过。
 - `codex-speak.exe app open` 能打开 Tauri 控制面板。
 - 控制面板能切换儿童模式、语速、声音档位和 provider。
 - `codex-speak.exe speak --text "你好，这是 Windows 朗读测试。"` 能播放。
@@ -96,7 +99,10 @@ cd codex-speak-macos
 ```powershell
 codex-speak.exe models install --provider sherpa_melo
 codex-speak.exe speak --text "你好，这是中文本地模型朗读测试。"
+codex-speak.exe doctor --json
 ```
+
+模型安装完成后，`doctor --json` 的 `ok` 应为 `true`。
 
 ## Codex 集成验收
 

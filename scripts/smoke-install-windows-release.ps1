@@ -21,4 +21,24 @@ if (-not (Test-Path $InstalledApp)) {
 }
 
 & $InstalledCli models list | Out-File -Encoding utf8 (Join-Path $Smoke "models.json")
+& $InstalledCli doctor --json | Out-File -Encoding utf8 (Join-Path $Smoke "doctor.json")
+$Doctor = Get-Content -Raw -Encoding utf8 (Join-Path $Smoke "doctor.json") | ConvertFrom-Json
+$Checks = @{}
+foreach ($Check in $Doctor.checks) {
+  $Checks[$Check.id] = $Check
+}
+foreach ($Id in @(
+  "codex_home",
+  "config",
+  "cli",
+  "control_app",
+  "codex_notify",
+  "plugin",
+  "plugin_marketplace",
+  "player"
+)) {
+  if (-not $Checks.ContainsKey($Id) -or $Checks[$Id].status -ne "ok") {
+    throw "doctor core check failed: $Id"
+  }
+}
 Write-Host "Windows release smoke install OK"
