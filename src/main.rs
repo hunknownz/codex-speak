@@ -22,6 +22,7 @@ use clap::{Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[command(name = "codex-speak")]
 #[command(about = "Local Chinese-first speech helper for Codex replies")]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Command,

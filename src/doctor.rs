@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::Result;
+use chrono::Local;
 use serde::Serialize;
 
 use crate::config;
@@ -10,6 +11,10 @@ use crate::config;
 #[derive(Debug, Clone, Serialize)]
 pub struct DoctorReport {
     pub ok: bool,
+    pub version: &'static str,
+    pub os: &'static str,
+    pub arch: &'static str,
+    pub generated_at: String,
     pub checks: Vec<DoctorCheck>,
 }
 
@@ -156,7 +161,14 @@ impl DoctorReport {
         let ok = checks
             .iter()
             .all(|check| !check.required || check.status != CheckStatus::Fail);
-        Self { ok, checks }
+        Self {
+            ok,
+            version: env!("CARGO_PKG_VERSION"),
+            os: std::env::consts::OS,
+            arch: std::env::consts::ARCH,
+            generated_at: Local::now().to_rfc3339(),
+            checks,
+        }
     }
 }
 
@@ -392,6 +404,15 @@ mod tests {
         )]);
         assert!(report.ok);
         assert_eq!(report.checks[0].status, CheckStatus::Warn);
+    }
+
+    #[test]
+    fn report_includes_runtime_metadata() {
+        let report = DoctorReport::new(Vec::new());
+        assert_eq!(report.version, env!("CARGO_PKG_VERSION"));
+        assert!(!report.os.is_empty());
+        assert!(!report.arch.is_empty());
+        assert!(!report.generated_at.is_empty());
     }
 
     #[test]

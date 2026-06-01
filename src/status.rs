@@ -11,6 +11,9 @@ use crate::settings;
 
 #[derive(Debug, Serialize)]
 pub struct Status {
+    pub version: &'static str,
+    pub os: &'static str,
+    pub arch: &'static str,
     pub enabled: bool,
     pub language: String,
     pub child_mode: bool,
@@ -85,6 +88,9 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         .map(|text| preview(&text));
 
     Ok(Status {
+        version: env!("CARGO_PKG_VERSION"),
+        os: std::env::consts::OS,
+        arch: std::env::consts::ARCH,
         enabled: cfg.enabled,
         language: cfg.language.clone(),
         child_mode: cfg.child_mode,
