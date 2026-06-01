@@ -88,6 +88,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 剩余外部验证：
 
 - 在 GitHub Actions 上跑一次 release workflow，确认 `macos-14` 和 `windows-2022` 矩阵都能通过。
+- 推一个 `v*-rc*` 标签生成 draft prerelease，确认 GitHub Release artifact 上传链路能通过。
 - 在 Windows runner 或 Windows 真机上确认 `install-windows.ps1 -SkipTtsDownload`、`models list`、控制面板启动路径和 PowerShell 播放停止链路。
 - 配置真实签名 secrets 后，验证 macOS codesign/notarization 和 Windows signtool。
 

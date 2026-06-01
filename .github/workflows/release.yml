@@ -110,6 +110,9 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          draft: ${{ contains(github.ref_name, '-rc') }}
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          generate_release_notes: true
           files: |
             dist/codex-speak-macos.tar.gz
             dist/codex-speak-macos.tar.gz.sha256

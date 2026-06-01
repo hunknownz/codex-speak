@@ -225,6 +225,8 @@ Release workflow 会构建：
 
 打 tag 时，workflow 会把这些文件发布到 GitHub Release。普通用户下载后可以先校验：
 
+`v*-rc*` 标签会生成 draft prerelease，用来验证发布包；稳定版 `v*` 标签会生成正式 release。
+
 macOS:
 
 ```bash
