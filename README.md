@@ -31,7 +31,7 @@ Tauri App / Native Desktop Pet
 
 ## 当前阶段
 
-项目已经进入产品化补全阶段，macOS 端到端链路已跑通，Windows 安装链路正在补齐。
+项目已经进入产品化收尾阶段：macOS 端到端链路已跑通，GitHub Actions 已覆盖 macOS/Windows release 包构建和安装烟测；正式公开前主要还剩 Windows 真机验收和真实签名/公证验证。
 
 已完成：
 
@@ -52,10 +52,9 @@ Tauri App / Native Desktop Pet
 
 下一步：
 
-- 完善 Windows 安装脚本。
-- 增加 GitHub Actions 跨平台构建。
-- 增加模型 manifest 和校验。
-- 完善 Plugin、Tauri App 和 Desktop Pet 的正式安装打包流程。
+- Windows 真机验收：控制面板启动、试听、停止、首次模型下载。
+- 配置真实签名 secrets，验证 macOS codesign/notarization 和 Windows signtool。
+- P2 通过后开始 P3：系统化优化语音清晰度、自然度和延迟。
 
 发布构建：
 
@@ -142,6 +141,12 @@ codex-speak uninstall
 ./scripts/verify-local.sh
 ```
 
+发布 readiness 检查：
+
+```bash
+node scripts/check-release-readiness.mjs
+```
+
 ## 文档
 
 - [需求文档](docs/requirements.md)
@@ -149,6 +154,7 @@ codex-speak uninstall
 - [商业价值分析](docs/business-value.md)
 - [产品完成计划](docs/product-completion-plan.md)
 - [安装与分发](docs/installation.md)
+- [发布 QA](docs/release-qa.md)
 - [签名与公证](docs/signing.md)
 - [Codex Speak Protocol v1](docs/protocol-v1.md)
 - [Plugin 设计](docs/plugin-design.md)

@@ -22,6 +22,7 @@ fi
 
 if command -v "$NODE_BIN" >/dev/null 2>&1; then
   "$NODE_BIN" --check scripts/check-release-package.mjs
+  "$NODE_BIN" --check scripts/check-release-readiness.mjs
   "$NODE_BIN" --check apps/codex-speak-control/vite.config.js
   "$NODE_BIN" --check apps/codex-speak-control/src/main.js
 else

@@ -246,6 +246,18 @@ CI 会做两层检查：
 - 压缩前运行 `scripts/check-release-package.mjs` 检查 release 包目录，确保安装脚本、二进制、控制面板、文档和 macOS Pet 素材都在正确位置。
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
 
+发布前可以运行 readiness 检查：
+
+```bash
+node scripts/check-release-readiness.mjs
+```
+
+完整人工验收清单见：
+
+```text
+docs/release-qa.md
+```
+
 签名和公证是可选通道，配置 GitHub Secrets 后会自动启用。细节见：
 
 ```text
