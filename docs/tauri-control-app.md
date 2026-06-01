@@ -114,7 +114,7 @@ Pet 交互：
 - 朗读中点击 Pet 可以停止朗读。
 - 双击 Pet 可以打开控制面板。
 
-实现方式按 lil-agents 的核心路线落地：无边框透明原生窗口、贴近屏幕底部、`AVPlayerLayer` 播放 1080x1920 的 HEVC-with-alpha 透明 `.mov` 动画、display-link 驱动位置更新、独立气泡窗口。点击命中优先采样窗口实际 alpha 像素；在 macOS 15 SDK 或系统不允许采样时，退回 `codex-agent-hit.png` 透明 mask，尽量让空白区域不拦截鼠标。
+实现方式按 lil-agents 的核心路线落地：无边框透明原生窗口、沿 Dock 区域移动、`AVPlayerLayer` 播放 1080x1920 的 HEVC-with-alpha 透明 `.mov` 动画、`CVDisplayLink` 驱动位置更新、独立气泡窗口。点击命中优先采样窗口实际 alpha 像素；在 macOS 15 SDK 或系统不允许采样时，退回 `codex-agent-hit.png` 透明 mask，尽量让空白区域不拦截鼠标。
 
 角色显示不再依赖 Tauri WebView、HTML、CSS、SVG 或 canvas。默认素材安装到：
 
@@ -122,10 +122,11 @@ Pet 交互：
 ~/.codex/codex-speak/assets/pet/
   codex-agent.mov
   codex-agent-hit.png
+  codex-agent-preview.png
   ASSET-NOTICE.txt
 ```
 
-`codex-agent.mov` 是真正显示的原创透明动画素材，规格与 lil-agents 参考项目一致：1080x1920、约 10 秒、HEVC with Alpha；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`ASSET-NOTICE.txt` 说明素材来源。后续换角色时，只要保持同名素材或扩展同一素材目录，helper 的透明浮窗和移动逻辑不用重写。
+`codex-agent.mov` 是真正显示的原创透明动画素材，规格与 lil-agents 参考项目一致：1080x1920、约 10 秒、HEVC with Alpha；`codex-agent-hit.png` 是点击命中的兜底 alpha mask；`codex-agent-preview.png` 是透明静帧预览；`ASSET-NOTICE.txt` 说明素材来源。后续换角色时，只要保持同名素材或扩展同一素材目录，helper 的透明浮窗和移动逻辑不用重写。
 
 ## 朗读引擎
 

@@ -1,5 +1,6 @@
 import AVFoundation
 import AppKit
+import CoreVideo
 import Darwin
 import Foundation
 import QuartzCore
@@ -77,6 +78,66 @@ private func aspectFitRect(aspectRatio: CGFloat, in rect: NSRect) -> NSRect {
     return NSRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height)
 }
 
+private struct DockPlacement {
+    let screen: NSScreen
+    let dockX: CGFloat
+    let dockWidth: CGFloat
+    let dockTopY: CGFloat
+}
+
+private enum DockGeometry {
+    static func placement() -> DockPlacement {
+        let screen = activeScreen()
+        let area = dockIconArea(screenWidth: screen.frame.width)
+        return DockPlacement(
+            screen: screen,
+            dockX: screen.frame.minX + area.x,
+            dockWidth: area.width,
+            dockTopY: screen.visibleFrame.minY
+        )
+    }
+
+    private static func activeScreen() -> NSScreen {
+        if let dockScreen = NSScreen.screens.first(where: screenHasBottomDock) {
+            return dockScreen
+        }
+        if let primary = NSScreen.screens.first(where: { $0.visibleFrame.maxY < $0.frame.maxY }) {
+            return primary
+        }
+        return NSScreen.main ?? NSScreen.screens[0]
+    }
+
+    private static func screenHasBottomDock(_ screen: NSScreen) -> Bool {
+        screen.visibleFrame.minY > screen.frame.minY + 1
+    }
+
+    private static func dockIconArea(screenWidth: CGFloat) -> (x: CGFloat, width: CGFloat) {
+        let dockDefaults = UserDefaults(suiteName: "com.apple.dock")
+        let tileSize = CGFloat(dockDefaults?.double(forKey: "tilesize") ?? 48)
+        let slotWidth = tileSize * 1.25
+
+        var persistentApps = dockDefaults?.array(forKey: "persistent-apps")?.count ?? 0
+        var persistentOthers = dockDefaults?.array(forKey: "persistent-others")?.count ?? 0
+        if persistentApps == 0 && persistentOthers == 0 {
+            persistentApps = 5
+            persistentOthers = 3
+        }
+
+        let showRecents = dockDefaults?.bool(forKey: "show-recents") ?? true
+        let recentApps = showRecents ? (dockDefaults?.array(forKey: "recent-apps")?.count ?? 0) : 0
+        let totalIcons = max(1, persistentApps + persistentOthers + recentApps)
+
+        var dividers = 0
+        if persistentApps > 0 && (persistentOthers > 0 || recentApps > 0) { dividers += 1 }
+        if persistentOthers > 0 && recentApps > 0 { dividers += 1 }
+        if showRecents && recentApps > 0 { dividers += 1 }
+
+        let dividerWidth: CGFloat = 12
+        let width = min(screenWidth, (slotWidth * CGFloat(totalIcons) + CGFloat(dividers) * dividerWidth) * 1.15)
+        return ((screenWidth - width) / 2, width)
+    }
+}
+
 private enum WindowAlphaSampler {
     private typealias CreateImageFn = @convention(c) (CGRect, UInt32, CGWindowID, UInt32) -> Unmanaged<CGImage>?
 
@@ -107,7 +168,7 @@ private final class PetController: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private var bubbleWindow: NSWindow?
     private var petView: PetView!
-    private var displayLink: CADisplayLink?
+    private var displayLink: CVDisplayLink?
     private var fallbackMovementTimer: Timer?
     private var state = PetState(state: "idle", message: nil, updatedAtMs: 0)
 
@@ -119,12 +180,17 @@ private final class PetController: NSObject, NSApplicationDelegate {
     private var walkStartProgress: CGFloat = 0.78
     private var walkEndProgress: CGFloat = 0.78
     private var positionProgress: CGFloat = 0.78
+    private var currentTravelDistance: CGFloat = 500
+    private var walkStartPixel: CGFloat = 0
+    private var walkEndPixel: CGFloat = 0
     private var manualHoldUntil: CFTimeInterval = 0
     private let videoDuration: CFTimeInterval = 10.0
     private let accelStart: CFTimeInterval = 3.0
     private let fullSpeedStart: CFTimeInterval = 3.75
     private let decelStart: CFTimeInterval = 8.0
     private let walkStop: CFTimeInterval = 8.5
+    private let walkAmountRange: ClosedRange<CGFloat> = 0.35...0.62
+    private let yOffset: CGFloat = -5
 
     init(arguments: [String]) {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -154,7 +220,9 @@ private final class PetController: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        displayLink?.invalidate()
+        if let displayLink {
+            CVDisplayLinkStop(displayLink)
+        }
         fallbackMovementTimer?.invalidate()
         try? FileManager.default.removeItem(atPath: lockPath)
     }
@@ -186,19 +254,27 @@ private final class PetController: NSObject, NSApplicationDelegate {
     }
 
     private func startDisplayLink() {
-        if #available(macOS 14.0, *) {
-            let link = window.displayLink(target: self, selector: #selector(displayLinkTick(_:)))
-            link.add(to: .main, forMode: .common)
-            displayLink = link
-        } else {
+        var link: CVDisplayLink?
+        CVDisplayLinkCreateWithActiveCGDisplays(&link)
+        guard let link else {
             fallbackMovementTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
                 self?.tick()
             }
+            return
         }
-    }
 
-    @objc private func displayLinkTick(_ sender: CADisplayLink) {
-        tick()
+        let callback: CVDisplayLinkOutputCallback = { _, _, _, _, _, userInfo in
+            guard let userInfo else { return kCVReturnSuccess }
+            let controller = Unmanaged<PetController>.fromOpaque(userInfo).takeUnretainedValue()
+            DispatchQueue.main.async {
+                controller.tick()
+            }
+            return kCVReturnSuccess
+        }
+
+        CVDisplayLinkSetOutputCallback(link, callback, Unmanaged.passUnretained(self).toOpaque())
+        CVDisplayLinkStart(link)
+        displayLink = link
     }
 
     private func createWindow() {
@@ -225,9 +301,7 @@ private final class PetController: NSObject, NSApplicationDelegate {
     }
 
     private func initialFrame(size: NSSize) -> NSRect {
-        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let y = screen.minY - size.height * 0.15
-        return NSRect(x: screen.maxX - size.width - 24, y: y, width: size.width, height: size.height)
+        frameForProgress(positionProgress, size: size)
     }
 
     private func refreshState() {
@@ -300,7 +374,10 @@ private final class PetController: NSObject, NSApplicationDelegate {
         }
 
         let progress = movementPosition(atVideoTime: elapsed)
-        positionProgress = walkStartProgress + (walkEndProgress - walkStartProgress) * progress
+        let placement = DockGeometry.placement()
+        currentTravelDistance = max(placement.dockWidth - window.frame.width, 0)
+        let currentPixel = walkStartPixel + (walkEndPixel - walkStartPixel) * progress
+        positionProgress = currentTravelDistance > 0 ? max(0, min(1, currentPixel / currentTravelDistance)) : 0
         let frame = frameForProgress(positionProgress, size: window.frame.size)
         window.setFrameOrigin(frame.origin)
         petView.setWalking(true, facingRight: goingRight)
@@ -311,6 +388,8 @@ private final class PetController: NSObject, NSApplicationDelegate {
         isWalking = true
         walkStartTime = CACurrentMediaTime()
         walkDuration = videoDuration
+        let placement = DockGeometry.placement()
+        currentTravelDistance = max(placement.dockWidth - window.frame.width, 0)
         if positionProgress < 0.12 {
             goingRight = true
         } else if positionProgress > 0.88 {
@@ -319,10 +398,13 @@ private final class PetController: NSObject, NSApplicationDelegate {
             goingRight = Bool.random()
         }
         walkStartProgress = positionProgress
-        let distance = CGFloat.random(in: 0.12...0.28)
-        walkEndProgress = goingRight
-            ? min(0.98, walkStartProgress + distance)
-            : max(0.02, walkStartProgress - distance)
+        walkStartPixel = walkStartProgress * currentTravelDistance
+        let referenceWidth: CGFloat = 500
+        let walkPixels = CGFloat.random(in: walkAmountRange) * referenceWidth
+        walkEndPixel = goingRight
+            ? min(currentTravelDistance, walkStartPixel + walkPixels)
+            : max(0, walkStartPixel - walkPixels)
+        walkEndProgress = currentTravelDistance > 0 ? walkEndPixel / currentTravelDistance : walkStartProgress
         petView.setWalking(true, facingRight: goingRight)
     }
 
@@ -358,21 +440,18 @@ private final class PetController: NSObject, NSApplicationDelegate {
     }
 
     private func frameForProgress(_ progress: CGFloat, size: NSSize) -> NSRect {
-        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let minX = screen.minX + 16
-        let maxX = max(minX, screen.maxX - size.width - 16)
-        let x = minX + (maxX - minX) * max(0, min(1, progress))
-        let y = screen.minY - size.height * 0.15
+        let placement = DockGeometry.placement()
+        let travel = max(placement.dockWidth - size.width, 0)
+        let x = placement.dockX + travel * max(0, min(1, progress))
+        let y = placement.dockTopY - size.height * 0.15 + yOffset
         return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 
     private func syncProgressFromWindow() {
         guard let window else { return }
-        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let minX = screen.minX + 16
-        let maxX = max(minX, screen.maxX - window.frame.width - 16)
-        let travel = max(maxX - minX, 1)
-        positionProgress = max(0, min(1, (window.frame.minX - minX) / travel))
+        let placement = DockGeometry.placement()
+        currentTravelDistance = max(placement.dockWidth - window.frame.width, 1)
+        positionProgress = max(0, min(1, (window.frame.minX - placement.dockX) / currentTravelDistance))
     }
 
     private func bubbleText() -> String? {

@@ -47,7 +47,7 @@ Tauri App / Native Desktop Pet
 - Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
 - Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路
 - Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、TTS 引擎切换、试听、停止、自检
-- 桌面 Pet 第一版：macOS 原生透明浮窗，按 lil-agents 的 `AVPlayerLayer + 1080x1920 HEVC-with-alpha .mov` 方式显示角色，支持待命/待朗读/朗读中/完成/错误状态、拖动、点击停止、双击打开控制面板
+- 桌面 Pet 第一版：macOS 原生透明浮窗，按 lil-agents 的 `NSWindow + AVPlayerLayer + 1080x1920 HEVC-with-alpha .mov + CVDisplayLink` 方式显示角色，沿 Dock 区域行走，支持待命/待朗读/朗读中/完成/错误状态、拖动、点击停止、双击打开控制面板
 - 原创 Pet 透明动画素材：由 `scripts/generate-pet-assets.swift` 生成，不再依赖 lil-agents 参考角色素材
 
 下一步：

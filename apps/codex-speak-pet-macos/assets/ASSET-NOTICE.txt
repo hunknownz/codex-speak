@@ -7,7 +7,9 @@ The display pipeline intentionally matches the lil-agents style of desktop compa
 - 1080x1920 HEVC-with-alpha .mov.
 - Native transparent AppKit window.
 - AVPlayerLayer playback on macOS.
+- A small walking character designed as a transparent video sprite, not a WebView/canvas.
 
 Files:
 - codex-agent.mov: transparent animated desktop companion.
 - codex-agent-hit.png: alpha mask fallback used by the native macOS helper.
+- codex-agent-preview.png: transparent still frame for quick visual QA.

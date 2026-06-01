@@ -17,14 +17,17 @@ let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawV
 
 let movieURL = outputDir.appendingPathComponent("codex-agent.mov")
 let hitURL = outputDir.appendingPathComponent("codex-agent-hit.png")
+let previewURL = outputDir.appendingPathComponent("codex-agent-preview.png")
 let noticeURL = outputDir.appendingPathComponent("ASSET-NOTICE.txt")
 
 try? FileManager.default.removeItem(at: movieURL)
 try? FileManager.default.removeItem(at: hitURL)
+try? FileManager.default.removeItem(at: previewURL)
 try? FileManager.default.removeItem(at: noticeURL)
 
 try writeMovie(to: movieURL)
 try writeHitMask(to: hitURL)
+try writePreview(to: previewURL)
 try """
 Codex Speak Pet Assets
 
@@ -35,10 +38,12 @@ The display pipeline intentionally matches the lil-agents style of desktop compa
 - 1080x1920 HEVC-with-alpha .mov.
 - Native transparent AppKit window.
 - AVPlayerLayer playback on macOS.
+- A small walking character designed as a transparent video sprite, not a WebView/canvas.
 
 Files:
 - codex-agent.mov: transparent animated desktop companion.
 - codex-agent-hit.png: alpha mask fallback used by the native macOS helper.
+- codex-agent-preview.png: transparent still frame for quick visual QA.
 """.write(to: noticeURL, atomically: true, encoding: .utf8)
 
 print("Generated pet assets in \(outputDir.path)")
@@ -96,6 +101,20 @@ func writeHitMask(to url: URL) throws {
     let buffer = try makeFrame(frame: 72, maskOnly: true)
     guard let image = cgImage(from: buffer) else {
         throw AssetError.message("Could not create CGImage for hit mask")
+    }
+    guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else {
+        throw AssetError.message("Could not create PNG destination")
+    }
+    CGImageDestinationAddImage(dest, image, nil)
+    if !CGImageDestinationFinalize(dest) {
+        throw AssetError.message("Could not write \(url.path)")
+    }
+}
+
+func writePreview(to url: URL) throws {
+    let buffer = try makeFrame(frame: 96, maskOnly: false)
+    guard let image = cgImage(from: buffer) else {
+        throw AssetError.message("Could not create CGImage for preview")
     }
     guard let dest = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else {
         throw AssetError.message("Could not create PNG destination")
@@ -193,78 +212,79 @@ func drawCodexAgent(in ctx: CGContext, frame: Int, maskOnly: Bool) {
 
 func drawAgentMask(in ctx: CGContext, walk: CGFloat, counterWalk: CGFloat) {
     let mask = cg(0xffffff, 1)
-    fillRounded(ctx, CGRect(x: -58, y: 154, width: 116, height: 160), radius: 30, color: mask)
-    fillRounded(ctx, CGRect(x: -16, y: 291, width: 32, height: 34), radius: 12, color: mask)
-    fillRounded(ctx, CGRect(x: -56, y: 315, width: 112, height: 84), radius: 32, color: mask)
-    fillRounded(ctx, CGRect(x: -82, y: 165 + walk * 10, width: 32, height: 122), radius: 16, color: mask)
-    fillRounded(ctx, CGRect(x: 50, y: 165 + counterWalk * 10, width: 32, height: 122), radius: 16, color: mask)
-    fillRounded(ctx, CGRect(x: -46 + walk * 14, y: 66, width: 34, height: 112), radius: 16, color: mask)
-    fillRounded(ctx, CGRect(x: 12 + counterWalk * 14, y: 66, width: 34, height: 112), radius: 16, color: mask)
-    fillRounded(ctx, CGRect(x: -68 + walk * 16, y: 42, width: 66, height: 28), radius: 11, color: mask)
-    fillRounded(ctx, CGRect(x: 4 + counterWalk * 16, y: 42, width: 66, height: 28), radius: 11, color: mask)
+    fillRounded(ctx, CGRect(x: -78, y: 205, width: 56, height: 96), radius: 22, color: mask)
+    strokeLine(ctx, [CGPoint(x: -28, y: 262), CGPoint(x: -58, y: 212 + walk * 8), CGPoint(x: -50, y: 172 + walk * 5)], color: mask, width: 24)
+    strokeLine(ctx, [CGPoint(x: 37, y: 260), CGPoint(x: 63, y: 208 + counterWalk * 8), CGPoint(x: 58, y: 170 + counterWalk * 5)], color: mask, width: 24)
+    strokeLine(ctx, [CGPoint(x: -18, y: 188), CGPoint(x: -43 + walk * 16, y: 112 + walk * 8), CGPoint(x: -42 + walk * 20, y: 68)], color: mask, width: 29)
+    strokeLine(ctx, [CGPoint(x: 25, y: 188), CGPoint(x: 43 + counterWalk * 15, y: 113 + counterWalk * 8), CGPoint(x: 51 + counterWalk * 20, y: 69)], color: mask, width: 29)
+    fillRounded(ctx, CGRect(x: -74 + walk * 20, y: 42, width: 72, height: 32), radius: 12, color: mask)
+    fillRounded(ctx, CGRect(x: 7 + counterWalk * 20, y: 42, width: 74, height: 32), radius: 12, color: mask)
+    fillRounded(ctx, CGRect(x: -52, y: 176, width: 108, height: 148), radius: 28, color: mask)
+    fillRounded(ctx, CGRect(x: -11, y: 302, width: 28, height: 35), radius: 11, color: mask)
+    fillRounded(ctx, CGRect(x: -35, y: 327, width: 94, height: 72), radius: 29, color: mask)
+    fillRounded(ctx, CGRect(x: -3, y: 348, width: 58, height: 31), radius: 14, color: mask)
+    strokeLine(ctx, [CGPoint(x: -4, y: 396), CGPoint(x: -16, y: 421)], color: mask, width: 7)
+    strokeLine(ctx, [CGPoint(x: 33, y: 394), CGPoint(x: 52, y: 414)], color: mask, width: 7)
+    fillEllipse(ctx, CGRect(x: -14, y: 411, width: 18, height: 18), color: mask)
 }
 
 func drawAgentArt(in ctx: CGContext, walk: CGFloat, counterWalk: CGFloat, t: CGFloat) {
-    let deep = cg(0x172033)
-    let visor = cg(0x08111f)
-    let teal = cg(0x36c6a7)
-    let tealDark = cg(0x1f8f7e)
-    let cyan = cg(0x5de7ff)
-    let mint = cg(0xb6fff0)
-    let coral = cg(0xff6f61)
-    let pink = cg(0xffc0df)
-    let cream = cg(0xfff7f1)
+    let ink = cg(0x101522)
+    let visor = cg(0x07111f)
+    let jacket = cg(0x4ac79b)
+    let jacketDark = cg(0x1c8f78)
+    let blue = cg(0x4a9be8)
+    let orange = cg(0xff6a32)
+    let cream = cg(0xfff4ef)
+    let skin = cg(0xffb7d0)
+    let sole = cg(0xf8fbff)
+    let glow = cg(0x63e6ff)
     let white = cg(0xffffff)
-    let sole = cg(0xfafcff)
-    let orange = cg(0xff7d30)
-    let violet = cg(0x8d7cff)
 
-    fillEllipse(ctx, CGRect(x: -60, y: 34, width: 120, height: 16), color: cg(0x000000, 0.08))
+    fillEllipse(ctx, CGRect(x: -67, y: 38, width: 134, height: 17), color: cg(0x000000, 0.09))
 
-    strokeLine(ctx, [CGPoint(x: -43, y: 188), CGPoint(x: -74, y: 150 + walk * 12), CGPoint(x: -66, y: 113 + walk * 7)], color: tealDark, width: 20)
-    strokeLine(ctx, [CGPoint(x: 48, y: 190), CGPoint(x: 78, y: 153 + counterWalk * 12), CGPoint(x: 69, y: 115 + counterWalk * 7)], color: deep, width: 20)
-    fillRounded(ctx, CGRect(x: -77, y: 102 + walk * 7, width: 28, height: 24), radius: 11, color: pink)
-    fillRounded(ctx, CGRect(x: 54, y: 104 + counterWalk * 7, width: 28, height: 24), radius: 11, color: pink)
+    fillRounded(ctx, CGRect(x: -79, y: 207, width: 56, height: 95), radius: 22, color: orange)
+    fillRounded(ctx, CGRect(x: -73, y: 219, width: 43, height: 68), radius: 17, color: cg(0x1a2233, 0.92))
+    fillRounded(ctx, CGRect(x: -67, y: 238, width: 30, height: 11), radius: 6, color: glow)
 
-    strokeLine(ctx, [CGPoint(x: -28, y: 162), CGPoint(x: -40 + walk * 14, y: 73)], color: cream, width: 26)
-    strokeLine(ctx, [CGPoint(x: 26, y: 162), CGPoint(x: 38 + counterWalk * 14, y: 73)], color: deep, width: 26)
-    fillRounded(ctx, CGRect(x: -71 + walk * 16, y: 40, width: 68, height: 30), radius: 11, color: sole)
-    fillRounded(ctx, CGRect(x: -64 + walk * 16, y: 48, width: 58, height: 14), radius: 7, color: orange)
-    fillRounded(ctx, CGRect(x: 2 + counterWalk * 16, y: 40, width: 68, height: 30), radius: 11, color: sole)
-    fillRounded(ctx, CGRect(x: 9 + counterWalk * 16, y: 48, width: 58, height: 14), radius: 7, color: cyan)
+    strokeLine(ctx, [CGPoint(x: 32, y: 266), CGPoint(x: 64, y: 212 + counterWalk * 8), CGPoint(x: 58, y: 172 + counterWalk * 5)], color: blue, width: 23)
+    fillRounded(ctx, CGRect(x: 44, y: 160 + counterWalk * 5, width: 27, height: 25), radius: 11, color: ink)
+    strokeLine(ctx, [CGPoint(x: 23, y: 190), CGPoint(x: 43 + counterWalk * 15, y: 112 + counterWalk * 8), CGPoint(x: 51 + counterWalk * 20, y: 68)], color: ink, width: 27)
+    fillRounded(ctx, CGRect(x: 6 + counterWalk * 20, y: 41, width: 74, height: 32), radius: 12, color: sole)
+    fillRounded(ctx, CGRect(x: 15 + counterWalk * 20, y: 49, width: 57, height: 13), radius: 7, color: blue)
 
-    fillRounded(ctx, CGRect(x: -60, y: 150, width: 120, height: 166), radius: 31, color: teal)
-    fillRounded(ctx, CGRect(x: -45, y: 158, width: 90, height: 146), radius: 25, color: deep)
-    fillRounded(ctx, CGRect(x: -35, y: 176, width: 70, height: 100), radius: 22, color: cream)
-    fillRounded(ctx, CGRect(x: -28, y: 196, width: 56, height: 18), radius: 9, color: mint)
-    strokeLine(ctx, [CGPoint(x: -50, y: 280), CGPoint(x: -18, y: 252)], color: cg(0xffffff, 0.22), width: 4)
-    strokeLine(ctx, [CGPoint(x: 50, y: 280), CGPoint(x: 19, y: 252)], color: cg(0xffffff, 0.18), width: 4)
-    fillRounded(ctx, CGRect(x: -44, y: 242, width: 25, height: 20), radius: 5, color: cg(0x0b1220, 0.28))
-    fillRounded(ctx, CGRect(x: 18, y: 242, width: 25, height: 20), radius: 5, color: cg(0x0b1220, 0.28))
-    fillEllipse(ctx, CGRect(x: -8, y: 226, width: 16, height: 16), color: coral)
+    strokeLine(ctx, [CGPoint(x: -20, y: 190), CGPoint(x: -44 + walk * 16, y: 112 + walk * 8), CGPoint(x: -43 + walk * 20, y: 68)], color: cream, width: 28)
+    fillRounded(ctx, CGRect(x: -75 + walk * 20, y: 41, width: 74, height: 32), radius: 12, color: sole)
+    fillRounded(ctx, CGRect(x: -67 + walk * 20, y: 49, width: 58, height: 13), radius: 7, color: orange)
 
-    fillRounded(ctx, CGRect(x: -13, y: 292, width: 26, height: 30), radius: 10, color: pink)
-    fillRounded(ctx, CGRect(x: -54, y: 316, width: 108, height: 84), radius: 32, color: pink)
-    fillRounded(ctx, CGRect(x: -49, y: 360, width: 92, height: 28), radius: 13, color: deep)
-    fillRounded(ctx, CGRect(x: -37, y: 341, width: 78, height: 30), radius: 14, color: visor)
-    fillEllipse(ctx, CGRect(x: -23, y: 350, width: 12, height: 12), color: cyan)
-    fillEllipse(ctx, CGRect(x: 11, y: 350, width: 12, height: 12), color: cyan)
-    fillEllipse(ctx, CGRect(x: -19, y: 355, width: 4, height: 4), color: white)
-    fillEllipse(ctx, CGRect(x: 15, y: 355, width: 4, height: 4), color: white)
-    strokeLine(ctx, [CGPoint(x: -16, y: 335), CGPoint(x: -2, y: 330), CGPoint(x: 14, y: 335)], color: visor, width: 4)
+    strokeLine(ctx, [CGPoint(x: -29, y: 266), CGPoint(x: -58, y: 212 + walk * 8), CGPoint(x: -50, y: 173 + walk * 5)], color: jacketDark, width: 23)
+    fillRounded(ctx, CGRect(x: -64, y: 161 + walk * 5, width: 27, height: 25), radius: 11, color: skin)
 
-    strokeLine(ctx, [CGPoint(x: 0, y: 396), CGPoint(x: 0, y: 415)], color: deep, width: 7)
-    fillEllipse(ctx, CGRect(x: -11, y: 408, width: 22, height: 22), color: coral)
-    fillEllipse(ctx, CGRect(x: -6, y: 413, width: 12, height: 12), color: cg(0xffd76a))
+    fillRounded(ctx, CGRect(x: -52, y: 176, width: 108, height: 148), radius: 28, color: jacket)
+    fillRounded(ctx, CGRect(x: -42, y: 185, width: 38, height: 128), radius: 20, color: jacketDark)
+    fillRounded(ctx, CGRect(x: -3, y: 186, width: 53, height: 126), radius: 23, color: ink)
+    fillRounded(ctx, CGRect(x: -4, y: 201, width: 41, height: 91), radius: 18, color: cream)
+    fillRounded(ctx, CGRect(x: 1, y: 221, width: 34, height: 15), radius: 8, color: cg(0xbdf8e8))
+    strokeLine(ctx, [CGPoint(x: -42, y: 289), CGPoint(x: -20, y: 262)], color: cg(0xffffff, 0.26), width: 4)
+    strokeLine(ctx, [CGPoint(x: 43, y: 286), CGPoint(x: 21, y: 260)], color: cg(0xffffff, 0.2), width: 4)
+    fillEllipse(ctx, CGRect(x: 9, y: 245, width: 14, height: 14), color: orange)
 
-    let pulse = 0.35 + 0.45 * (sin(t * .pi * 2) + 1) / 2
-    strokeLine(ctx, [CGPoint(x: -35, y: 356), CGPoint(x: -16, y: 356)], color: cg(0x5de7ff, pulse), width: 3)
-    strokeLine(ctx, [CGPoint(x: 14, y: 356), CGPoint(x: 34, y: 356)], color: cg(0x5de7ff, pulse), width: 3)
-    strokeLine(ctx, [CGPoint(x: -44, y: 383), CGPoint(x: -68, y: 397)], color: cg(0x8d7cff, 0.72), width: 5)
-    strokeLine(ctx, [CGPoint(x: 40, y: 383), CGPoint(x: 62, y: 398)], color: cg(0x8d7cff, 0.72), width: 5)
-    strokeLine(ctx, [CGPoint(x: -21, y: 213), CGPoint(x: 21, y: 213)], color: cg(0xffffff, 0.5), width: 2)
-    fillEllipse(ctx, CGRect(x: -4, y: 207, width: 8, height: 8), color: violet)
-    fillEllipse(ctx, CGRect(x: -35, y: 272, width: 8, height: 8), color: cg(0xffffff, 0.45))
+    fillRounded(ctx, CGRect(x: -11, y: 305, width: 28, height: 35), radius: 10, color: skin)
+    fillRounded(ctx, CGRect(x: -35, y: 329, width: 94, height: 70), radius: 29, color: skin)
+    fillRounded(ctx, CGRect(x: -30, y: 366, width: 80, height: 22), radius: 12, color: ink)
+    fillRounded(ctx, CGRect(x: -3, y: 347, width: 58, height: 32), radius: 15, color: visor)
+    fillEllipse(ctx, CGRect(x: 31, y: 356, width: 12, height: 12), color: glow)
+    fillEllipse(ctx, CGRect(x: 35, y: 361, width: 4, height: 4), color: white)
+    strokeLine(ctx, [CGPoint(x: 15, y: 342), CGPoint(x: 31, y: 340), CGPoint(x: 43, y: 345)], color: visor, width: 4)
+
+    strokeLine(ctx, [CGPoint(x: -4, y: 396), CGPoint(x: -16, y: 421)], color: jacketDark, width: 7)
+    strokeLine(ctx, [CGPoint(x: 32, y: 394), CGPoint(x: 52, y: 414)], color: blue, width: 7)
+    fillEllipse(ctx, CGRect(x: -15, y: 411, width: 20, height: 20), color: orange)
+    fillEllipse(ctx, CGRect(x: -9, y: 417, width: 9, height: 9), color: cg(0xffd66e))
+
+    let pulse = 0.28 + 0.52 * (sin(t * .pi * 2) + 1) / 2
+    strokeLine(ctx, [CGPoint(x: 6, y: 360), CGPoint(x: 25, y: 360)], color: cg(0x63e6ff, pulse), width: 3)
+    fillEllipse(ctx, CGRect(x: -33, y: 274, width: 8, height: 8), color: cg(0xffffff, 0.45))
 }
 
 func fillRounded(_ ctx: CGContext, _ rect: CGRect, radius: CGFloat, color: CGColor) {
