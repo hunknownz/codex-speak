@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -44,6 +45,7 @@ async function main() {
   check(Boolean(repo), "GitHub origin", repo ?? "could not parse origin remote");
 
   checkRequiredFiles();
+  checkLocalReleaseArtifactsIfPresent();
   checkManualQaMixedEnglishCoverage();
   checkWorkflowRuntime();
   checkStableReleaseSigningPolicy();
@@ -161,6 +163,93 @@ function checkRequiredFiles() {
   }
 }
 
+function checkLocalReleaseArtifactsIfPresent() {
+  const packages = [
+    {
+      platform: "macos",
+      archive: "dist/codex-speak-macos.tar.gz",
+      checksumFile: "dist/codex-speak-macos.tar.gz.sha256",
+      manifestPath: "dist/codex-speak-macos/release-manifest.json"
+    },
+    {
+      platform: "windows",
+      archive: "dist/codex-speak-windows.zip",
+      checksumFile: "dist/codex-speak-windows.zip.sha256",
+      manifestPath: "dist/codex-speak-windows/release-manifest.json"
+    }
+  ];
+
+  for (const item of packages) {
+    const hasAnyArtifact = [item.archive, item.checksumFile, item.manifestPath].some((file) =>
+      existsSync(file)
+    );
+    if (!hasAnyArtifact) {
+      continue;
+    }
+
+    check(
+      existsSync(item.manifestPath) && statSync(item.manifestPath).isFile(),
+      `local ${item.platform} package manifest`,
+      existsSync(item.manifestPath) ? "present" : "missing"
+    );
+    if (existsSync(item.manifestPath) && statSync(item.manifestPath).isFile()) {
+      const manifest = readJsonFile(item.manifestPath);
+      check(
+        manifest.git?.commit === head,
+        `local ${item.platform} package commit`,
+        manifest.git?.commit ? `${manifest.git.commit.slice(0, 7)} / ${head.slice(0, 7)}` : "missing"
+      );
+      check(
+        manifest.git?.dirty === false,
+        `local ${item.platform} package clean source`,
+        manifest.git?.dirty === false ? "clean" : "dirty or missing"
+      );
+      check(
+        manifest.platform === item.platform,
+        `local ${item.platform} package platform`,
+        manifest.platform ?? "missing"
+      );
+    }
+
+    if (existsSync(item.archive) || existsSync(item.checksumFile)) {
+      check(
+        existsSync(item.archive) && statSync(item.archive).isFile(),
+        `local ${item.platform} archive`,
+        existsSync(item.archive) ? "present" : "missing"
+      );
+      check(
+        existsSync(item.checksumFile) && statSync(item.checksumFile).isFile(),
+        `local ${item.platform} archive checksum`,
+        existsSync(item.checksumFile) ? "present" : "missing"
+      );
+      if (existsSync(item.archive) && existsSync(item.checksumFile)) {
+        const actual = sha256File(item.archive);
+        const expected = readChecksumFile(item.checksumFile);
+        check(
+          actual === expected,
+          `local ${item.platform} archive checksum matches`,
+          actual === expected ? actual : `${expected} / ${actual}`
+        );
+      }
+    }
+  }
+
+  const handoffPath = "dist/qa-handoff/qa-handoff.json";
+  if (existsSync(handoffPath)) {
+    const handoff = readJsonFile(handoffPath);
+    check(
+      handoff.git?.commit === head,
+      "local QA handoff commit",
+      handoff.git?.commit ? `${handoff.git.commit.slice(0, 7)} / ${head.slice(0, 7)}` : "missing"
+    );
+    check(
+      handoff.git?.dirty === false,
+      "local QA handoff clean source",
+      handoff.git?.dirty === false ? "clean" : "dirty or missing"
+    );
+  }
+}
+
 function checkManualQaMixedEnglishCoverage() {
   const requiredTerms = [
     "hello world",
@@ -183,6 +272,29 @@ function checkManualQaMixedEnglishCoverage() {
       missing.length === 0 ? "extended mixed-English sample covered" : `missing: ${missing.join(", ")}`
     );
   }
+}
+
+function readJsonFile(file) {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    fail(`parse ${file}`, error.message);
+    return {};
+  }
+}
+
+function readChecksumFile(file) {
+  const raw = readFileSync(file, "utf8").trim();
+  const match = raw.match(/^([a-fA-F0-9]{64})(?:\s+|$)/);
+  if (!match) {
+    fail(`parse ${file}`, "checksum file must start with a sha256 hex digest");
+    return "";
+  }
+  return match[1].toLowerCase();
+}
+
+function sha256File(file) {
+  return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
 function checkWorkflowRuntime() {

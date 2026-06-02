@@ -62,6 +62,7 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 - 指定 tag 已经推到远端，且 release workflow 成功。
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
+- 如果本地 `dist` 里已经有 release 包或 QA handoff，它们的 manifest 必须匹配当前 `HEAD`，压缩包 `.sha256` 也必须匹配实际文件，避免把旧包误发给外部测试者。
 - 需要正式签名发布时，签名环境变量已经配置。
 - 传入 `--require-manual-qa` 时，macOS 和 Windows 真机 QA 报告必须都存在、通过 `check-manual-qa-report.mjs`，且回传支持包里的 `release-manifest.json` 必须匹配当前 git commit。
 - release 包内包含 `release-manifest.json`，可以追踪版本、git commit、平台和关键文件 sha256。

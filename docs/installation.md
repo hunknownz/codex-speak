@@ -357,6 +357,8 @@ CI 会做三层检查：
 node scripts/check-release-readiness.mjs
 ```
 
+如果本地 `dist` 里已经有 release 包或 QA handoff，readiness 会同时确认它们来自当前 `HEAD`，并验证压缩包 `.sha256` 没有过期；如果刚改过代码或脚本，需要先重新打包再交给外部测试者。
+
 给外部测试者发包前，可以生成一份 QA 交付说明：
 
 ```bash
