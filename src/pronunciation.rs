@@ -38,6 +38,7 @@ pub fn normalize_for_tts_with_dictionary(
     for (pattern, replacement) in TERM_REPLACEMENTS {
         result = replace_word_case_insensitive(&result, pattern, replacement);
     }
+    result = replace_spelled_acronyms(&result);
     result = replace_file_like_tokens(&result);
     result = replace_command_flags(&result);
     result = replace_code_identifiers(&result);
@@ -140,9 +141,21 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("Piper", "Piper 语音模型"),
     ("ZipVoice", "ZipVoice 语音模型"),
     ("OpenAI", "人工智能公司"),
+    ("OpenRouter", "Open Router 平台"),
+    ("OAuth", "授权登录协议"),
     ("ChatGPT", "聊天机器人"),
     ("GitHub Actions", "自动构建检查"),
     ("GitHub", "代码托管平台"),
+    ("GitLab", "代码托管平台"),
+    ("Git", "代码版本管理工具"),
+    ("VS Code", "代码编辑器"),
+    ("Xcode", "苹果开发工具"),
+    ("Docker", "容器工具"),
+    ("Kubernetes", "容器编排工具"),
+    ("WebSocket", "网页实时通信协议"),
+    ("GraphQL", "接口查询语言"),
+    ("REST", "接口设计风格"),
+    ("hello world", "你好世界示例"),
     ("PowerShell", "PowerShell 命令窗口"),
     ("Terminal", "命令窗口"),
     ("terminal", "命令窗口"),
@@ -159,6 +172,7 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("CLI", "命令行工具"),
     ("API", "接口"),
     ("SDK", "开发工具包"),
+    ("IDE", "代码编辑环境"),
     ("LLM", "大语言模型"),
     ("GPT", "大语言模型"),
     ("AI", "人工智能"),
@@ -183,6 +197,7 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("GPU", "显卡"),
     ("RAM", "内存"),
     ("OS", "操作系统"),
+    ("PDF", "文档文件"),
     ("ID", "编号"),
     ("OK", "好的"),
     ("stdout", "标准输出"),
@@ -255,6 +270,34 @@ fn replace_word_case_insensitive(text: &str, pattern: &str, replacement: &str) -
             .expect("term replacement regex should compile");
         re.replace_all(text, replacement).into_owned()
     }
+}
+
+fn replace_spelled_acronyms(text: &str) -> String {
+    let re = Regex::new(r"\b[A-Za-z](?:[ .-]+[A-Za-z]){1,7}\b")
+        .expect("spelled acronym regex should compile");
+    re.replace_all(text, |caps: &regex::Captures| {
+        let raw = caps.get(0).map(|m| m.as_str()).unwrap_or_default();
+        let acronym = raw
+            .chars()
+            .filter(|ch| ch.is_ascii_alphabetic())
+            .collect::<String>()
+            .to_ascii_uppercase();
+        acronym_replacement(&acronym).unwrap_or("英文缩写")
+    })
+    .into_owned()
+}
+
+fn acronym_replacement(acronym: &str) -> Option<&'static str> {
+    TERM_REPLACEMENTS.iter().find_map(|(pattern, replacement)| {
+        let pattern_is_acronym = pattern
+            .chars()
+            .all(|ch| ch.is_ascii_uppercase() || ch.is_ascii_digit());
+        if pattern_is_acronym && pattern.eq_ignore_ascii_case(acronym) {
+            Some(*replacement)
+        } else {
+            None
+        }
+    })
 }
 
 fn replace_file_like_tokens(text: &str) -> String {
@@ -369,6 +412,32 @@ mod tests {
         assert!(text.contains("开发工具包"));
         assert!(text.contains("英文缩写"));
         assert!(!text.contains("XYZ"));
+    }
+
+    #[test]
+    fn normalizes_spelled_acronyms_that_were_split_into_letters() {
+        let text = normalize_for_tts("M C P、J.S.O.N、C-L-I 和 X Y Z 不应该逐字母读。");
+        assert!(text.contains("插件通道"));
+        assert!(text.contains("数据格式"));
+        assert!(text.contains("命令行工具"));
+        assert!(text.contains("英文缩写"));
+        assert!(!text.contains("M C P"));
+        assert!(!text.contains("J.S.O.N"));
+        assert!(!text.contains("C-L-I"));
+        assert!(!text.contains("X Y Z"));
+    }
+
+    #[test]
+    fn normalizes_common_english_terms_for_chinese_first_speech() {
+        let text = normalize_for_tts("OpenRouter、OAuth、WebSocket 和 hello world。");
+        assert!(text.contains("Open Router 平台"));
+        assert!(text.contains("授权登录协议"));
+        assert!(text.contains("网页实时通信协议"));
+        assert!(text.contains("你好世界示例"));
+        assert!(!text.contains("OpenRouter"));
+        assert!(!text.contains("OAuth"));
+        assert!(!text.contains("WebSocket"));
+        assert!(!text.contains("hello world"));
     }
 
     #[test]

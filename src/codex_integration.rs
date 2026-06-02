@@ -247,13 +247,16 @@ fn main() {
 
 fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
     let raw =
-        "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。";
+        "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU 和 XYZ。";
     let cleaned = session::resolve_text(Some(raw.to_string()), None, cfg)?;
     for required in [
+        "你好世界示例",
         "说明文件",
         "准备朗读导览的插件工具",
         "命令参数",
         "默认中文朗读引擎",
+        "Open Router 平台",
+        "授权登录协议",
         "插件通道",
         "数据格式",
         "命令行工具",
@@ -270,6 +273,11 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "codex_speak_prepare",
         "--provider",
         "sherpa_melo",
+        "OpenRouter",
+        "OAuth",
+        "M C P",
+        "J.S.O.N",
+        "hello world",
         "MCP",
         "JSON",
         "CLI",

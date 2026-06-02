@@ -74,7 +74,8 @@ For very short conversational answers, skip the guide if the whole answer is alr
 - Use Chinese first. Keep English technical words only when necessary.
 - Rewrite common English abbreviations into Chinese explanations when they are meant for speech, for example `MCP` as "插件通道", `JSON` as "数据格式", `CLI` as "命令行工具", and `API` as "接口".
 - Rewrite file names, command flags, and code identifiers into their purpose when they are meant for speech, for example `README.md` as "说明文件", `--provider sherpa_melo` as "选择默认中文朗读引擎的命令参数", and `codex_speak_prepare` as "准备朗读导览的插件工具".
-- If an uppercase English acronym is not important to the next action, explain the meaning or say "一个英文缩写" instead of leaving it for the TTS voice to spell letter by letter.
+- Translate or explain English phrases before speech whenever possible. For example, say "你好世界示例" instead of `hello world` when the exact English words are not the point.
+- If an uppercase English acronym is not important to the next action, explain the meaning or say "一个英文缩写" instead of leaving it, or a spaced form like `M C P`, for the TTS voice to spell letter by letter.
 - Keep it around 120 to 300 Chinese characters by default. Use up to 500 only for complex work.
 - Do not read code verbatim. Explain what the code does and what problem it solves.
 - Do not read raw shell commands. Explain the action, such as "我运行了测试" or "我安装了本地语音模型".
