@@ -34,6 +34,7 @@ struct ReleaseManifest {
 #[derive(Debug, Deserialize)]
 struct GitInfo {
     commit: String,
+    dirty: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -144,6 +145,16 @@ fn validate_manifest_fields(
         is_hex(&manifest.git.commit, 40),
         "git commit",
         manifest.git.commit.clone(),
+        checks,
+    );
+    check(
+        manifest.git.dirty == Some(false),
+        "git dirty",
+        manifest
+            .git
+            .dirty
+            .map(|dirty| dirty.to_string())
+            .unwrap_or_else(|| "missing".to_string()),
         checks,
     );
     check(
@@ -299,5 +310,80 @@ impl PackageVerificationCheck {
             status: "fail",
             detail: detail.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn package_verification_accepts_clean_manifest() {
+        let dir = write_test_package(false);
+
+        let report = collect(&dir);
+
+        assert!(report.ok, "{:#?}", report.checks);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn package_verification_rejects_dirty_manifest() {
+        let dir = write_test_package(true);
+
+        let report = collect(&dir);
+
+        assert!(!report.ok);
+        assert!(report
+            .checks
+            .iter()
+            .any(|check| check.label == "git dirty" && check.status == "fail"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    fn write_test_package(dirty: bool) -> PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after Unix epoch")
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "codex-speak-release-manifest-test-{}-{stamp}",
+            std::process::id()
+        ));
+        fs::create_dir_all(dir.join("bin")).expect("test package directory should be writable");
+        fs::write(dir.join("bin/codex-speak"), b"ok").expect("test file should be writable");
+        let sha = format!("{:x}", Sha256::digest(b"ok"));
+        let manifest = format!(
+            r#"{{
+  "schemaVersion": 1,
+  "product": "codex-speak",
+  "version": "0.1.0",
+  "platform": "macos",
+  "git": {{
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "dirty": {dirty}
+  }},
+  "files": [
+    {{
+      "path": "bin/codex-speak",
+      "bytes": 2,
+      "sha256": "{sha}"
+    }}
+  ],
+  "verification": {{
+    "install": "install",
+    "verifyInstall": "verify install",
+    "verifyCodex": "verify codex",
+    "verifyControls": "verify controls",
+    "manualQa": "manual qa",
+    "checkQaReport": "check qa report",
+    "verifyManifest": "verify manifest"
+  }}
+}}"#
+        );
+        fs::write(dir.join("release-manifest.json"), manifest)
+            .expect("test manifest should be writable");
+        dir
     }
 }

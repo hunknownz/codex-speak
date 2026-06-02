@@ -103,6 +103,9 @@ function checkReleaseManifest(expectedPlatform) {
   if (typeof manifest.git?.commit !== "string" || !/^[0-9a-f]{40}$/.test(manifest.git.commit)) {
     fail("release-manifest.json git.commit must be a full 40-character SHA");
   }
+  if (manifest.git?.dirty !== false) {
+    fail("release-manifest.json git.dirty must be false");
+  }
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
     fail("release-manifest.json files list is missing");
   }

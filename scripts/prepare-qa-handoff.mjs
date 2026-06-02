@@ -99,6 +99,8 @@ function collectPackages() {
 
 function describePackage(target) {
   const manifest = readJson(target.manifestPath);
+  const archiveSha = sha256(target.archive);
+  const checksumSha = readChecksum(target.checksumFile);
   if (manifest.git?.commit !== head) {
     fail(
       `${target.platform} release manifest commit ${manifest.git?.commit ?? "missing"} does not match HEAD ${head}. Rebuild the package.`
@@ -107,13 +109,21 @@ function describePackage(target) {
   if (manifest.platform !== target.platform) {
     fail(`${target.platform} release manifest platform is ${manifest.platform ?? "missing"}.`);
   }
+  if (manifest.git?.dirty !== false) {
+    fail(`${target.platform} release manifest was generated from a dirty worktree. Rebuild from a clean commit.`);
+  }
+  if (checksumSha !== archiveSha) {
+    fail(
+      `${target.platform} checksum file ${target.checksumFile} does not match ${target.archive}. Expected ${archiveSha}, found ${checksumSha}.`
+    );
+  }
 
   return {
     platform: target.platform,
     archive: target.archive,
     archiveBytes: statSync(target.archive).size,
-    sha256: sha256(target.archive),
-    checksumFile: existsSync(target.checksumFile) ? target.checksumFile : null,
+    sha256: archiveSha,
+    checksumFile: target.checksumFile,
     packageDir: target.packageDir,
     manifest: {
       path: target.manifestPath,
@@ -216,8 +226,9 @@ During manual QA, confirm the control app opens, child mode and voice settings c
 
 function renderWindowsSteps(item) {
   return `\`\`\`powershell
-Get-FileHash .\\${path.basename(item.archive)} -Algorithm SHA256
-Get-Content .\\${path.basename(item.checksumFile ?? `${item.archive}.sha256`)}
+$Expected = ((Get-Content .\\${path.basename(item.checksumFile)} -Raw) -split '\\s+')[0].ToLowerInvariant()
+$Actual = (Get-FileHash .\\${path.basename(item.archive)} -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($Actual -ne $Expected) { throw "sha256 mismatch: expected $Expected but got $Actual" }
 Expand-Archive -Force .\\${path.basename(item.archive)} .
 cd .\\codex-speak-windows
 ${item.testerCommands.verifyPackage}
@@ -290,6 +301,18 @@ function readJson(file) {
   } catch (error) {
     fail(`Could not parse ${file}: ${error.message}`);
   }
+}
+
+function readChecksum(file) {
+  if (!existsSync(file) || !statSync(file).isFile()) {
+    fail(`Missing checksum file: ${file}`);
+  }
+  const raw = readFileSync(file, "utf8").trim();
+  const match = raw.match(/^([a-fA-F0-9]{64})(?:\s+|$)/);
+  if (!match) {
+    fail(`Invalid checksum file: ${file}`);
+  }
+  return match[1].toLowerCase();
 }
 
 function sha256(file) {

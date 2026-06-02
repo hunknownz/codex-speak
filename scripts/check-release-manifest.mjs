@@ -26,6 +26,7 @@ check(manifest.product === "codex-speak", "product", manifest.product ?? "missin
 check(["macos", "windows"].includes(manifest.platform), "platform", manifest.platform ?? "missing");
 check(typeof manifest.version === "string" && manifest.version.length > 0, "version", manifest.version ?? "missing");
 check(/^[0-9a-f]{40}$/.test(manifest.git?.commit ?? ""), "git commit", manifest.git?.commit ?? "missing");
+check(manifest.git?.dirty === false, "git dirty", manifest.git?.dirty === false ? "false" : String(manifest.git?.dirty ?? "missing"));
 check(Array.isArray(manifest.files) && manifest.files.length > 0, "file entries", Array.isArray(manifest.files) ? `${manifest.files.length} files` : "missing");
 checkVerificationCommands(manifest);
 
