@@ -55,6 +55,8 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 
 传入 `--allow-missing` 时，脚本可以只生成当前已有平台的部分 handoff，例如只有 macOS 包时先发给 macOS 测试者；生成的 README 和 JSON 会标明缺失的平台。正式发布 readiness 仍然需要 macOS 和 Windows 两边的 QA 回传。
 
+如果本机缺 Windows 包，可以先从最新成功的 main CI run 下载 `codex-speak-windows-ci` artifact；它来自同一套 release package smoke，适合发给 Windows 测试者做外部 QA。正式公开发布仍应使用 tag 触发的 GitHub Release 产物。
+
 脚本会检查：
 
 - 当前分支是 `main`。
@@ -63,6 +65,7 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 - CI 对当前 `HEAD` 已经成功。
 - 指定 tag 已经推到远端，且 release workflow 成功。
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
+- main CI 的 release package smoke 会上传 macOS/Windows QA artifacts，便于从最新成功 CI 取得 Windows 外测包。
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 如果本地 `dist` 里已经有 release 包或 QA handoff，它们的 manifest 必须匹配当前 `HEAD`，压缩包 `.sha256` 也必须匹配实际文件，避免把旧包误发给外部测试者。
 - 如果本地 QA handoff 只包含单个平台，readiness 会给 warning，提醒它只是部分外部验收材料。

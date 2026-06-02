@@ -13,9 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-14
-          - windows-2022
+        include:
+          - os: macos-14
+            artifact_name: codex-speak-macos
+          - os: windows-2022
+            artifact_name: codex-speak-windows
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -121,3 +123,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: .\scripts\smoke-install-windows-release.ps1
+      - name: Upload smoke release package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}-ci
+          path: dist/${{ matrix.artifact_name }}.*

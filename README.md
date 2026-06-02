@@ -58,7 +58,7 @@ Tauri App / Native Desktop Pet
 
 发布构建：
 
-- CI：`.github/workflows/ci.yml`
+- CI：`.github/workflows/ci.yml`。`release-package-smoke` job 会上传 macOS/Windows smoke 包 artifacts，适合从最新成功 main CI 下载后做外部 QA。
 - 手动或 tag 发布构建：`.github/workflows/release.yml`。打 `v*` tag 时会上传 macOS/Windows release 包和 `.sha256` 校验文件到 GitHub Release；workflow 会先解包并执行一次跳过模型下载的安装烟测。
 
 ## 安装

@@ -49,6 +49,7 @@ async function main() {
   checkManualQaMixedEnglishCoverage();
   checkWorkflowRuntime();
   checkStableReleaseSigningPolicy();
+  checkCiSmokeArtifactPolicy();
   checkSigningEnv();
   checkManualQaEvidence();
 
@@ -344,6 +345,20 @@ function checkStableReleaseSigningPolicy() {
     content.includes("!contains(github.ref_name, '-rc')"),
     "stable release RC signing exception",
     content.includes("!contains(github.ref_name, '-rc')") ? "RC tags may remain unsigned test builds" : "missing"
+  );
+}
+
+function checkCiSmokeArtifactPolicy() {
+  const content = readFileSync(".github/workflows/ci.yml", "utf8");
+  check(
+    content.includes("Upload smoke release package artifacts"),
+    "CI smoke artifact upload",
+    content.includes("Upload smoke release package artifacts") ? "present" : "missing"
+  );
+  check(
+    content.includes("dist/${{ matrix.artifact_name }}.*"),
+    "CI smoke artifact package glob",
+    content.includes("dist/${{ matrix.artifact_name }}.*") ? "macOS/Windows package archives uploaded" : "missing"
   );
 }
 

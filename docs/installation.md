@@ -306,6 +306,8 @@ Release workflow 会构建：
 - 包内 `scripts/check-release-manifest.mjs`：解压后可校验 manifest 和关键文件 sha256。
 - 对应的 `.sha256` 校验文件。
 
+日常 main CI 的 `release-package-smoke` job 也会上传 `codex-speak-macos-ci` 和 `codex-speak-windows-ci` artifacts，适合在正式 tag 之前下载给外部测试者做 QA；正式公开分发仍以 tag 触发的 GitHub Release 文件为准。
+
 打 tag 时，workflow 会把这些文件发布到 GitHub Release。普通用户下载后可以先校验：
 
 `v*-rc*` 标签会生成 draft prerelease，用来验证发布包；稳定版 `v*` 标签会生成正式 release。
@@ -350,6 +352,7 @@ CI 会做三层检查：
 - 压缩后解包并执行 release 包里的安装脚本，使用跳过模型下载的模式做一次安装烟测；烟测会确认安装后的 CLI、控制面板、macOS Pet helper 和素材落位，并运行 `codex-speak models list` 检查 CLI 能正常启动。
 - 烟测还会先运行包内 `codex-speak verify-package` 和 `check-release-manifest.mjs`，再运行 `codex-speak doctor --json`、`codex-speak verify-codex`、`codex-speak verify-controls` 和 `codex-speak support-bundle`，验证机器可读自检结果能解析、Codex 集成主路径可用、常见英文技术缩写会先转成中文说法、控制项能写入并恢复、支持包能生成、安装后的 release manifest 能回传，并且核心安装项已经 OK；因为烟测跳过模型下载，模型相关检查允许失败。
 - macOS/Windows 烟测还会用非交互模式运行 release 包里的手工 QA 收集脚本，并用 `check-manual-qa-report.mjs` 校验生成的 `qa-report.json`，确保真机 QA 收集和回传校验脚本本身没有随包损坏。
+- main CI 的烟测完成后会上传对应平台的压缩包和 `.sha256`，方便不打 tag 也能拿到 Windows QA 包。
 
 发布前可以运行 readiness 检查：
 
