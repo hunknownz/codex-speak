@@ -51,7 +51,7 @@ node scripts/check-release-readiness.mjs --offline --allow-dirty
 node scripts/prepare-qa-handoff.mjs --allow-missing
 ```
 
-这个脚本会检查已构建包的 `release-manifest.json` 是否匹配当前 `HEAD`、是否来自干净工作区，确认 release 包 `.sha256` 文件没有过期，计算 release 包 sha256，并生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`。测试者照 README 执行后，把整个 `codex-speak-macos-qa-*` 或 `codex-speak-windows-qa-*` 输出目录发回即可。
+这个脚本会检查已构建包的 `release-manifest.json` 是否匹配当前 `HEAD`、是否来自干净的 tracked source，确认 release 包 `.sha256` 文件没有过期，计算 release 包 sha256，并生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`。测试者照 README 执行后，把整个 `codex-speak-macos-qa-*` 或 `codex-speak-windows-qa-*` 输出目录发回即可。
 
 脚本会检查：
 

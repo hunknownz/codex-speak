@@ -18,7 +18,14 @@ if (!existsSync(root) || !statSync(root).isDirectory()) {
 const version = readCargoVersion();
 const gitCommit = git(["rev-parse", "HEAD"]);
 const gitDescribe = git(["describe", "--tags", "--always", "--dirty"], true);
-const gitDirty = git(["status", "--porcelain"]).length > 0;
+const gitStatus = git(["status", "--porcelain", "--untracked-files=no"]);
+const gitDirty = gitStatus.length > 0;
+
+if (gitDirty) {
+  fail(
+    `Refusing to write release manifest from modified tracked files. Commit or restore these paths first:\n${gitStatus}`
+  );
+}
 
 const manifest = {
   schemaVersion: 1,

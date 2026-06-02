@@ -89,6 +89,14 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: apps/codex-speak-control
         run: npm run build -- --no-bundle
+      - name: Check package source tree
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --short
+            git diff -- . ':!dist'
+            exit 1
+          fi
       - name: Package macOS release
         if: runner.os == 'macOS'
         run: scripts/package-macos-release.sh
