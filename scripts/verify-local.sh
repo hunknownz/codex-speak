@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_BIN="${NODE_BIN:-node}"
 SWIFT_MODULE_CACHE="${SWIFT_MODULE_CACHE:-${TMPDIR:-/tmp}/codex-speak-swift-module-cache}"
+CONTROL_APP_DIR="$ROOT_DIR/apps/codex-speak-control"
 
 cd "$ROOT_DIR"
 
@@ -19,7 +20,9 @@ bash -n scripts/sign-macos-release.sh
 bash -n scripts/manual-qa-macos.sh
 
 if command -v npm >/dev/null 2>&1; then
-  (cd apps/codex-speak-control && npm run build:frontend)
+  (cd "$CONTROL_APP_DIR" && npm run build:frontend)
+elif [ -x "$CONTROL_APP_DIR/node_modules/.bin/vite" ] && command -v "$NODE_BIN" >/dev/null 2>&1; then
+  (cd "$CONTROL_APP_DIR" && "$NODE_BIN" ./node_modules/.bin/vite build)
 fi
 
 if command -v "$NODE_BIN" >/dev/null 2>&1; then

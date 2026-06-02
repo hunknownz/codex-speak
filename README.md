@@ -151,6 +151,7 @@ codex-speak uninstall
 ```
 
 词典保存在 `~/.codex/codex-speak/pronunciation.toml`。Codex 也可以通过 MCP 工具添加或删除规则，适合把项目名、英文工具名和孩子听不懂的缩写改成更自然的中文说法。
+控制面板也可以添加、预览和删除这些规则，方便不用命令行的用户调整。
 
 自检：
 

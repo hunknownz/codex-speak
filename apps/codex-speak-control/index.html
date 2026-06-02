@@ -66,6 +66,32 @@
         </label>
       </section>
 
+      <section class="panel" aria-label="发音词典">
+        <div class="panel-head">
+          <h2>发音词典</h2>
+          <strong id="pronunciationCount">0 条</strong>
+        </div>
+
+        <div class="dictionary-form">
+          <label>
+            <small>原词</small>
+            <input id="pronunciationTerm" type="text" autocomplete="off" placeholder="OpenRouter" />
+          </label>
+          <label>
+            <small>读成</small>
+            <input id="pronunciationSpoken" type="text" autocomplete="off" placeholder="Open Router 平台" />
+          </label>
+          <button id="savePronunciation" type="button">保存</button>
+        </div>
+
+        <div class="dictionary-preview">
+          <input id="pronunciationPreviewText" type="text" autocomplete="off" value="我配置了 OpenRouter。" />
+          <button id="previewPronunciation" type="button">预览</button>
+        </div>
+
+        <div id="pronunciationList" class="dictionary-list" aria-live="polite"></div>
+      </section>
+
       <section class="actions" aria-label="快捷操作">
         <button id="testSpeak" type="button">试听</button>
         <button id="installModel" type="button">安装模型</button>
@@ -92,6 +118,10 @@
           <div>
             <small>配置</small>
             <strong id="configState">-</strong>
+          </div>
+          <div>
+            <small>词典</small>
+            <strong id="pronunciationState">-</strong>
           </div>
           <div>
             <small>控制台</small>

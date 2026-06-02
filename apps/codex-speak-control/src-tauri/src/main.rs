@@ -71,6 +71,26 @@ fn install_current_model() -> Result<Value, String> {
 }
 
 #[tauri::command]
+fn load_pronunciation() -> Result<Value, String> {
+    cli_json(["pronunciation", "list"])
+}
+
+#[tauri::command]
+fn set_pronunciation(term: String, spoken: String) -> Result<Value, String> {
+    cli_json(["pronunciation", "set", "--term", &term, "--spoken", &spoken])
+}
+
+#[tauri::command]
+fn remove_pronunciation(term: String) -> Result<Value, String> {
+    cli_json(["pronunciation", "remove", "--term", &term])
+}
+
+#[tauri::command]
+fn preview_pronunciation(text: String) -> Result<String, String> {
+    run_cli(["pronunciation", "preview", "--text", &text]).map(|output| output.trim().to_string())
+}
+
+#[tauri::command]
 fn stop_speech() -> Result<(), String> {
     run_cli(["stop"]).map(|_| ())
 }
@@ -217,6 +237,10 @@ fn main() {
             update_settings,
             speak_sample,
             install_current_model,
+            load_pronunciation,
+            set_pronunciation,
+            remove_pronunciation,
+            preview_pronunciation,
             stop_speech,
             open_control_window,
             run_doctor,

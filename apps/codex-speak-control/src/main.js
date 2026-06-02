@@ -16,6 +16,12 @@ const controls = {
   modelState: $("modelState"),
   hookState: $("hookState"),
   configState: $("configState"),
+  pronunciationState: $("pronunciationState"),
+  pronunciationCount: $("pronunciationCount"),
+  pronunciationTerm: $("pronunciationTerm"),
+  pronunciationSpoken: $("pronunciationSpoken"),
+  pronunciationPreviewText: $("pronunciationPreviewText"),
+  pronunciationList: $("pronunciationList"),
   controlAppState: $("controlAppState"),
   pluginState: $("pluginState"),
   marketplaceState: $("marketplaceState"),
@@ -27,6 +33,7 @@ const controls = {
 
 let applying = false;
 let saveTimer = null;
+let pronunciationTerms = {};
 
 function setLog(message) {
   controls.log.textContent = message || "";
@@ -55,6 +62,9 @@ function renderStatus(status) {
   const hookOk = status.checks.notify_configured && status.checks.notify_hook_current;
   controls.hookState.textContent = hookOk ? "已连接" : (status.checks.notify_configured ? "需刷新" : "未连接");
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
+  controls.pronunciationState.textContent = status.checks.pronunciation_dictionary_valid
+    ? `${status.pronunciation_terms || 0} 条`
+    : "需检查";
   controls.controlAppState.textContent = status.checks.control_app_exists ? "已安装" : "未安装";
   const pluginOk = status.checks.plugin_installed
     && status.checks.plugin_current
@@ -73,6 +83,7 @@ function renderStatus(status) {
 
   const ok = status.checks.config_exists
     && status.checks.cli_exists
+    && status.checks.pronunciation_dictionary_valid
     && Boolean(provider?.installed)
     && hookOk
     && status.checks.player_available
@@ -83,6 +94,42 @@ function renderStatus(status) {
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";
   applying = false;
+}
+
+function renderPronunciation(dictionary) {
+  pronunciationTerms = dictionary?.terms || {};
+  const entries = Object.entries(pronunciationTerms).sort(([left], [right]) => left.localeCompare(right));
+  controls.pronunciationCount.textContent = `${entries.length} 条`;
+  if (entries.length === 0) {
+    controls.pronunciationList.innerHTML = `<p class="empty">暂无自定义发音</p>`;
+    return;
+  }
+  controls.pronunciationList.replaceChildren(
+    ...entries.map(([term, spoken]) => {
+      const row = document.createElement("div");
+      row.className = "dictionary-row";
+
+      const text = document.createElement("button");
+      text.className = "dictionary-term";
+      text.type = "button";
+      text.dataset.term = term;
+      text.innerHTML = `<span>${escapeHtml(term)}</span><small>${escapeHtml(spoken)}</small>`;
+
+      const remove = document.createElement("button");
+      remove.className = "dictionary-remove";
+      remove.type = "button";
+      remove.dataset.removeTerm = term;
+      remove.textContent = "删除";
+
+      row.append(text, remove);
+      return row;
+    })
+  );
+}
+
+async function refreshPronunciation() {
+  const dictionary = await invoke("load_pronunciation");
+  renderPronunciation(dictionary);
 }
 
 function petStateLabel(state, checks = {}) {
@@ -111,7 +158,14 @@ async function refresh() {
   try {
     const status = await invoke("load_status");
     renderStatus(status);
-    setLog("");
+    try {
+      const dictionary = await invoke("load_pronunciation");
+      renderPronunciation(dictionary);
+      setLog("");
+    } catch (error) {
+      renderPronunciation({ terms: {} });
+      setLog(`发音词典需要检查：${String(error)}`);
+    }
   } catch (error) {
     setLog(String(error));
     controls.health.textContent = "连接失败";
@@ -119,6 +173,13 @@ async function refresh() {
   } finally {
     setBusy(false);
   }
+}
+
+function selectedPronunciation() {
+  return {
+    term: controls.pronunciationTerm.value.trim(),
+    spoken: controls.pronunciationSpoken.value.trim()
+  };
 }
 
 async function savePatch(patch) {
@@ -193,6 +254,73 @@ $("installModel").addEventListener("click", async () => {
   }
 });
 
+$("savePronunciation").addEventListener("click", async () => {
+  const { term, spoken } = selectedPronunciation();
+  if (!term || !spoken) {
+    setLog("请填写原词和读法");
+    return;
+  }
+  setBusy(true);
+  try {
+    await invoke("set_pronunciation", { term, spoken });
+    await refresh();
+    controls.pronunciationTerm.value = "";
+    controls.pronunciationSpoken.value = "";
+    setLog("发音规则已保存");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("previewPronunciation").addEventListener("click", async () => {
+  const text = controls.pronunciationPreviewText.value.trim();
+  if (!text) {
+    setLog("请填写预览文本");
+    return;
+  }
+  setBusy(true);
+  try {
+    const preview = await invoke("preview_pronunciation", { text });
+    setLog(`预览：${preview}`);
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+controls.pronunciationList.addEventListener("click", async (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  const editTerm = event.target.closest("[data-term]")?.dataset.term;
+  const removeTerm = event.target.closest("[data-remove-term]")?.dataset.removeTerm;
+
+  if (editTerm) {
+    controls.pronunciationTerm.value = editTerm;
+    controls.pronunciationSpoken.value = pronunciationTerms[editTerm] || "";
+    controls.pronunciationPreviewText.value = `我配置了 ${editTerm}。`;
+    return;
+  }
+
+  if (!removeTerm) {
+    return;
+  }
+
+  setBusy(true);
+  try {
+    await invoke("remove_pronunciation", { term: removeTerm });
+    await refresh();
+    setLog("发音规则已删除");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
 $("stopSpeak").addEventListener("click", async () => {
   setBusy(true);
   try {
@@ -230,5 +358,14 @@ $("supportBundle").addEventListener("click", async () => {
     setBusy(false);
   }
 });
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 refresh();

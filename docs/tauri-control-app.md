@@ -76,6 +76,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 语速 | `codex-speak config set --speed ...` |
 | 声音档位 | `codex-speak config set --voice-profile ...` |
 | 最大朗读字数 | `codex-speak config set --max-read-chars ...` |
+| 发音词典 | `codex-speak pronunciation list/set/remove/preview` |
 | 安装模型 | `codex-speak models install` |
 | 模型清单 | `codex-speak models list` |
 | 试听 | `codex-speak speak --text ...` |
@@ -87,7 +88,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 
 播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮和 MCP `stop` 工具会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
 
-控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性，以及 Skill、Hook wrapper、Plugin 和 MCP 脚本是否与当前 CLI 内置版本一致；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型和最近日志的本地排障目录。
+控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性、发音词典是否能解析，以及 Skill、Hook wrapper、Plugin 和 MCP 脚本是否与当前 CLI 内置版本一致；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型、发音词典摘要和最近日志的本地排障目录。
 
 ## 桌面 Pet
 

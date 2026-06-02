@@ -131,6 +131,16 @@ select {
   background: #fbfcfb;
 }
 
+input[type="text"] {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cbd8d3;
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: #fbfcfb;
+  color: #182420;
+}
+
 .range-row {
   margin-top: 16px;
 }
@@ -142,7 +152,7 @@ input[type="range"] {
 
 .actions {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
 }
 
 button {
@@ -157,6 +167,65 @@ button {
 
 button:hover {
   background: #eef7f3;
+}
+
+.dictionary-form,
+.dictionary-preview {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dictionary-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 78px;
+  align-items: end;
+}
+
+.dictionary-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.dictionary-preview {
+  grid-template-columns: minmax(0, 1fr) 78px;
+}
+
+.dictionary-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dictionary-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  gap: 8px;
+}
+
+.dictionary-term {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.dictionary-term span,
+.dictionary-term small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dictionary-remove {
+  color: #7a2f25;
+}
+
+.empty {
+  color: #66736e;
+  font-size: 13px;
 }
 
 .grid {
@@ -212,6 +281,12 @@ button:hover {
 
   .range-row {
     display: grid;
+  }
+
+  .dictionary-form,
+  .dictionary-preview,
+  .dictionary-row {
+    grid-template-columns: 1fr;
   }
 
   input[type="range"] {

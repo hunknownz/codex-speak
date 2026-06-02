@@ -103,7 +103,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `~/.codex/codex-speak/bin/codex-speak extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"` 应把常见技术英文、文件名、命令参数、代码标识符和缩写转换成中文可懂说法，例如“说明文件”“准备朗读导览的插件工具”“命令参数”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`MCP`、`JSON` 让中文语音逐字母读。
 - `~/.codex/codex-speak/bin/codex-speak app open` 能打开控制面板。
-- 控制面板能显示当前 provider、儿童模式、语速、模型状态。
+- 控制面板能显示当前 provider、儿童模式、语速、模型状态，并能添加、预览、删除一条发音词典规则。
 - 点击试听后能听到系统兜底或已安装模型的声音。
 - 混合中英文试听时，技术英文不应一个字母一个字母地读。
 - 点击停止后朗读会停止。
@@ -157,7 +157,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `codex-speak.exe verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `codex-speak.exe extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"` 应把常见技术英文、文件名、命令参数、代码标识符和缩写转换成中文可懂说法，例如“说明文件”“准备朗读导览的插件工具”“命令参数”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`MCP`、`JSON` 让中文语音逐字母读。
 - `codex-speak.exe app open` 能打开 Tauri 控制面板。
-- 控制面板能切换儿童模式、语速、声音档位和 provider。
+- 控制面板能切换儿童模式、语速、声音档位和 provider，并能添加、预览、删除一条发音词典规则。
 - `codex-speak.exe speak --text "你好，这是 Windows 朗读测试。"` 能播放。
 - 混合中英文试听时，技术英文不应一个字母一个字母地读。
 - `codex-speak.exe stop` 能停止正在播放的声音。
