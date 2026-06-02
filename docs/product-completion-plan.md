@@ -109,6 +109,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - `prepare-qa-handoff.mjs` 已补齐为外部 QA 交付说明生成器，会把 release 包 sha256、安装命令、验收命令和 QA 回传要求写入 `dist/qa-handoff`，降低外部测试漏步骤的概率。
 - Release 包已包含 `release-manifest.json`，记录版本、git commit、平台、生成时间、关键文件 sha256 和推荐验证命令，方便外部反馈时确认构建来源。
 - CLI 已支持 `verify-package --package-dir .`，release 包解压后不依赖 Node.js 也能校验 manifest 和关键文件 sha256；release smoke 会先跑 CLI 版校验，再跑 Node 脚本版交叉校验。
+- macOS/Windows release smoke 已补齐包级 `.sha256` 校验，会在解包安装前先验证下载包哈希，避免烟测绕过损坏或错配的压缩包。
 - Release 包已包含 `check-release-manifest.mjs`，有 Node.js 时可作为 manifest 校验的脚本版交叉验证。
 - 安装器会把 release 包里的 `release-manifest.json` 保留到安装目录，`support-bundle` 会随支持包回传它，避免用户安装后丢失构建来源信息。
 - Release workflow 已增加稳定版签名门禁：`v*-rc*` 仍可无签名验证发布链路，正式 `v*` 且非 `-rc` 标签缺少签名或公证 secrets 时会直接失败。

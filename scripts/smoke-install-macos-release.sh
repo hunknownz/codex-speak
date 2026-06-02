@@ -2,10 +2,21 @@
 set -euo pipefail
 
 ARCHIVE="${1:-dist/codex-speak-macos.tar.gz}"
+SHA_FILE="${ARCHIVE}.sha256"
 SMOKE_DIR="${TMPDIR:-/tmp}/codex-speak-release-smoke"
 
 rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR"
+
+if [ ! -f "$SHA_FILE" ]; then
+  echo "Missing checksum file: $SHA_FILE" >&2
+  exit 1
+fi
+(
+  cd "$(dirname "$ARCHIVE")"
+  shasum -a 256 -c "$(basename "$SHA_FILE")"
+) >"$SMOKE_DIR/archive-sha256.txt"
+
 tar -xzf "$ARCHIVE" -C "$SMOKE_DIR"
 
 "$SMOKE_DIR/codex-speak-macos/bin/codex-speak" verify-package --package-dir "$SMOKE_DIR/codex-speak-macos" >"$SMOKE_DIR/verify-package.txt"

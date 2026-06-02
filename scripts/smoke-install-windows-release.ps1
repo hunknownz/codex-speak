@@ -4,9 +4,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$ShaPath = "$Archive.sha256"
+if (-not (Test-Path $ShaPath)) {
+  throw "Missing checksum file: $ShaPath"
+}
+
 $Smoke = Join-Path $env:TEMP "codex-speak-release-smoke"
 Remove-Item -Recurse -Force $Smoke -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $Smoke | Out-Null
+$ExpectedHash = ((Get-Content -Raw $ShaPath) -split "\s+")[0].ToLowerInvariant()
+$ActualHash = (Get-FileHash -Algorithm SHA256 $Archive).Hash.ToLowerInvariant()
+if ($ActualHash -ne $ExpectedHash) {
+  throw "sha256 mismatch for $Archive. expected=$ExpectedHash actual=$ActualHash"
+}
+"$ActualHash  $Archive" | Out-File -Encoding utf8 (Join-Path $Smoke "archive-sha256.txt")
 Expand-Archive -Force -Path $Archive -DestinationPath $Smoke
 
 $PackageRoot = Join-Path $Smoke "codex-speak-windows"

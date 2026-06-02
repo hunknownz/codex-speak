@@ -319,8 +319,9 @@ shasum -a 256 -c codex-speak-macos.tar.gz.sha256
 Windows:
 
 ```powershell
-Get-FileHash .\codex-speak-windows.zip -Algorithm SHA256
-Get-Content .\codex-speak-windows.zip.sha256
+$Expected = ((Get-Content .\codex-speak-windows.zip.sha256 -Raw) -split '\s+')[0].ToLowerInvariant()
+$Actual = (Get-FileHash .\codex-speak-windows.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($Actual -ne $Expected) { throw "sha256 mismatch: expected $Expected but got $Actual" }
 ```
 
 解压后，可以用包里的 CLI 校验 release manifest 中记录的关键文件：
