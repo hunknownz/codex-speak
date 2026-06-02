@@ -53,6 +53,8 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 
 这个脚本会检查已构建包的 `release-manifest.json` 是否匹配当前 `HEAD`、是否来自干净的 tracked source，确认 release 包 `.sha256` 文件没有过期，计算 release 包 sha256，并生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`。测试者照 README 执行后，把整个 `codex-speak-macos-qa-*` 或 `codex-speak-windows-qa-*` 输出目录发回即可。
 
+传入 `--allow-missing` 时，脚本可以只生成当前已有平台的部分 handoff，例如只有 macOS 包时先发给 macOS 测试者；生成的 README 和 JSON 会标明缺失的平台。正式发布 readiness 仍然需要 macOS 和 Windows 两边的 QA 回传。
+
 脚本会检查：
 
 - 当前分支是 `main`。
@@ -63,6 +65,7 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 如果本地 `dist` 里已经有 release 包或 QA handoff，它们的 manifest 必须匹配当前 `HEAD`，压缩包 `.sha256` 也必须匹配实际文件，避免把旧包误发给外部测试者。
+- 如果本地 QA handoff 只包含单个平台，readiness 会给 warning，提醒它只是部分外部验收材料。
 - 需要正式签名发布时，签名环境变量已经配置。
 - 传入 `--require-manual-qa` 时，macOS 和 Windows 真机 QA 报告必须都存在、通过 `check-manual-qa-report.mjs`，且回传支持包里的 `release-manifest.json` 必须匹配当前 git commit。
 - release 包内包含 `release-manifest.json`，可以追踪版本、git commit、平台和关键文件 sha256。

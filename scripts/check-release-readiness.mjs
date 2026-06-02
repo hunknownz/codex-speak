@@ -247,6 +247,19 @@ function checkLocalReleaseArtifactsIfPresent() {
       "local QA handoff clean source",
       handoff.git?.dirty === false ? "clean" : "dirty or missing"
     );
+    const coverage = handoff.platformCoverage;
+    if (coverage && Array.isArray(coverage.missing)) {
+      if (coverage.complete === true) {
+        ok("local QA handoff platform coverage", "macOS and Windows included");
+      } else {
+        warn(
+          "local QA handoff platform coverage",
+          `partial handoff; missing: ${coverage.missing.join(", ") || "none"}`
+        );
+      }
+    } else {
+      warn("local QA handoff platform coverage", "missing platformCoverage; regenerate QA handoff");
+    }
   }
 }
 

@@ -367,6 +367,8 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 
 它会读取 `dist` 里已经构建好的 release 包和 manifest，输出 `dist/qa-handoff/README.md` 与 `qa-handoff.json`，列出包哈希、安装命令、验收命令、测试者需要回传的 QA 目录，以及维护者收到回传后要跑的校验命令。
 
+`--allow-missing` 适合先生成单平台 handoff。生成结果会标明 included/missing 平台；正式发布仍需要 macOS 和 Windows 两端 QA 都回传。
+
 完整人工验收清单见：
 
 ```text
