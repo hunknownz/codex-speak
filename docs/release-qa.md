@@ -82,7 +82,7 @@ cd codex-speak-macos
 ./scripts/manual-qa-macos.sh --allow-missing-models
 ```
 
-它会自动运行 release 包 manifest 校验、自检、状态、模型列表、Codex 集成预检、控制项验收、混合中英文术语归一化检查和支持包收集，并在控制面板、控制项调节、桌面 Pet、试听、混合中英文试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
+它会自动运行 release 包 manifest 校验、自检、状态、模型列表、Codex 集成预检、控制项验收、混合中英文术语归一化检查和支持包收集，并在控制面板、控制项调节、发音词典新增/预览/删除、桌面 Pet、试听、混合中英文试听、停止这几项上让测试者输入 `y`、`n` 或 `s`。最终会输出 `qa-report.json` 和 `support-bundle` 目录，方便把 macOS 真机结果发回排障。
 
 收到 QA 输出目录后，可以在源码仓库或 release 包里校验：
 

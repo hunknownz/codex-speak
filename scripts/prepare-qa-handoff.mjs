@@ -165,7 +165,7 @@ ${windows ? renderWindowsSteps(windows) : "No Windows package was included in th
 ## What Testers Return
 
 ${renderReturnInstructions(macos, windows)}
-- If a sound, app, install step, or mixed Chinese/English pronunciation check fails, include a short note describing what was seen or heard.
+- If a sound, app, install step, pronunciation dictionary control, or mixed Chinese/English pronunciation check fails, include a short note describing what was seen or heard.
 
 ## Reviewer Checks
 
@@ -211,7 +211,7 @@ ${item.testerCommands.verifyControls}
 ${item.testerCommands.manualQa}
 \`\`\`
 
-During manual QA, confirm the control app opens, child mode and voice settings can change, speech is audible, mixed Chinese/English speech does not spell technical words letter by letter, stop works, and the pet has no solid background block.`;
+During manual QA, confirm the control app opens, child mode and voice settings can change, one pronunciation dictionary rule can be added, previewed, and deleted, speech is audible, mixed Chinese/English speech does not spell technical words letter by letter, stop works, and the pet has no solid background block.`;
 }
 
 function renderWindowsSteps(item) {
@@ -228,7 +228,7 @@ ${item.testerCommands.verifyControls}
 ${item.testerCommands.manualQa}
 \`\`\`
 
-During manual QA, confirm the control app opens, child mode and voice settings can change, speech is audible, mixed Chinese/English speech does not spell technical words letter by letter, stop works, and no lingering playback process remains.`;
+During manual QA, confirm the control app opens, child mode and voice settings can change, one pronunciation dictionary rule can be added, previewed, and deleted, speech is audible, mixed Chinese/English speech does not spell technical words letter by letter, stop works, and no lingering playback process remains.`;
 }
 
 function displayPlatform(platform) {

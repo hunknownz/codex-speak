@@ -299,6 +299,7 @@ if [ "$SKIP_APP_OPEN" -ne 1 ] && [ "$NON_INTERACTIVE" -ne 1 ]; then
   invoke_qa_command "app open" 0 app open >/dev/null
   add_manual_check "control app visible" "Did the Codex Speak control panel open?"
   add_manual_check "control settings adjustable" "Can you toggle child mode and change speed, voice profile, and TTS provider in the control panel?"
+  add_manual_check "pronunciation dictionary adjustable" "Can you add, preview, and delete one pronunciation dictionary rule in the control panel?"
   add_manual_check "desktop pet transparent" "Is the desktop pet visible without a white or beige background block?"
 fi
 

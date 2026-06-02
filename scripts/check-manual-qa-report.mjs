@@ -33,6 +33,7 @@ const requiredAutoChecks = [
 const commonManualChecks = [
   "control app visible",
   "control settings adjustable",
+  "pronunciation dictionary adjustable",
   "speech audible",
   "mixed english speech clear",
   "speech stopped"
