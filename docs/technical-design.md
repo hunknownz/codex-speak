@@ -120,7 +120,7 @@ terminal -> 命令窗口
 英文逐字母朗读的处理分三层：
 
 - 用户词典层：`~/.codex/codex-speak/pronunciation.toml` 可以覆盖或补充默认词表，CLI 和 MCP 都能写入。它先于内置词表执行，用户可以把项目名、英文工具名或不适合孩子听的缩写改成自己的说法。
-- 文本层：`src/pronunciation.rs` 在进入 TTS 前统一替换常见技术英文、文件名、脚本名、命令参数、代码标识符和缩写，避免中文模型把 `MCP`、`JSON`、`CLI`、`README.md`、`codex_speak_prepare`、`--provider` 这类内容按字母或符号逐个读出来。
+- 文本层：`src/pronunciation.rs` 在进入 TTS 前统一替换常见技术英文、文件名、脚本名、命令参数、代码标识符和缩写，避免中文模型把 `OpenRouter`、`OAuth`、`MCP`、`M C P`、`J.S.O.N`、`CLI`、`README.md`、`codex_speak_prepare`、`--provider` 这类内容按字母或符号逐个读出来。
 - 兜底层：常见缩写会转成中文意思；未收录的全大写短缩写会转成“英文缩写”，宁可少读一点原文，也不把孩子带进无意义的拼字母里。
 - 系统兜底层：当 provider 是 `system` 时，macOS/Windows 会把中英文分段，中文段使用中文系统声音，普通英文段使用英文系统声音。这样在没有本地模型时，`hello world` 这类普通英文短语不会被中文声音逐字母拼读。
 

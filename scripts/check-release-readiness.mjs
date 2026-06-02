@@ -44,6 +44,7 @@ async function main() {
   check(Boolean(repo), "GitHub origin", repo ?? "could not parse origin remote");
 
   checkRequiredFiles();
+  checkManualQaMixedEnglishCoverage();
   checkWorkflowRuntime();
   checkStableReleaseSigningPolicy();
   checkSigningEnv();
@@ -157,6 +158,30 @@ function checkRequiredFiles() {
   for (const file of executableFiles) {
     const executable = existsSync(file) && (statSync(file).mode & 0o111) !== 0;
     check(executable, `executable bit ${file}`, executable ? "set" : "missing");
+  }
+}
+
+function checkManualQaMixedEnglishCoverage() {
+  const requiredTerms = [
+    "hello world",
+    "OpenRouter",
+    "OAuth",
+    "M C P",
+    "J.S.O.N",
+    "你好世界示例",
+    "Open Router 平台",
+    "授权登录协议",
+    "插件通道",
+    "数据格式"
+  ];
+  for (const file of ["scripts/manual-qa-macos.sh", "scripts/manual-qa-windows.ps1"]) {
+    const content = readFileSync(file, "utf8");
+    const missing = requiredTerms.filter((term) => !content.includes(term));
+    check(
+      missing.length === 0,
+      `manual QA mixed English coverage ${file}`,
+      missing.length === 0 ? "extended mixed-English sample covered" : `missing: ${missing.join(", ")}`
+    );
   }
 }
 

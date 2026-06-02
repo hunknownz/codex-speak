@@ -102,7 +102,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 本地发音词典已补齐：用户和 Codex MCP 都可以把项目名、英文工具名或缩写写入 `pronunciation.toml`，朗读前优先使用这些规则，`verify-codex` 会验证发音词典写入、应用、列出和删除链路。
 - 控制面板已接入本地发音词典：普通用户不用命令行也可以添加、预览、删除发音规则，状态区会显示词典数量或解析问题。
 - 外部 QA 脚本和交付说明已把控制面板发音词典列为人工验收项，测试者需要确认能新增、预览并删除一条发音规则。
-- 手工 QA 和外部 QA 交付说明已加入混合中英文验收：自动检查提取文本是否把 `MCP`、`JSON`、`CLI` 归一化为中文说法，交互式测试还会让测试者实际听一次混合中英文样例。
+- 手工 QA 和外部 QA 交付说明已加入混合中英文验收：自动检查提取文本是否把 `OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`CLI` 等归一化为中文说法，交互式测试还会让测试者实际听一次混合中英文样例；release readiness 会静态检查 macOS/Windows QA 脚本没有退回旧样例。
 - macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断 release 包 manifest、自检、支持包和人工确认项是否通过。
