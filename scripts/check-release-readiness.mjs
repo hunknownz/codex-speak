@@ -35,13 +35,12 @@ async function main() {
   head = git(["rev-parse", "HEAD"]);
   const branch = git(["branch", "--show-current"]);
   const status = git(["status", "--porcelain"]);
-  const remoteMain = git(["ls-remote", "origin", "refs/heads/main"]).split(/\s+/)[0] ?? "";
   repo = parseGitHubRepo(git(["remote", "get-url", "origin"]));
 
   checkNodeRuntime();
   check(branch === "main", "local branch", branch || "(detached)");
   check(allowDirty || status.length === 0, "working tree clean", allowDirty && status ? "dirty allowed" : "clean");
-  check(remoteMain === head, "origin/main matches HEAD", `${head.slice(0, 7)} / ${remoteMain.slice(0, 7)}`);
+  checkRemoteMain();
   check(Boolean(repo), "GitHub origin", repo ?? "could not parse origin remote");
 
   checkRequiredFiles();
@@ -77,7 +76,7 @@ function printUsage() {
 Options:
   --tag <name>             Also verify the release workflow for a pushed tag.
   --allow-dirty            Allow local uncommitted changes.
-  --offline                Skip GitHub Actions API checks.
+  --offline                Skip GitHub remote and Actions API checks.
   --require-signing-env    Fail if signing environment variables are missing.
   --require-manual-qa      Fail unless both macOS and Windows QA evidence directories are supplied and pass.
   --macos-qa-dir <dir>     Validate a macOS manual QA output directory or qa-report.json.
@@ -97,6 +96,15 @@ Examples:
 function checkNodeRuntime() {
   const [major] = process.versions.node.split(".").map(Number);
   check(major >= 18, "Node runtime", `v${process.versions.node}`);
+}
+
+function checkRemoteMain() {
+  if (offline) {
+    warn("origin/main matches HEAD", "skipped by --offline");
+    return;
+  }
+  const remoteMain = git(["ls-remote", "origin", "refs/heads/main"]).split(/\s+/)[0] ?? "";
+  check(remoteMain === head, "origin/main matches HEAD", `${head.slice(0, 7)} / ${remoteMain.slice(0, 7)}`);
 }
 
 function checkRequiredFiles() {
