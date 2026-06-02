@@ -95,10 +95,16 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: apps/codex-speak-control
         run: npm run build -- --no-bundle
-      - name: Restore build-time lockfile changes
+      - name: Restore build-time tracked source changes
         if: runner.os == 'Windows'
         shell: bash
-        run: git restore -- Cargo.lock apps/codex-speak-control/src-tauri/Cargo.lock
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "Restoring tracked files changed by build tools before packaging:"
+            git status --short --untracked-files=no
+            git diff -- . ':!dist'
+            git restore --worktree --staged .
+          fi
       - name: Check package source tree
         shell: bash
         run: |
