@@ -143,6 +143,15 @@ codex-speak uninstall
 - 系统语音兜底会把中英文分段，中文段用中文系统声音，普通英文段用英文系统声音，减少中文声音把英文单词逐字母读出来的问题。
 - 如果经常听中英混读，优先使用 `sherpa_melo` 或 `sherpa_kokoro`，不要长期依赖 `system` 兜底。
 
+本地发音词典：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "Open Router 平台"
+~/.codex/codex-speak/bin/codex-speak pronunciation preview --text "我配置了 OpenRouter。"
+```
+
+词典保存在 `~/.codex/codex-speak/pronunciation.toml`。Codex 也可以通过 MCP 工具添加或删除规则，适合把项目名、英文工具名和孩子听不懂的缩写改成更自然的中文说法。
+
 自检：
 
 ```bash
@@ -191,7 +200,7 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-支持包默认会脱敏本机 home 路径和最近朗读文本，并包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。QA 报告校验器会检查默认支持包的脱敏状态；只有深度排障时，才建议显式运行 `support-bundle --include-private`。
+支持包默认会脱敏本机 home 路径和最近朗读文本，只回传发音词典数量，并包含 `release-manifest.json`，用于确认外部用户正在运行哪个 release 包构建。QA 报告校验器会检查默认支持包的脱敏状态；只有深度排障时，才建议显式运行 `support-bundle --include-private`。
 
 解压 release 包后，可以用包里的 CLI 校验 manifest 记录的关键文件哈希：
 

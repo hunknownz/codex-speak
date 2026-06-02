@@ -201,7 +201,7 @@ if (
 
 $SupportDir = Join-Path $OutputDir "support-bundle"
 Invoke-QaCommand "support bundle" @("support-bundle", "--output", $SupportDir) | Out-Null
-foreach ($File in @("doctor.json", "status.json", "models.json", "support-bundle-metadata.json")) {
+foreach ($File in @("doctor.json", "status.json", "models.json", "pronunciation-dictionary.json", "support-bundle-metadata.json")) {
   $Path = Join-Path $SupportDir $File
   if (Test-Path $Path) {
     Add-QaCheck "support $File" "pass" $Path

@@ -286,7 +286,7 @@ Plugin 负责：
 - 增加 `codex_speak_prepare` 工具。
 - Rust CLI 支持读取并消费 spool。
 - Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
-- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`。
+- 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`、`codex_speak_list_pronunciation`、`codex_speak_set_pronunciation`、`codex_speak_remove_pronunciation`。
 - `codex_speak_speak_text` 支持 `background: true`，用于长任务中的非阻塞进度提示。
 
 ### P3：Tauri 控制面板

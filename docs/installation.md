@@ -247,6 +247,17 @@ marketplace 条目使用本地路径：
 - Sherpa-ONNX 和默认中文模型可用。
 - 本机播放器可用。Windows 会检查 `powershell.exe`，因为系统语音和 wav 播放都走 PowerShell/.NET 播放链路。
 
+## 本地发音词典
+
+如果某个英文项目名、缩写或工具名读起来别扭，可以给本机加一条发音规则：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "Open Router 平台"
+~/.codex/codex-speak/bin/codex-speak pronunciation preview --text "我配置了 OpenRouter。"
+```
+
+规则写入 `~/.codex/codex-speak/pronunciation.toml`。`doctor` 会检查这个文件是否能解析，`status` 会显示词条数量，支持包默认只回传词条数量；只有显式加 `--include-private` 才会包含词典内容。
+
 查看所有可选本地朗读引擎和模型状态：
 
 ```bash
@@ -259,7 +270,7 @@ marketplace 条目使用本地路径：
 ~/.codex/codex-speak/bin/codex-speak support-bundle
 ```
 
-它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、环境信息和最近日志。默认支持包会脱敏本机 home 路径，并把最近朗读文本替换成提示文字，适合直接发给维护者排查安装问题。外部 QA 回传时，`check-manual-qa-report.mjs` 会自动验证默认支持包确实是脱敏的。
+它会输出一个目录路径，里面包含 `doctor.json`、`status.json`、`models.json`、`pronunciation-dictionary.json`、环境信息和最近日志。默认支持包会脱敏本机 home 路径，并把最近朗读文本替换成提示文字，适合直接发给维护者排查安装问题。外部 QA 回传时，`check-manual-qa-report.mjs` 会自动验证默认支持包确实是脱敏的。
 
 如果确实需要完整本机路径和最近朗读日志做深度排障，再显式运行：
 

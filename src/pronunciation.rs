@@ -1,7 +1,40 @@
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::PathBuf;
+
+use anyhow::{bail, Context, Result};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+
+use crate::config;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PronunciationDictionary {
+    pub terms: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PronunciationTermUpdate {
+    pub path: String,
+    pub term: String,
+    pub spoken: Option<String>,
+    pub terms: usize,
+}
 
 pub fn normalize_for_tts(text: &str) -> String {
+    let dictionary = load_user_dictionary().unwrap_or_default();
+    normalize_for_tts_with_dictionary(text, &dictionary)
+}
+
+pub fn normalize_for_tts_with_dictionary(
+    text: &str,
+    dictionary: &PronunciationDictionary,
+) -> String {
     let mut result = text.to_string();
+    for (pattern, replacement) in &dictionary.terms {
+        result = replace_word_case_insensitive(&result, pattern, replacement);
+    }
     for (pattern, replacement) in TERM_REPLACEMENTS {
         result = replace_word_case_insensitive(&result, pattern, replacement);
     }
@@ -10,6 +43,93 @@ pub fn normalize_for_tts(text: &str) -> String {
     result = replace_code_identifiers(&result);
     result = replace_unknown_uppercase_acronyms(&result);
     normalize_spacing(&result)
+}
+
+pub fn dictionary_path() -> Result<PathBuf> {
+    config::pronunciation_dictionary_path()
+}
+
+pub fn load_user_dictionary() -> Result<PronunciationDictionary> {
+    let path = dictionary_path()?;
+    if !path.exists() {
+        return Ok(PronunciationDictionary::default());
+    }
+    let raw =
+        fs::read_to_string(&path).with_context(|| format!("failed to read {}", path.display()))?;
+    let dictionary: PronunciationDictionary =
+        toml::from_str(&raw).with_context(|| format!("failed to parse {}", path.display()))?;
+    validate_dictionary(&dictionary).with_context(|| format!("invalid {}", path.display()))?;
+    Ok(dictionary)
+}
+
+pub fn save_user_dictionary(dictionary: &PronunciationDictionary) -> Result<()> {
+    let path = dictionary_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let raw = toml::to_string_pretty(dictionary)?;
+    fs::write(&path, raw).with_context(|| format!("failed to write {}", path.display()))
+}
+
+pub fn set_user_term(term: &str, spoken: &str) -> Result<PronunciationTermUpdate> {
+    validate_term(term)?;
+    validate_spoken(spoken)?;
+    let mut dictionary = load_user_dictionary()?;
+    dictionary
+        .terms
+        .insert(term.trim().to_string(), spoken.trim().to_string());
+    save_user_dictionary(&dictionary)?;
+    let path = dictionary_path()?;
+    Ok(PronunciationTermUpdate {
+        path: path.display().to_string(),
+        term: term.trim().to_string(),
+        spoken: Some(spoken.trim().to_string()),
+        terms: dictionary.terms.len(),
+    })
+}
+
+pub fn remove_user_term(term: &str) -> Result<PronunciationTermUpdate> {
+    validate_term(term)?;
+    let mut dictionary = load_user_dictionary()?;
+    dictionary.terms.remove(term.trim());
+    save_user_dictionary(&dictionary)?;
+    let path = dictionary_path()?;
+    Ok(PronunciationTermUpdate {
+        path: path.display().to_string(),
+        term: term.trim().to_string(),
+        spoken: None,
+        terms: dictionary.terms.len(),
+    })
+}
+
+fn validate_term(term: &str) -> Result<()> {
+    let term = term.trim();
+    if term.is_empty() {
+        bail!("pronunciation term must not be empty");
+    }
+    if term.chars().count() > 80 {
+        bail!("pronunciation term must be 80 characters or fewer");
+    }
+    Ok(())
+}
+
+fn validate_dictionary(dictionary: &PronunciationDictionary) -> Result<()> {
+    for (term, spoken) in &dictionary.terms {
+        validate_term(term)?;
+        validate_spoken(spoken)?;
+    }
+    Ok(())
+}
+
+fn validate_spoken(spoken: &str) -> Result<()> {
+    let spoken = spoken.trim();
+    if spoken.is_empty() {
+        bail!("pronunciation spoken value must not be empty");
+    }
+    if spoken.chars().count() > 120 {
+        bail!("pronunciation spoken value must be 120 characters or fewer");
+    }
+    Ok(())
 }
 
 const TERM_REPLACEMENTS: &[(&str, &str)] = &[
@@ -199,7 +319,11 @@ fn normalize_spacing(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_for_tts;
+    use super::{normalize_for_tts_with_dictionary, PronunciationDictionary};
+
+    fn normalize_for_tts(text: &str) -> String {
+        normalize_for_tts_with_dictionary(text, &PronunciationDictionary::default())
+    }
 
     #[test]
     fn normalizes_common_acronyms_for_chinese_speech() {
@@ -245,5 +369,29 @@ mod tests {
         assert!(text.contains("开发工具包"));
         assert!(text.contains("英文缩写"));
         assert!(!text.contains("XYZ"));
+    }
+
+    #[test]
+    fn applies_custom_dictionary_before_builtin_terms() {
+        let mut dictionary = PronunciationDictionary::default();
+        dictionary
+            .terms
+            .insert("OpenAI".to_string(), "欧盆艾".to_string());
+        dictionary
+            .terms
+            .insert("ProjectX".to_string(), "项目 X".to_string());
+
+        let text = normalize_for_tts_with_dictionary("OpenAI 和 ProjectX 已经配置。", &dictionary);
+        assert!(text.contains("欧盆艾"));
+        assert!(text.contains("项目 X"));
+        assert!(!text.contains("人工智能公司"));
+        assert!(!text.contains("ProjectX"));
+    }
+
+    #[test]
+    fn rejects_empty_custom_dictionary_values() {
+        let raw = "[terms]\nOpenRouter = \"\"\n";
+        let dictionary: PronunciationDictionary = toml::from_str(raw).unwrap();
+        assert!(super::validate_dictionary(&dictionary).is_err());
     }
 }

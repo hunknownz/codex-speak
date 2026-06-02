@@ -6,7 +6,7 @@ use anyhow::Result;
 use chrono::Local;
 use serde::Serialize;
 
-use crate::{bundled, config};
+use crate::{bundled, config, pronunciation};
 
 const MODEL_CHECK_IDS: &[&str] = &["sherpa_tts", "melo_model", "melo_lexicon", "melo_tokens"];
 
@@ -86,6 +86,7 @@ pub fn collect() -> Result<DoctorReport> {
         &mut checks,
     );
     check_file("config", "Config", &config::config_path()?, &mut checks);
+    check_pronunciation_dictionary(&mut checks)?;
     check_file(
         "cli",
         "Codex Speak CLI",
@@ -324,6 +325,9 @@ fn hint_for(id: &str) -> Option<&'static str> {
         "codex_home" | "config" | "cli" => {
             Some("Run the Codex Speak installer again from the release package.")
         }
+        "pronunciation_dictionary" => Some(
+            "Fix ~/.codex/codex-speak/pronunciation.toml, or recreate entries with `codex-speak pronunciation set --term ... --spoken ...`.",
+        ),
         "control_app" => Some(
             "Rerun the installer without --skip-control-app, or install from a release package that includes the desktop app.",
         ),
@@ -370,6 +374,32 @@ fn check_notify(checks: &mut Vec<DoctorCheck>) -> Result<()> {
             "Codex notify",
             format!("codex-speak-notify not found in {}", path.display()),
         ));
+    }
+    Ok(())
+}
+
+fn check_pronunciation_dictionary(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::pronunciation_dictionary_path()?;
+    if !path.exists() {
+        checks.push(DoctorCheck::skip(
+            "pronunciation_dictionary",
+            "Pronunciation dictionary",
+            format!("not configured at {}", path.display()),
+        ));
+        return Ok(());
+    }
+
+    match pronunciation::load_user_dictionary() {
+        Ok(dictionary) => checks.push(DoctorCheck::ok(
+            "pronunciation_dictionary",
+            "Pronunciation dictionary",
+            format!("{} term(s) in {}", dictionary.terms.len(), path.display()),
+        )),
+        Err(err) => checks.push(DoctorCheck::warn(
+            "pronunciation_dictionary",
+            "Pronunciation dictionary",
+            format!("{err:#}"),
+        )),
     }
     Ok(())
 }

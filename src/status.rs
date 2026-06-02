@@ -8,6 +8,7 @@ use crate::bundled;
 use crate::config::{self, Config};
 use crate::model_catalog;
 use crate::pet_state::PetState;
+use crate::pronunciation;
 use crate::settings;
 
 #[derive(Debug, Serialize)]
@@ -23,6 +24,9 @@ pub struct Status {
     pub speed: f32,
     pub num_threads: usize,
     pub max_read_chars: usize,
+    pub pronunciation_terms: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pronunciation_error: Option<String>,
     pub paths: StatusPaths,
     pub checks: StatusChecks,
     pub providers: Vec<ProviderStatus>,
@@ -33,6 +37,7 @@ pub struct Status {
 #[derive(Debug, Serialize)]
 pub struct StatusPaths {
     pub config: String,
+    pub pronunciation_dictionary: String,
     pub release_manifest: String,
     pub cli: String,
     pub control_app: String,
@@ -46,6 +51,7 @@ pub struct StatusPaths {
 #[derive(Debug, Serialize)]
 pub struct StatusChecks {
     pub config_exists: bool,
+    pub pronunciation_dictionary_valid: bool,
     pub release_manifest_exists: bool,
     pub cli_exists: bool,
     pub control_app_exists: bool,
@@ -84,6 +90,7 @@ pub struct ProviderStatus {
 
 pub fn collect(cfg: &Config) -> Result<Status> {
     let config_path = config::config_path()?;
+    let pronunciation_dictionary_path = config::pronunciation_dictionary_path()?;
     let release_manifest_path = config::release_manifest_path()?;
     let cli_path = config::bin_dir()?.join(binary_name());
     let control_app_path = config::control_app_path()?;
@@ -103,6 +110,10 @@ pub fn collect(cfg: &Config) -> Result<Status> {
     let last_spoken = fs::read_to_string(config::logs_dir()?.join("last-spoken.txt"))
         .ok()
         .map(|text| preview(&text));
+    let (pronunciation_terms, pronunciation_error) = match pronunciation::load_user_dictionary() {
+        Ok(dictionary) => (dictionary.terms.len(), None),
+        Err(err) => (0, Some(err.to_string())),
+    };
 
     Ok(Status {
         version: env!("CARGO_PKG_VERSION"),
@@ -116,8 +127,11 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         speed: cfg.speed,
         num_threads: cfg.num_threads,
         max_read_chars: cfg.max_read_chars,
+        pronunciation_terms,
+        pronunciation_error: pronunciation_error.clone(),
         paths: StatusPaths {
             config: config_path.display().to_string(),
+            pronunciation_dictionary: pronunciation_dictionary_path.display().to_string(),
             release_manifest: release_manifest_path.display().to_string(),
             cli: cli_path.display().to_string(),
             control_app: control_app_path.display().to_string(),
@@ -129,6 +143,7 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         },
         checks: StatusChecks {
             config_exists: config_path.is_file(),
+            pronunciation_dictionary_valid: pronunciation_error.is_none(),
             release_manifest_exists: release_manifest_path.is_file(),
             cli_exists: cli_path.is_file(),
             control_app_exists: control_app_path.exists(),

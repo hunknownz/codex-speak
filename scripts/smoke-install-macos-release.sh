@@ -37,6 +37,7 @@ node "$SMOKE_DIR/codex-speak-macos/scripts/check-manual-qa-report.mjs" \
 test -f "$SMOKE_DIR/support/doctor.json"
 test -f "$SMOKE_DIR/support/status.json"
 test -f "$SMOKE_DIR/support/models.json"
+test -f "$SMOKE_DIR/support/pronunciation-dictionary.json"
 test -f "$SMOKE_DIR/support/support-bundle-metadata.json"
 test -f "$SMOKE_DIR/support/release-manifest.json"
 "$HOME/.codex/codex-speak/bin/codex-speak" doctor --json >"$SMOKE_DIR/doctor.json" || true

@@ -97,6 +97,10 @@ pub fn config_path() -> Result<PathBuf> {
     Ok(app_home()?.join("config.toml"))
 }
 
+pub fn pronunciation_dictionary_path() -> Result<PathBuf> {
+    Ok(app_home()?.join("pronunciation.toml"))
+}
+
 pub fn release_manifest_path() -> Result<PathBuf> {
     Ok(app_home()?.join("release-manifest.json"))
 }

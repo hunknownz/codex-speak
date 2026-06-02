@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::{config, doctor, pet_state, status};
+use crate::{config, doctor, pet_state, pronunciation, status};
 
 const MAX_TEXT_BYTES: usize = 32 * 1024;
 
@@ -44,6 +44,7 @@ pub fn write_bundle(output: Option<&Path>, options: SupportBundleOptions) -> Res
     write_environment(&dir, &redactor)?;
     write_release_manifest(&dir)?;
     write_config_and_status(&dir, &redactor)?;
+    write_pronunciation_dictionary(&dir, &redactor, options.include_private)?;
     write_recent_logs(&dir, &redactor, options.include_private)?;
 
     Ok(dir)
@@ -68,6 +69,50 @@ fn write_release_manifest(dir: &Path) -> Result<()> {
             "release-manifest.json was not found in the installed Codex Speak directory.\n\
              This usually means Codex Speak was installed from source or from an older package.\n",
         )?;
+    }
+    Ok(())
+}
+
+fn write_pronunciation_dictionary(
+    dir: &Path,
+    redactor: &Redactor,
+    include_private: bool,
+) -> Result<()> {
+    let path = pronunciation::dictionary_path()?;
+    if !path.exists() {
+        write_json_redacted(
+            &dir.join("pronunciation-dictionary.json"),
+            &json!({
+                "configured": false,
+                "redacted": !include_private,
+                "path": path.display().to_string(),
+                "terms": 0
+            }),
+            redactor,
+        )?;
+        return Ok(());
+    }
+
+    match pronunciation::load_user_dictionary() {
+        Ok(dictionary) if include_private => write_json_redacted(
+            &dir.join("pronunciation-dictionary.json"),
+            &dictionary,
+            redactor,
+        )?,
+        Ok(dictionary) => write_json_redacted(
+            &dir.join("pronunciation-dictionary.json"),
+            &json!({
+                "configured": true,
+                "redacted": true,
+                "path": path.display().to_string(),
+                "terms": dictionary.terms.len()
+            }),
+            redactor,
+        )?,
+        Err(err) => write_text(
+            &dir.join("pronunciation-dictionary-error.txt"),
+            &format!("{err:#}\n"),
+        )?,
     }
     Ok(())
 }
@@ -171,7 +216,7 @@ fn bundle_readme(include_private: bool) -> String {
     format!(
         "Codex Speak support bundle\n\
          {privacy}\
-         Useful files: doctor.json, status.json, models.json, environment.json, release-manifest.json, support-bundle-metadata.json, and logs/*.log.\n"
+         Useful files: doctor.json, status.json, models.json, environment.json, pronunciation-dictionary.json, release-manifest.json, support-bundle-metadata.json, and logs/*.log.\n"
     )
 }
 

@@ -41,6 +41,8 @@ When the user asks to control speech settings in natural language, use the avail
 - Use `codex_speak_set_voice_profile` for "声音清楚明亮", "慢一点更清楚", or "快速预览".
 - Use `codex_speak_set_provider` for "换一个朗读引擎", "试试 Kokoro", "切到 Piper", or "用系统语音".
 - Use `codex_speak_install_model` for "安装这个声音", "下载 Kokoro 模型", or "把当前朗读引擎补全".
+- Use `codex_speak_set_pronunciation` for "以后把这个词读成..." or when a project name, acronym, file name, or English tool name should have a child-friendly local spoken form.
+- Use `codex_speak_list_pronunciation` or `codex_speak_remove_pronunciation` when the user wants to inspect or undo custom pronunciation rules.
 - Use `codex_speak_update_config` when several settings should change together.
 - Use `codex_speak_stop` when the user asks to stop speech.
 - Use `codex_speak_speak_text` when the user asks to try or preview a voice. For task progress speech, set `background: true` so Codex can keep working immediately.

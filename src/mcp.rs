@@ -5,7 +5,9 @@ use anyhow::{Context, Result};
 use serde_json::{json, Value};
 
 use crate::config::Config;
-use crate::{extract, install, pet_state, process, settings, side_channel, status, tts};
+use crate::{
+    extract, install, pet_state, process, pronunciation, settings, side_channel, status, tts,
+};
 
 pub fn run() -> Result<()> {
     let stdin = io::stdin();
@@ -247,6 +249,40 @@ fn tools() -> Value {
                 },
                 "additionalProperties": false
             }
+        },
+        {
+            "name": "codex_speak_list_pronunciation",
+            "description": "List local pronunciation replacements used before speech playback.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_set_pronunciation",
+            "description": "Add or update a local pronunciation replacement, for example reading a project name or acronym in child-friendly Chinese.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["term", "spoken"],
+                "properties": {
+                    "term": { "type": "string" },
+                    "spoken": { "type": "string" }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "codex_speak_remove_pronunciation",
+            "description": "Remove a local pronunciation replacement.",
+            "inputSchema": {
+                "type": "object",
+                "required": ["term"],
+                "properties": {
+                    "term": { "type": "string" }
+                },
+                "additionalProperties": false
+            }
         }
     ])
 }
@@ -404,6 +440,29 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
                     ..Default::default()
                 },
             )?
+        }
+        "codex_speak_list_pronunciation" => {
+            serde_json::to_string_pretty(&pronunciation::load_user_dictionary()?)?
+        }
+        "codex_speak_set_pronunciation" => {
+            let term = args
+                .get("term")
+                .and_then(Value::as_str)
+                .context("missing term")?;
+            let spoken = args
+                .get("spoken")
+                .and_then(Value::as_str)
+                .context("missing spoken")?;
+            let update = pronunciation::set_user_term(term, spoken)?;
+            serde_json::to_string_pretty(&update)?
+        }
+        "codex_speak_remove_pronunciation" => {
+            let term = args
+                .get("term")
+                .and_then(Value::as_str)
+                .context("missing term")?;
+            let update = pronunciation::remove_user_term(term)?;
+            serde_json::to_string_pretty(&update)?
         }
         other => anyhow::bail!("unknown tool: {other}"),
     };

@@ -101,6 +101,11 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
+    /// Manage local pronunciation replacements for speech-friendly terms.
+    Pronunciation {
+        #[command(subcommand)]
+        command: PronunciationCommand,
+    },
     /// Download or repair local TTS models.
     Models {
         #[command(subcommand)]
@@ -140,6 +145,31 @@ enum ConfigCommand {
         max_read_chars: Option<usize>,
         #[arg(long)]
         voice_profile: Option<String>,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum PronunciationCommand {
+    /// Print the local pronunciation dictionary path.
+    Path,
+    /// Print the local pronunciation dictionary as JSON.
+    List,
+    /// Add or update a pronunciation replacement.
+    Set {
+        #[arg(long)]
+        term: String,
+        #[arg(long)]
+        spoken: String,
+    },
+    /// Remove a pronunciation replacement.
+    Remove {
+        #[arg(long)]
+        term: String,
+    },
+    /// Preview speech normalization with the local dictionary applied.
+    Preview {
+        #[arg(long)]
+        text: String,
     },
 }
 
@@ -241,6 +271,30 @@ fn main() -> Result<()> {
                 )?;
                 update.config.save()?;
                 println!("{}", serde_json::to_string_pretty(&update)?);
+            }
+        },
+        Command::Pronunciation { command } => match command {
+            PronunciationCommand::Path => {
+                println!("{}", pronunciation::dictionary_path()?.display())
+            }
+            PronunciationCommand::List => {
+                let dictionary = pronunciation::load_user_dictionary()?;
+                println!("{}", serde_json::to_string_pretty(&dictionary)?);
+            }
+            PronunciationCommand::Set { term, spoken } => {
+                let update = pronunciation::set_user_term(&term, &spoken)?;
+                println!("{}", serde_json::to_string_pretty(&update)?);
+            }
+            PronunciationCommand::Remove { term } => {
+                let update = pronunciation::remove_user_term(&term)?;
+                println!("{}", serde_json::to_string_pretty(&update)?);
+            }
+            PronunciationCommand::Preview { text } => {
+                let dictionary = pronunciation::load_user_dictionary()?;
+                println!(
+                    "{}",
+                    pronunciation::normalize_for_tts_with_dictionary(&text, &dictionary)
+                );
             }
         },
         Command::Models { command } => match command {

@@ -99,7 +99,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - `~/.codex/codex-speak/bin/codex-speak doctor` 输出核心检查通过。
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
-- `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗和常见英文技术缩写归一化链路可用。
+- `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
 - `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `~/.codex/codex-speak/bin/codex-speak extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"` 应把常见技术英文、文件名、命令参数、代码标识符和缩写转换成中文可懂说法，例如“说明文件”“准备朗读导览的插件工具”“命令参数”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`MCP`、`JSON` 让中文语音逐字母读。
 - `~/.codex/codex-speak/bin/codex-speak app open` 能打开控制面板。
@@ -110,7 +110,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - 桌面 Pet 显示为透明原生窗口，没有白色或麦色背景块。
 - Pet 朗读中点击能停止朗读，双击能打开控制面板。
 - `models list` 能正常输出。
-- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径和最近朗读文本。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json`、`pronunciation-dictionary.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径、最近朗读文本，并且只回传发音词典数量而不是词典明文。
 
 完整模型下载验收至少覆盖一次：
 
@@ -153,7 +153,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor` 能运行。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
-- `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗和常见英文技术缩写归一化链路可用。
+- `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
 - `codex-speak.exe verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `codex-speak.exe extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、MCP、JSON、CLI、API、CPU 和 XYZ。"` 应把常见技术英文、文件名、命令参数、代码标识符和缩写转换成中文可懂说法，例如“说明文件”“准备朗读导览的插件工具”“命令参数”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`MCP`、`JSON` 让中文语音逐字母读。
 - `codex-speak.exe app open` 能打开 Tauri 控制面板。
@@ -163,7 +163,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `codex-speak.exe stop` 能停止正在播放的声音。
 - PowerShell 播放链路不会留下持续运行的子进程。
 - `models list` 能正常输出。
-- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径和最近朗读文本。
+- `support-bundle` 能生成包含 `doctor.json`、`status.json`、`models.json`、`pronunciation-dictionary.json` 和 `support-bundle-metadata.json` 的本地排障目录；默认支持包必须脱敏本机 home 路径、最近朗读文本，并且只回传发音词典数量而不是词典明文。
 - 首次模型下载能显示进度和校验错误，不会静默失败。
 
 完整模型下载验收至少覆盖一次：

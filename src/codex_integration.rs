@@ -133,6 +133,19 @@ pub fn collect() -> Result<CodexIntegrationReport> {
         )),
     }
 
+    match verify_pronunciation_dictionary_roundtrip(&cfg) {
+        Ok(detail) => checks.push(CodexIntegrationCheck::ok(
+            "pronunciation_dictionary",
+            "Pronunciation dictionary",
+            detail,
+        )),
+        Err(err) => checks.push(CodexIntegrationCheck::fail(
+            "pronunciation_dictionary",
+            "Pronunciation dictionary",
+            format!("{err:#}"),
+        )),
+    }
+
     if let Err(err) = backup.restore() {
         checks.push(CodexIntegrationCheck::fail(
             "spool_restore",
@@ -271,6 +284,63 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
     Ok("English technical terms, file names, flags, identifiers, and acronyms are converted before speech".to_string())
 }
 
+fn verify_pronunciation_dictionary_roundtrip(cfg: &Config) -> Result<String> {
+    let backup = FileBackup::capture(config::pronunciation_dictionary_path()?)?;
+    let result = (|| {
+        let term = "OpenRouterQaTerm";
+        let spoken = "本地发音词典测试";
+        mcp::call_tool_by_name(
+            "codex_speak_set_pronunciation",
+            json!({
+                "term": term,
+                "spoken": spoken
+            }),
+            cfg.clone(),
+        )?;
+
+        let listed =
+            mcp::call_tool_by_name("codex_speak_list_pronunciation", json!({}), cfg.clone())?;
+        if !listed.contains(term) || !listed.contains(spoken) {
+            anyhow::bail!("pronunciation dictionary did not include new term: {listed}");
+        }
+
+        let cleaned = mcp::call_tool_by_name(
+            "codex_speak_extract",
+            json!({
+                "text": format!("我配置了 {term}。")
+            }),
+            cfg.clone(),
+        )?;
+        if !cleaned.contains(spoken) || cleaned.contains(term) {
+            anyhow::bail!("pronunciation dictionary was not applied: {cleaned}");
+        }
+
+        mcp::call_tool_by_name(
+            "codex_speak_remove_pronunciation",
+            json!({
+                "term": term
+            }),
+            cfg.clone(),
+        )?;
+        let listed =
+            mcp::call_tool_by_name("codex_speak_list_pronunciation", json!({}), cfg.clone())?;
+        if listed.contains(term) {
+            anyhow::bail!("pronunciation dictionary still included removed term: {listed}");
+        }
+        Ok("MCP can add, use, list, and remove local pronunciation terms".to_string())
+    })();
+
+    let restore = backup.restore();
+    match (result, restore) {
+        (Ok(detail), Ok(())) => Ok(detail),
+        (Err(err), Ok(())) => Err(err),
+        (Ok(_), Err(err)) => Err(err),
+        (Err(err), Err(restore_err)) => Err(err.context(format!(
+            "also failed to restore pronunciation dictionary: {restore_err:#}"
+        ))),
+    }
+}
+
 fn print_text(report: &CodexIntegrationReport) {
     println!(
         "Codex integration verification {} on {} {}",
@@ -300,6 +370,24 @@ struct SpoolBackup {
     consumed: Option<Vec<u8>>,
     pet_state_path: PathBuf,
     pet_state: Option<Vec<u8>>,
+}
+
+struct FileBackup {
+    path: PathBuf,
+    content: Option<Vec<u8>>,
+}
+
+impl FileBackup {
+    fn capture(path: PathBuf) -> Result<Self> {
+        Ok(Self {
+            content: read_optional(&path)?,
+            path,
+        })
+    }
+
+    fn restore(self) -> Result<()> {
+        restore_optional(&self.path, self.content.as_deref())
+    }
 }
 
 impl SpoolBackup {

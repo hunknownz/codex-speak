@@ -24,6 +24,7 @@ const requiredAutoChecks = [
   "support doctor.json",
   "support status.json",
   "support models.json",
+  "support pronunciation-dictionary.json",
   "support support-bundle-metadata.json",
   "support release manifest",
   "app path"
@@ -79,7 +80,7 @@ if (report.nonInteractive && !allowNonInteractive) {
   }
 }
 
-for (const file of ["doctor.json", "status.json", "models.json", "support-bundle-metadata.json"]) {
+for (const file of ["doctor.json", "status.json", "models.json", "pronunciation-dictionary.json", "support-bundle-metadata.json"]) {
   const supportPath = path.join(supportDir, file);
   check(existsSync(supportPath) && statSync(supportPath).isFile(), `support file ${file}`, existsSync(supportPath) ? "present" : "missing");
 }
@@ -132,6 +133,17 @@ function validateSupportBundlePrivacy(dir, report) {
     check(metadata.includePrivate === false, "support metadata includePrivate", metadata.includePrivate);
     check(metadata.redaction?.localPaths === true, "support metadata local path redaction", metadata.redaction?.localPaths);
     check(metadata.redaction?.recentSpokenText === true, "support metadata spoken text redaction", metadata.redaction?.recentSpokenText);
+  }
+
+  const pronunciationPath = path.join(dir, "pronunciation-dictionary.json");
+  if (existsSync(pronunciationPath)) {
+    const pronunciation = readJson(pronunciationPath);
+    check(pronunciation.redacted === true, "support privacy pronunciation redacted", pronunciation.redacted);
+    check(
+      typeof pronunciation.terms === "number",
+      "support privacy pronunciation terms",
+      typeof pronunciation.terms === "number" ? `${pronunciation.terms} term(s)` : "raw terms exposed"
+    );
   }
 
   const files = listFiles(dir);
