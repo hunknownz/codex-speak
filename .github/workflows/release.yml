@@ -95,6 +95,18 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: apps/codex-speak-control
         run: npm run build -- --no-bundle
+      - name: Restore build-time lockfile changes
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git restore -- Cargo.lock apps/codex-speak-control/src-tauri/Cargo.lock
+      - name: Check package source tree
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --short
+            git diff -- . ':!dist'
+            exit 1
+          fi
       - name: Import macOS signing certificate
         if: runner.os == 'macOS'
         env:
