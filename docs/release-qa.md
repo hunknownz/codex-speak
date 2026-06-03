@@ -120,6 +120,8 @@ cd codex-speak-macos
 node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 ```
 
+校验器最后会输出 `SUMMARY`，包括 QA 报告里 pass/fail/skip 的数量、失败项名称、跳过的人工确认项和下一步建议。需要把结果接到别的工具里时，可以追加 `--summary-json` 输出机器可读小结。
+
 检查项：
 
 - 包内 `release-manifest.json` 的 `platform` 应为 `macos`，`version`、`git.commit` 和关键文件 `sha256` 应存在。
@@ -173,6 +175,8 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 ```powershell
 node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 ```
+
+校验器最后会输出 `SUMMARY`，包括 QA 报告里 pass/fail/skip 的数量、失败项名称、跳过的人工确认项和下一步建议。需要把结果接到别的工具里时，可以追加 `--summary-json` 输出机器可读小结。
 
 检查项：
 
