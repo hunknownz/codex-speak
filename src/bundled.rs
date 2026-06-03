@@ -3,9 +3,13 @@ use std::path::Path;
 use serde_json::json;
 
 pub const CODEX_SKILL: &str = include_str!("../skills/codex-speak/SKILL.md");
+pub const CODEX_SPEECH_STYLE_EXAMPLES: &str =
+    include_str!("../skills/codex-speak/speech-style-examples.jsonl");
 pub const PLUGIN_MANIFEST: &str = include_str!("../plugins/codex-speak/.codex-plugin/plugin.json");
 pub const PLUGIN_README: &str = include_str!("../plugins/codex-speak/README.md");
 pub const PLUGIN_SKILL: &str = include_str!("../plugins/codex-speak/skills/codex-speak/SKILL.md");
+pub const PLUGIN_SPEECH_STYLE_EXAMPLES: &str =
+    include_str!("../plugins/codex-speak/skills/codex-speak/speech-style-examples.jsonl");
 pub const PLUGIN_MCP_SCRIPT_UNIX: &str =
     include_str!("../plugins/codex-speak/scripts/codex-speak-mcp");
 pub const PLUGIN_MCP_SCRIPT_WINDOWS: &str =

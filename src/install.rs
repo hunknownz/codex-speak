@@ -220,6 +220,10 @@ fn install_skill() -> Result<()> {
     let dir = config::codex_home()?.join("skills/codex-speak");
     fs::create_dir_all(&dir)?;
     fs::write(dir.join("SKILL.md"), bundled::CODEX_SKILL)?;
+    fs::write(
+        dir.join("speech-style-examples.jsonl"),
+        bundled::CODEX_SPEECH_STYLE_EXAMPLES,
+    )?;
     Ok(())
 }
 
@@ -242,6 +246,10 @@ fn install_plugin() -> Result<()> {
     fs::write(
         root.join("skills/codex-speak/SKILL.md"),
         bundled::PLUGIN_SKILL,
+    )?;
+    fs::write(
+        root.join("skills/codex-speak/speech-style-examples.jsonl"),
+        bundled::PLUGIN_SPEECH_STYLE_EXAMPLES,
     )?;
 
     let script = root.join("scripts/codex-speak-mcp");

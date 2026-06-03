@@ -8,7 +8,7 @@ Codex Speak 把 Codex 的复杂输出变成适合听的中文导览，再用本�
 
 ```text
 Codex Skill
-  -> 让 Codex 理解完整回复，生成儿童/初学者友好的导览
+  -> 让 Codex 理解完整回复，并按儿童/成人模式生成可听导览
 Codex Plugin / MCP
   -> codex_speak_prepare 写入 side-channel
 Codex Hook
@@ -42,6 +42,13 @@ Tauri 控制面板
 - 中文导览里的常见开发短语要转成自然说法，例如 `cargo test` 读成“测试命令”，`build failed because timeout` 读成“构建失败，因为超时”。
 - 纯英文文本尽量保留给英文朗读路径，不强行中文化。
 - 不能把控制台回复、代码说明、测试方式和长列表原样整段朗读。
+
+## 朗读风格
+
+朗读风格遵循 [朗读风格指南](speech-style-guide.md)：
+
+- 儿童模式直接对孩子说话，不朗读“要生成儿童能听懂的内容”这类元说明。
+- 成人模式提供节省时间的简洁摘要，保留变更、验证、风险和下一步。
 
 ## 当前 macOS 验证状态
 

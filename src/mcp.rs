@@ -85,7 +85,7 @@ fn tools() -> Value {
         },
         {
             "name": "codex_speak_prepare",
-            "description": "Write child-friendly spoken guide items to the Codex Speak side-channel for the next hook playback.",
+            "description": "Write mode-aware spoken guide items to the Codex Speak side-channel for the next hook playback.",
             "inputSchema": {
                 "type": "object",
                 "required": ["items"],
@@ -264,7 +264,7 @@ fn tools() -> Value {
         },
         {
             "name": "codex_speak_set_pronunciation",
-            "description": "Add or update a local pronunciation replacement, for example reading a project name or acronym in child-friendly Chinese.",
+            "description": "Add or update a local pronunciation replacement, for example reading a project name or acronym in natural spoken Chinese.",
             "inputSchema": {
                 "type": "object",
                 "required": ["term", "spoken"],

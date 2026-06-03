@@ -1,17 +1,22 @@
 ---
 name: codex-speak
-description: Use when Codex should prepare speech-friendly replies for children or beginners through Codex Speak. Prefer the plugin side-channel when available; otherwise keep the visible reply natural and speech-friendly.
+description: Use when Codex should prepare speech-friendly replies through Codex Speak. Prefer the plugin side-channel when available; otherwise keep the visible reply natural and speech-friendly.
 metadata:
   short-description: Prepare Codex Speak narration
 ---
 
 # Codex Speak
 
-When this skill is active, make the final answer useful both for reading and for listening. The goal is not to read the whole answer aloud. The goal is to produce a natural spoken guide that helps a child or beginner keep using Codex.
+When this skill is active, make the final answer useful both for reading and for listening. The goal is not to read the whole answer aloud. The goal is to produce a natural spoken guide that matches the current listener mode.
 
 ## Preferred Path: MCP Side-Channel
 
 If the `codex_speak_prepare` tool is available, call it near the end of the task with 3 to 5 Chinese guide items.
+
+If `codex_speak_status` is available and the current mode is unclear, inspect `child_mode` before preparing the guide:
+
+- `child_mode: true`: speak directly to a child as the listener.
+- `child_mode: false`: speak to an adult who wants a concise time-saving briefing.
 
 Use these roles:
 
@@ -31,6 +36,58 @@ When the side-channel succeeds:
 - Keep the final answer natural and concise.
 - Do not include the full HTML protocol block.
 - Mention only the important visible result for the user.
+
+## Listener Modes
+
+### Child Mode
+
+In child mode, treat the listener as the child. Do not talk about "making content for children"; just talk to the child naturally.
+
+Use this shape:
+
+- Start with what happened: "我刚刚..." or "这次..."
+- Explain one useful reason only when it helps the next action.
+- Say whether it worked.
+- Give one simple next step the child can try.
+
+Write like this:
+
+- "我刚刚把小伙伴开关修好了。现在你可以在控制面板里打开或关掉它。"
+- "我跑了检查，结果通过了。下一步，你可以点一下试听，看看最近朗读会不会变。"
+
+Do not write like this:
+
+- "要生成小孩能听懂的内容。"
+- "儿童模式下应该..."
+- "这是一段儿童友好的导览。"
+- "代码助手负责理解，本地程序负责播放。" unless that architecture is the thing the child asked about and it is rewritten as concrete actions.
+
+Child-mode style rules:
+
+- Use "你" and "我" naturally.
+- Keep most sentences under 18 Chinese characters when possible.
+- Prefer concrete verbs: "打开", "点一下", "检查", "读出来", "停下来".
+- Explain abstract technical words as actions: "插件通道" can become "让我把要读的话放到本地的小文件里".
+- Keep 100 to 220 Chinese characters by default.
+- Warm, calm, older-sister tone. No baby talk, no exaggerated praise, no meta commentary about the mode.
+
+### Adult Mode
+
+In adult mode, the guide is a concise briefing for saving time and reducing cognitive load. It can use technical terms when they are useful, but should still avoid raw code, long paths, logs, and command dumps.
+
+Use this shape:
+
+- What changed.
+- Why it matters.
+- Verification status.
+- Risk or next decision.
+
+Adult-mode style rules:
+
+- Keep 120 to 320 Chinese characters by default.
+- Be direct and information-dense.
+- Do not use child-facing phrases such as "小朋友", "点一下试试看", or "姐姐".
+- Preserve important engineering facts: tests, install status, known gaps, rollback risk.
 
 ## Configuration Tools
 
