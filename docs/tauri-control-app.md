@@ -173,9 +173,9 @@ codex-speak models list
 
 | 档位 | 目标 | 主要效果 |
 | --- | --- | --- |
-| `clear_bright` | 默认姐姐音色 | 清楚、明亮、速度适中 |
-| `slow_clear` | 慢一点更清楚 | 降低语速，增加停顿 |
-| `quick_preview` | 快速预览 | 语速更快，停顿更短 |
+| `clear_bright` | 默认姐姐音色 | 降低随机噪声，咬字更清楚，语速适中 |
+| `slow_clear` | 慢一点更清楚 | 进一步降低语速和噪声，增加句间停顿 |
+| `quick_preview` | 快速预览 | 语速更快，保留少量清晰度保护 |
 
 后续接入更多 Kokoro、ZipVoice 或 Piper 声音后，`voice_profile` 可以继续保留，底层再映射到真实声音模型。
 
