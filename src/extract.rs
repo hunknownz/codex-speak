@@ -56,16 +56,17 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
 
 pub fn fallback_reply_guide(text: &str, max_chars: usize) -> String {
     if let Some(guide) = extract_html_protocol_guide(text) {
-        return truncate_chars(&guide, max_chars);
+        return truncate_chars(&ensure_terminal_punctuation(&guide), max_chars);
     }
     if let Some(guide) = extract_spoken_guide(text) {
-        return truncate_chars(&guide, max_chars);
+        return truncate_chars(&ensure_terminal_punctuation(&guide), max_chars);
     }
     if let Some(block) = extract_speak_block(text) {
-        return truncate_chars(&block, max_chars);
+        return truncate_chars(&ensure_terminal_punctuation(&block), max_chars);
     }
 
-    let cleaned = clean_for_speech(text, max_chars);
+    let source = prepare_reply_for_fallback(text);
+    let cleaned = clean_for_speech(&source, max_chars);
     let guide_limit = max_chars.min(360);
     let sentences = split_sentences(&cleaned);
     if sentences.is_empty() {
@@ -90,7 +91,10 @@ pub fn fallback_reply_guide(text: &str, max_chars: usize) -> String {
         push_unique(&mut chosen, next);
     }
 
-    truncate_chars(&normalize_space(&chosen.join("。")), guide_limit)
+    truncate_chars(
+        &ensure_terminal_punctuation(&normalize_space(&chosen.join("。"))),
+        guide_limit,
+    )
 }
 
 pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
@@ -196,6 +200,137 @@ fn strip_fenced_code(text: &str) -> String {
         }
     }
     output
+}
+
+fn prepare_reply_for_fallback(text: &str) -> String {
+    let without_code = strip_fenced_code(text);
+    let mut lines = Vec::new();
+    let mut skip_test_coverage = false;
+    let mut saw_test_pass = false;
+    let mut saw_build_pass = false;
+
+    for raw in without_code.lines() {
+        let line = raw.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with("::") {
+            break;
+        }
+        if is_test_coverage_heading(line) {
+            skip_test_coverage = true;
+            continue;
+        }
+        if is_verification_heading(line) {
+            skip_test_coverage = false;
+            continue;
+        }
+        if skip_test_coverage {
+            continue;
+        }
+
+        let stripped = strip_markdown(line);
+        if is_verification_line(&stripped) {
+            if stripped.contains("test") || stripped.contains("测试") {
+                saw_test_pass = true;
+            }
+            if stripped.contains("build") || stripped.contains("构建") {
+                saw_build_pass = true;
+            }
+            continue;
+        }
+        if is_final_release_metadata_line(&stripped)
+            || is_manual_command_prompt_line(&stripped)
+            || is_too_technical_for_fallback(&stripped)
+        {
+            continue;
+        }
+
+        let normalized_heading = normalize_fallback_heading(&stripped);
+        if !normalized_heading.trim().is_empty() {
+            lines.push(normalized_heading);
+        }
+    }
+
+    if saw_test_pass && saw_build_pass {
+        lines.push("测试和构建都通过了。".to_string());
+    } else if saw_test_pass {
+        lines.push("测试通过了。".to_string());
+    } else if saw_build_pass {
+        lines.push("构建通过了。".to_string());
+    }
+
+    if lines.is_empty() {
+        text.to_string()
+    } else {
+        lines.join("\n")
+    }
+}
+
+fn is_test_coverage_heading(line: &str) -> bool {
+    let trimmed = line.trim_matches(['*', '#', ' ', '：', ':']);
+    trimmed.contains("测试覆盖") || trimmed.contains("新增/加强测试")
+}
+
+fn is_verification_heading(line: &str) -> bool {
+    let trimmed = line.trim_matches(['*', '#', ' ', '：', ':']);
+    trimmed.contains("验证已通过")
+        || trimmed == "验证"
+        || trimmed == "测试结果"
+        || trimmed == "验证结果"
+}
+
+fn is_verification_line(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    (lower.contains("cargo test")
+        || lower.contains("cargo build")
+        || lower.contains("build --release")
+        || line.contains("测试全部通过")
+        || line.contains("构建通过"))
+        && line.contains("通过")
+}
+
+fn is_final_release_metadata_line(line: &str) -> bool {
+    line.contains("已提交并推送")
+        || line.contains("推送到")
+        || line.contains("GitHub main")
+        || line.contains("git-stage")
+        || line.contains("git-commit")
+        || line.contains("git-push")
+}
+
+fn is_manual_command_prompt_line(line: &str) -> bool {
+    line.contains("你现在可以这样测")
+        || line.contains("可以这样测试")
+        || line.contains("运行下面")
+        || line.contains("执行下面")
+}
+
+fn is_too_technical_for_fallback(line: &str) -> bool {
+    let keep_product_change = line.contains("儿童模式") || line.contains("声音方案");
+    if keep_product_change {
+        return false;
+    }
+
+    line.contains("`")
+        || line.contains("=\"")
+        || line.contains("data-")
+        || line.contains("HTML")
+        || line.contains("Markdown")
+        || line.contains("Mermaid")
+        || line.contains("directive")
+        || line.contains("final answer")
+        || line.contains("session")
+        || line.contains("role")
+}
+
+fn normalize_fallback_heading(line: &str) -> String {
+    let trimmed = line.trim();
+    if trimmed.ends_with([':', '：']) {
+        format!("{}。", trimmed.trim_end_matches([':', '：']))
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn should_skip_line(line: &str) -> bool {
@@ -494,6 +629,15 @@ fn normalize_space(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+fn ensure_terminal_punctuation(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.is_empty() || trimmed.ends_with(['。', '！', '？', '.', '!', '?']) {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed}。")
+    }
+}
+
 fn html_unescape(text: &str) -> String {
     text.replace("&lt;", "<")
         .replace("&gt;", ">")
@@ -759,6 +903,51 @@ stopButton.addEventListener("click", () => invoke("stop_speech"));
         assert!(guide.contains("声音方案支持"));
         assert!(guide.contains("下一步可以用一个真实长任务测试"));
         assert!(!guide.contains("重新安装到"));
+    }
+
+    #[test]
+    fn fallback_reply_guide_skips_test_coverage_lists_and_command_verification() {
+        let text = r#"
+补好了，并且这次测试真的抓出了两个现有问题，我也一起修了：
+
+- HTML 协议里的 `data-role="debug"` 之前会误读，现在会正确过滤。
+- 表格行在去 Markdown 后之前可能漏进朗读，现在清洗前就先跳过表格/链接/git directive。
+- 兜底摘要现在更偏向“儿童模式新增、声音方案支持”这类产品变化，少读“本地重新构建、重新安装”这种流水线信息。
+- session 层新增测试，保证只读最新的 final answer，不读过程分析，也不回放旧回答。
+
+新增/加强测试覆盖：
+
+- HTML 协议优先级
+- HTML role 过滤和实体反转义
+- Markdown/隐藏导览优先级
+- 表格、链接、Mermaid 源码、git directive 过滤
+- 代码密集回复只读总结，不读源码
+- 产品变化优先于本地构建步骤
+- session 中只读最新最终回答
+
+验证已通过：
+
+- `cargo test`：79 个测试全部通过
+- `cargo build --release`：通过
+
+已提交并推送到 GitHub main：`dd2c46c`
+
+::git-stage{cwd="/tmp/codex-speak"}
+::git-commit{cwd="/tmp/codex-speak"}
+::git-push{cwd="/tmp/codex-speak" branch="main"}
+"#;
+        let guide = fallback_reply_guide(text, 800);
+        assert!(guide.contains("补好了"));
+        assert!(guide.contains("兜底摘要"));
+        assert!(guide.contains("测试和构建都通过了"));
+        assert!(guide.ends_with('。'));
+        assert!(!guide.contains("网页标记"));
+        assert!(!guide.contains("命令名"));
+        assert!(!guide.contains("英文单词"));
+        assert!(!guide.contains("构建命令"));
+        assert!(!guide.contains("命令参数"));
+        assert!(!guide.contains("产品变化优先于本地构建步骤"));
+        assert!(!guide.contains("dd2c46c"));
     }
 
     #[test]
