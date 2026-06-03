@@ -18,8 +18,12 @@ const outputDir = path.resolve(options.outputDir ?? "dist/qa-handoff");
 const head = git(["rev-parse", "HEAD"]);
 const version = readCargoVersion();
 const packages = collectPackages();
-const ciArtifacts = options.includeCiArtifacts ? await collectCiArtifacts() : [];
-const coverage = describeCoverage(packages);
+const ciArtifacts = options.ciArtifactsJson
+  ? collectCiArtifactsFromFile(options.ciArtifactsJson)
+  : options.includeCiArtifacts
+    ? await collectCiArtifacts()
+    : [];
+const coverage = describeCoverage(packages, ciArtifacts);
 
 if (packages.length === 0 && ciArtifacts.length === 0) {
   fail(
@@ -171,7 +175,7 @@ async function collectCiArtifacts() {
     if (!artifact || artifact.expired || artifact.size_in_bytes <= 0) {
       fail(`${name} CI artifact is missing, expired, or empty for run ${run.html_url}.`);
     }
-    return {
+    return normalizeCiArtifact({
       platform,
       name,
       sizeBytes: artifact.size_in_bytes,
@@ -179,8 +183,71 @@ async function collectCiArtifacts() {
       runId: run.id,
       runUrl: run.html_url,
       downloadApiUrl: artifact.archive_download_url
-    };
+    });
   });
+}
+
+function collectCiArtifactsFromFile(inputPath) {
+  const resolved = path.resolve(inputPath);
+  if (!existsSync(resolved) || !statSync(resolved).isFile()) {
+    fail(`CI artifact JSON file not found: ${inputPath}`);
+  }
+  const raw = readJson(resolved);
+  const artifacts = Array.isArray(raw) ? raw : raw.artifacts;
+  if (!Array.isArray(artifacts)) {
+    fail(`CI artifact JSON must be an array or an object with an artifacts array: ${inputPath}`);
+  }
+  const normalized = artifacts.map((item) =>
+    normalizeCiArtifact({
+      platform: item.platform,
+      name: item.name,
+      sizeBytes: item.sizeBytes ?? item.size_in_bytes,
+      expired: item.expired ?? false,
+      runId: item.runId ?? raw.runId,
+      runUrl: item.runUrl ?? raw.runUrl,
+      downloadApiUrl: item.downloadApiUrl ?? item.archive_download_url
+    })
+  );
+  const requiredPlatforms = options.platform === "all" ? ["macos", "windows"] : [options.platform];
+  for (const platform of requiredPlatforms) {
+    const expectedName = `codex-speak-${platform}-ci`;
+    if (!normalized.some((item) => item.platform === platform && item.name === expectedName)) {
+      fail(`CI artifact JSON is missing ${expectedName}.`);
+    }
+  }
+  return normalized.filter((item) => requiredPlatforms.includes(item.platform));
+}
+
+function normalizeCiArtifact(item) {
+  if (!["macos", "windows"].includes(item.platform)) {
+    fail(`CI artifact platform must be macos or windows: ${item.platform ?? "missing"}`);
+  }
+  const expectedName = `codex-speak-${item.platform}-ci`;
+  if (item.name !== expectedName) {
+    fail(`CI artifact for ${item.platform} must be named ${expectedName}, found ${item.name ?? "missing"}.`);
+  }
+  const sizeBytes = Number(item.sizeBytes);
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+    fail(`CI artifact ${item.name} must have a positive sizeBytes value.`);
+  }
+  if (item.expired) {
+    fail(`CI artifact ${item.name} is expired.`);
+  }
+  if (!item.runUrl || !/^https:\/\/github\.com\//.test(item.runUrl)) {
+    fail(`CI artifact ${item.name} must include a GitHub runUrl.`);
+  }
+  if (!item.downloadApiUrl || !/^https:\/\/api\.github\.com\//.test(item.downloadApiUrl)) {
+    fail(`CI artifact ${item.name} must include a GitHub downloadApiUrl.`);
+  }
+  return {
+    platform: item.platform,
+    name: item.name,
+    sizeBytes,
+    expired: false,
+    runId: item.runId ?? null,
+    runUrl: item.runUrl,
+    downloadApiUrl: item.downloadApiUrl
+  };
 }
 
 function renderReadme(handoff) {
@@ -306,9 +373,12 @@ cd .\\codex-speak-windows
   return lines.join("\n\n");
 }
 
-function describeCoverage(packages) {
+function describeCoverage(packages, artifacts = []) {
   const required = ["macos", "windows"];
-  const included = packages.map((item) => item.platform);
+  const included = Array.from(new Set([
+    ...packages.map((item) => item.platform),
+    ...artifacts.map((item) => item.platform)
+  ]));
   const missing = required.filter((platform) => !included.includes(platform));
   return {
     required,
@@ -408,7 +478,8 @@ function parseArgs(args) {
     platform: "all",
     outputDir: null,
     allowMissing: false,
-    includeCiArtifacts: false
+    includeCiArtifacts: false,
+    ciArtifactsJson: null
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -420,6 +491,11 @@ function parseArgs(args) {
       result.allowMissing = true;
     } else if (arg === "--include-ci-artifacts") {
       result.includeCiArtifacts = true;
+    } else if (arg === "--ci-artifacts-json") {
+      result.ciArtifactsJson = args[++index];
+      if (!result.ciArtifactsJson) {
+        fail("--ci-artifacts-json requires a file path");
+      }
     } else if (arg === "--help" || arg === "-h") {
       printUsage();
       process.exit(0);
@@ -442,11 +518,13 @@ Options:
   --allow-missing                 Include only package directories that exist.
   --include-ci-artifacts          Attach latest successful main CI smoke artifact metadata for this commit.
                                   Set GITHUB_TOKEN if GitHub API rate limiting or private artifact access applies.
+  --ci-artifacts-json <file>      Attach CI artifact metadata from a local JSON file instead of querying GitHub.
   --help                          Show this help.
 
 Examples:
   node scripts/prepare-qa-handoff.mjs --allow-missing
   node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts
+  node scripts/prepare-qa-handoff.mjs --platform windows --allow-missing --ci-artifacts-json tests/fixtures/ci-artifacts.json
   node scripts/prepare-qa-handoff.mjs --platform macos
 `);
 }

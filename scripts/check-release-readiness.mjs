@@ -128,6 +128,7 @@ function checkRequiredFiles() {
     "scripts/prepare-qa-handoff.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/build-pet-assets-from-spritesheet.swift",
+    "tests/fixtures/ci-artifacts.json",
     "plugins/codex-speak/.codex-plugin/plugin.json",
     "plugins/codex-speak/.mcp.json",
     "plugins/codex-speak/skills/codex-speak/SKILL.md",

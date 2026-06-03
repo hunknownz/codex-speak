@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "runId": 26855698193,
+  "runUrl": "https://github.com/hunknownz/codex-speak/actions/runs/26855698193",
+  "artifacts": [
+    {
+      "platform": "macos",
+      "name": "codex-speak-macos-ci",
+      "sizeBytes": 13239695,
+      "downloadApiUrl": "https://api.github.com/repos/hunknownz/codex-speak/actions/artifacts/555000001/zip"
+    },
+    {
+      "platform": "windows",
+      "name": "codex-speak-windows-ci",
+      "sizeBytes": 3946933,
+      "downloadApiUrl": "https://api.github.com/repos/hunknownz/codex-speak/actions/artifacts/555000002/zip"
+    }
+  ]
+}

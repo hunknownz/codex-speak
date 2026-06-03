@@ -21,8 +21,8 @@ bash -n scripts/manual-qa-macos.sh
 
 if command -v npm >/dev/null 2>&1; then
   (cd "$CONTROL_APP_DIR" && npm run build:frontend)
-elif [ -x "$CONTROL_APP_DIR/node_modules/.bin/vite" ] && command -v "$NODE_BIN" >/dev/null 2>&1; then
-  (cd "$CONTROL_APP_DIR" && "$NODE_BIN" ./node_modules/.bin/vite build)
+else
+  echo "Skipping frontend build: npm not found. CI still runs npm ci and the frontend build." >&2
 fi
 
 if command -v "$NODE_BIN" >/dev/null 2>&1; then
@@ -34,6 +34,12 @@ if command -v "$NODE_BIN" >/dev/null 2>&1; then
   "$NODE_BIN" --check scripts/check-release-readiness.mjs
   "$NODE_BIN" --check apps/codex-speak-control/vite.config.js
   "$NODE_BIN" --check apps/codex-speak-control/src/main.js
+  "$NODE_BIN" scripts/prepare-qa-handoff.mjs \
+    --platform windows \
+    --allow-missing \
+    --ci-artifacts-json tests/fixtures/ci-artifacts.json \
+    --output-dir "${TMPDIR:-/tmp}/codex-speak-qa-handoff-fixture-check" \
+    >/tmp/codex-speak-qa-handoff-fixture-check.log
 else
   echo "Skipping frontend syntax checks: node not found" >&2
 fi

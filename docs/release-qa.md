@@ -67,6 +67,17 @@ node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts
 
 如果 GitHub API 匿名额度用完，或 artifact 需要登录权限，先设置 `GITHUB_TOKEN` 再运行这个命令。
 
+网络受限、演示或测试 handoff 渲染时，也可以从本地 JSON 读取 artifact 元数据：
+
+```bash
+node scripts/prepare-qa-handoff.mjs \
+  --platform windows \
+  --allow-missing \
+  --ci-artifacts-json tests/fixtures/ci-artifacts.json
+```
+
+JSON 需要包含 `artifacts` 数组，每项至少包含 `platform`、`name`、`sizeBytes`、`runUrl` 和 `downloadApiUrl`。脚本会校验平台、artifact 名称、大小和 URL 形状。
+
 脚本会检查：
 
 - 当前分支是 `main`。

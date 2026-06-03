@@ -306,7 +306,7 @@ Release workflow 会构建：
 - 包内 `scripts/check-release-manifest.mjs`：解压后可校验 manifest 和关键文件 sha256。
 - 对应的 `.sha256` 校验文件。
 
-日常 main CI 的 `release-package-smoke` job 也会上传 `codex-speak-macos-ci` 和 `codex-speak-windows-ci` artifacts，适合在正式 tag 之前下载给外部测试者做 QA；`node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts` 可以把这些 artifact 的 run 链接、下载 API 地址和快速验收步骤写入 QA handoff。查询 artifact 时如果遇到 GitHub API 限流，先设置 `GITHUB_TOKEN`。正式公开分发仍以 tag 触发的 GitHub Release 文件为准。
+日常 main CI 的 `release-package-smoke` job 也会上传 `codex-speak-macos-ci` 和 `codex-speak-windows-ci` artifacts，适合在正式 tag 之前下载给外部测试者做 QA；`node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts` 可以把这些 artifact 的 run 链接、下载 API 地址和快速验收步骤写入 QA handoff。查询 artifact 时如果遇到 GitHub API 限流，先设置 `GITHUB_TOKEN`；离线验证 handoff 渲染时可以传 `--ci-artifacts-json tests/fixtures/ci-artifacts.json`。正式公开分发仍以 tag 触发的 GitHub Release 文件为准。
 
 打 tag 时，workflow 会把这些文件发布到 GitHub Release。普通用户下载后可以先校验：
 
