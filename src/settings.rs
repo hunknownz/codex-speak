@@ -9,6 +9,7 @@ pub struct ConfigPatch {
     pub enabled: Option<bool>,
     pub final_guide_enabled: Option<bool>,
     pub progress_prompts_enabled: Option<bool>,
+    pub pet_enabled: Option<bool>,
     pub child_mode: Option<bool>,
     pub provider: Option<String>,
     pub speed: Option<f32>,
@@ -36,6 +37,10 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
     if let Some(progress_prompts_enabled) = patch.progress_prompts_enabled {
         cfg.progress_prompts_enabled = progress_prompts_enabled;
         changed.push("progress_prompts_enabled".to_string());
+    }
+    if let Some(pet_enabled) = patch.pet_enabled {
+        cfg.pet_enabled = pet_enabled;
+        changed.push("pet_enabled".to_string());
     }
     if let Some(child_mode) = patch.child_mode {
         cfg.child_mode = child_mode;

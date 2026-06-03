@@ -6,6 +6,7 @@ const controls = {
   enabled: $("enabled"),
   finalGuideEnabled: $("finalGuideEnabled"),
   progressPromptsEnabled: $("progressPromptsEnabled"),
+  petEnabled: $("petEnabled"),
   childMode: $("childMode"),
   provider: $("provider"),
   voiceProfile: $("voiceProfile"),
@@ -50,6 +51,7 @@ function renderStatus(status) {
   controls.enabled.checked = status.enabled;
   controls.finalGuideEnabled.checked = status.final_guide_enabled;
   controls.progressPromptsEnabled.checked = status.progress_prompts_enabled;
+  controls.petEnabled.checked = status.pet_enabled;
   controls.childMode.checked = status.child_mode;
   controls.provider.value = status.provider || "sherpa_melo";
   controls.voiceProfile.value = status.voice_profile || "clear_bright";
@@ -216,6 +218,10 @@ controls.finalGuideEnabled.addEventListener("change", () => {
 
 controls.progressPromptsEnabled.addEventListener("change", () => {
   savePatch({ progressPromptsEnabled: controls.progressPromptsEnabled.checked });
+});
+
+controls.petEnabled.addEventListener("change", () => {
+  savePatch({ petEnabled: controls.petEnabled.checked });
 });
 
 controls.childMode.addEventListener("change", () => {

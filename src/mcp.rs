@@ -169,6 +169,7 @@ fn tools() -> Value {
                     "enabled": { "type": "boolean" },
                     "final_guide_enabled": { "type": "boolean" },
                     "progress_prompts_enabled": { "type": "boolean" },
+                    "pet_enabled": { "type": "boolean" },
                     "child_mode": { "type": "boolean" },
                     "provider": {
                         "type": "string",
@@ -385,6 +386,7 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
                 progress_prompts_enabled: args
                     .get("progress_prompts_enabled")
                     .and_then(Value::as_bool),
+                pet_enabled: args.get("pet_enabled").and_then(Value::as_bool),
                 child_mode: args.get("child_mode").and_then(Value::as_bool),
                 provider: optional_string(&args, "provider"),
                 speed: args.get("speed").and_then(Value::as_f64).map(|v| v as f32),

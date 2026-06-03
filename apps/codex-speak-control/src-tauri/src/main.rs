@@ -12,6 +12,7 @@ struct SettingsPatch {
     enabled: Option<bool>,
     final_guide_enabled: Option<bool>,
     progress_prompts_enabled: Option<bool>,
+    pet_enabled: Option<bool>,
     child_mode: Option<bool>,
     provider: Option<String>,
     speed: Option<f32>,
@@ -39,6 +40,10 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
         args.push("--progress-prompts-enabled".to_string());
         args.push(progress_prompts_enabled.to_string());
     }
+    if let Some(pet_enabled) = patch.pet_enabled {
+        args.push("--pet-enabled".to_string());
+        args.push(pet_enabled.to_string());
+    }
     if let Some(child_mode) = patch.child_mode {
         args.push("--child-mode".to_string());
         args.push(child_mode.to_string());
@@ -65,6 +70,7 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
     }
 
     run_cli(args.iter().map(String::as_str))?;
+    sync_pet_visibility()?;
     load_status()
 }
 
@@ -208,8 +214,16 @@ fn pet_helper_path() -> PathBuf {
     app_home().join("bin").join("codex-speak-pet-macos")
 }
 
+fn pet_helper_pid_path() -> PathBuf {
+    app_home().join("state").join("pet-helper.pid")
+}
+
 fn launch_native_pet() {
     if !cfg!(target_os = "macos") {
+        return;
+    }
+    if !pet_enabled() {
+        stop_native_pet();
         return;
     }
     let helper = pet_helper_path();
@@ -230,6 +244,50 @@ fn launch_native_pet() {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn();
+}
+
+fn stop_native_pet() {
+    let pid_path = pet_helper_pid_path();
+    if let Ok(raw) = std::fs::read_to_string(&pid_path) {
+        if let Ok(pid) = raw.trim().parse::<i32>() {
+            if is_pet_helper_process(pid) {
+                let _ = Command::new("/bin/kill").arg(pid.to_string()).status();
+            }
+        }
+    }
+    let _ = std::fs::remove_file(pid_path);
+}
+
+fn is_pet_helper_process(pid: i32) -> bool {
+    if !cfg!(target_os = "macos") {
+        return false;
+    }
+    let Ok(output) = Command::new("/bin/ps")
+        .args(["-p", &pid.to_string(), "-o", "comm=", "-o", "args="])
+        .output()
+    else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+    String::from_utf8_lossy(&output.stdout).contains("codex-speak-pet-macos")
+}
+
+fn pet_enabled() -> bool {
+    cli_json(["config", "get"])
+        .ok()
+        .and_then(|value| value.get("pet_enabled").and_then(Value::as_bool))
+        .unwrap_or(true)
+}
+
+fn sync_pet_visibility() -> Result<(), String> {
+    if pet_enabled() {
+        launch_native_pet();
+    } else {
+        stop_native_pet();
+    }
+    Ok(())
 }
 
 fn to_string(error: impl std::fmt::Display) -> String {

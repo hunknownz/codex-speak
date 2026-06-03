@@ -250,7 +250,46 @@ private final class PetController: NSObject, NSApplicationDelegate {
     }
 
     private func isProcessAlive(_ pid: Int32) -> Bool {
-        kill(pid, 0) == 0 || errno == EPERM
+        let signalResult = kill(pid, 0)
+        let signalErrno = errno
+        guard signalResult == 0 || signalErrno == EPERM else {
+            return false
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-p", "\(pid)", "-o", "stat=", "-o", "comm=", "-o", "args="]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return true
+        }
+
+        guard process.terminationStatus == 0 else {
+            return false
+        }
+
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        let raw = String(data: data, encoding: .utf8) ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return false
+        }
+        if trimmed.split(whereSeparator: { $0 == " " || $0 == "\t" }).first?.contains("Z") == true {
+            return false
+        }
+        if trimmed.localizedCaseInsensitiveContains("defunct") {
+            return false
+        }
+        if let parentPid, pid == parentPid {
+            return true
+        }
+        return trimmed.contains("codex-speak-pet-macos")
     }
 
     private func startDisplayLink() {

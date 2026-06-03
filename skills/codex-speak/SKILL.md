@@ -46,6 +46,7 @@ When the user asks to control speech settings in natural language, use the avail
 - Use `codex_speak_update_config` with `enabled` for the global speech switch.
 - Use `codex_speak_update_config` with `final_guide_enabled` when the user wants to turn the automatic final guide on or off.
 - Use `codex_speak_update_config` with `progress_prompts_enabled` when the user wants to turn task progress prompts on or off.
+- Use `codex_speak_update_config` with `pet_enabled` when the user wants to show or hide the desktop companion.
 - Use `codex_speak_update_config` when several settings should change together.
 - Use `codex_speak_stop` when the user asks to stop speech.
 - Use `codex_speak_speak_text` when the user asks to try or preview a voice. For task progress speech, set `background: true` so Codex can keep working immediately.

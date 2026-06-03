@@ -96,6 +96,8 @@ Pet 透明动画素材安装位置：
 ~/.codex/codex-speak/bin/codex-speak app open
 ```
 
+控制面板里的“小伙伴”开关可以显示或隐藏桌面 Pet。关闭后会结束 macOS 原生 Pet helper；重新打开开关会再次显示透明桌面小伙伴。
+
 卸载：
 
 ```bash

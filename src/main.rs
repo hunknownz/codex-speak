@@ -140,6 +140,8 @@ enum ConfigCommand {
         #[arg(long)]
         progress_prompts_enabled: Option<bool>,
         #[arg(long)]
+        pet_enabled: Option<bool>,
+        #[arg(long)]
         child_mode: Option<bool>,
         #[arg(long)]
         provider: Option<String>,
@@ -261,6 +263,7 @@ fn main() -> Result<()> {
                 enabled,
                 final_guide_enabled,
                 progress_prompts_enabled,
+                pet_enabled,
                 child_mode,
                 provider,
                 speed,
@@ -274,6 +277,7 @@ fn main() -> Result<()> {
                         enabled,
                         final_guide_enabled,
                         progress_prompts_enabled,
+                        pet_enabled,
                         child_mode,
                         provider,
                         speed,

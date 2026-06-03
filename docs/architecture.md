@@ -18,7 +18,7 @@ Rust CLI
 本地 TTS
   -> 默认 Sherpa-ONNX + MeloTTS，播放到系统播放器
 Tauri 控制面板
-  -> 控制总朗读、最终导览、过程提示、儿童模式、语速、音色和引擎
+  -> 控制总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、音色和引擎
 ```
 
 ## 两种朗读时机
@@ -49,7 +49,7 @@ Tauri 控制面板
 
 - `doctor --json` 通过：CLI、Hook、Skill、Plugin、MCP、控制面板、Pet helper、MeloTTS 模型和播放器均可用。
 - `verify-codex --json` 通过：side-channel、Hook 消费、短导览兜底、混合英文归一化和发音词典链路可用。
-- `verify-controls --json` 通过：总朗读、最终导览、过程提示、儿童模式、语速、最大朗读长度、音色和 TTS 引擎可写入并恢复。
+- `verify-controls --json` 通过：总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、最大朗读长度、音色和 TTS 引擎可写入并恢复。
 - 真实 `speak --text` 已播放成功，`last_spoken` 记录为清洗后的中文导览。
 
 ## 发布前不变门槛

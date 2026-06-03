@@ -124,6 +124,18 @@ fn run_control_roundtrip(original: &Config, checks: &mut Vec<ControlCheck>) {
     apply_and_expect(
         &mut cfg,
         ConfigPatch {
+            pet_enabled: Some(!original.pet_enabled),
+            ..ConfigPatch::default()
+        },
+        "pet_enabled_toggle",
+        "Pet visibility toggle",
+        |loaded| loaded.pet_enabled != original.pet_enabled,
+        checks,
+    );
+
+    apply_and_expect(
+        &mut cfg,
+        ConfigPatch {
             child_mode: Some(!original.child_mode),
             ..ConfigPatch::default()
         },
@@ -243,6 +255,7 @@ fn verify_status_view(checks: &mut Vec<ControlCheck>) {
             if view.enabled == cfg.enabled
                 && view.final_guide_enabled == cfg.final_guide_enabled
                 && view.progress_prompts_enabled == cfg.progress_prompts_enabled
+                && view.pet_enabled == cfg.pet_enabled
                 && view.child_mode == cfg.child_mode
                 && view.provider == cfg.provider
                 && view.voice_profile == cfg.voice_profile

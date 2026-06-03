@@ -9,6 +9,7 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 - 开启或关闭自动朗读。
 - 开启或关闭最终导览自动朗读。
 - 开启或关闭长任务中的过程提示。
+- 显示或隐藏桌面 Pet 小伙伴。
 - 开启或关闭儿童模式。
 - 调整语速。
 - 选择声音档位。
@@ -75,6 +76,7 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 总朗读开关 | `codex-speak config set --enabled ...` |
 | 最终导览开关 | `codex-speak config set --final-guide-enabled ...` |
 | 过程提示开关 | `codex-speak config set --progress-prompts-enabled ...` |
+| 小伙伴开关 | `codex-speak config set --pet-enabled ...`，随后启动或关闭 macOS Pet helper |
 | 儿童模式 | `codex-speak config set --child-mode ...` |
 | 朗读引擎 | `codex-speak config set --provider ...` |
 | 语速 | `codex-speak config set --speed ...` |
@@ -102,7 +104,7 @@ macOS 桌面 Pet 已经从 Tauri WebView 迁移为原生 AppKit helper：
 ~/.codex/codex-speak/bin/codex-speak-pet-macos
 ```
 
-控制面板启动时会拉起这个 helper。它不直接跑 TTS，也不理解 Codex 内容，而是读取统一的状态文件：
+控制面板启动时会根据 `pet_enabled` 配置决定是否拉起这个 helper；用户在控制面板关闭“小伙伴”后，会结束当前 Pet helper 并移除 pid 文件。它不直接跑 TTS，也不理解 Codex 内容，而是读取统一的状态文件：
 
 ```text
 ~/.codex/codex-speak/state/pet-state.json

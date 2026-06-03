@@ -321,6 +321,7 @@ apps/codex-speak-control
 - 总朗读开关。
 - 最终导览开关。
 - 过程提示开关。
+- 桌面 Pet 小伙伴显示开关。
 - 儿童模式开关。
 - 语速滑块。
 - 最大朗读字数滑块。
@@ -329,7 +330,7 @@ apps/codex-speak-control
 - 声音档位选择。
 - 试听、停止、刷新、自检按钮。
 
-这样可以把“普通用户点击配置”和“Codex 通过 MCP 改配置”统一到同一份 `config.toml`。
+这样可以把“普通用户点击配置”和“Codex 通过 MCP 改配置”统一到同一份 `config.toml`。控制面板保存 `pet_enabled` 后会额外同步 macOS Pet helper：打开时启动透明桌面小伙伴，关闭时结束 helper 并清理本地 pid 文件。
 
 ## 桌面 Pet
 
