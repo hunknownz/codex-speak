@@ -231,10 +231,10 @@ node scripts/check-release-readiness.mjs
 给外部测试者准备 QA 交付说明：
 
 ```bash
-node scripts/prepare-qa-handoff.mjs --allow-missing
+node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts
 ```
 
-脚本会读取已构建的 release 包和 `release-manifest.json`，生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`，里面包含包哈希、安装命令、验收命令和 QA 回传要求；验收要求会提醒测试者确认混合中英文朗读不会把技术词逐字母读出来。
+脚本会读取已构建的 release 包和 `release-manifest.json`，也可以附上当前成功 main CI 的 macOS/Windows smoke artifact 信息，生成 `dist/qa-handoff/README.md` 与 `qa-handoff.json`，里面包含包哈希、安装命令、验收命令、artifact 下载线索和 QA 回传要求；查询 artifact 时如果遇到 GitHub API 限流，先设置 `GITHUB_TOKEN`。验收要求会提醒测试者确认混合中英文朗读不会把技术词逐字母读出来。
 
 正式发布前可以把真机 QA 回传目录也纳入门禁：
 

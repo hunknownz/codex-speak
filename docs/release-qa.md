@@ -55,7 +55,15 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 
 传入 `--allow-missing` 时，脚本可以只生成当前已有平台的部分 handoff，例如只有 macOS 包时先发给 macOS 测试者；生成的 README 和 JSON 会标明缺失的平台。正式发布 readiness 仍然需要 macOS 和 Windows 两边的 QA 回传。
 
-如果本机缺 Windows 包，可以先从最新成功的 main CI run 下载 `codex-speak-windows-ci` artifact；它来自同一套 release package smoke，适合发给 Windows 测试者做外部 QA。正式公开发布仍应使用 tag 触发的 GitHub Release 产物。
+如果本机缺 Windows 包，可以把最新成功的 main CI artifacts 写入 handoff：
+
+```bash
+node scripts/prepare-qa-handoff.mjs --allow-missing --include-ci-artifacts
+```
+
+它会查询当前 `HEAD` 对应的成功 CI run，把 `codex-speak-macos-ci` 和 `codex-speak-windows-ci` 的名称、大小、run 链接和下载 API 地址写入 `qa-handoff.json` 与 README。CI artifact 来自同一套 release package smoke，适合发给 Windows 测试者做外部 QA；正式公开发布仍应使用 tag 触发的 GitHub Release 产物。
+
+如果 GitHub API 匿名额度用完，或 artifact 需要登录权限，先设置 `GITHUB_TOKEN` 再运行这个命令。
 
 脚本会检查：
 
