@@ -200,6 +200,40 @@ mod tests {
     }
 
     #[test]
+    fn ignores_non_final_assistant_messages_until_final_answer() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","phase":"analysis","content":[{{"type":"output_text","text":"不要读过程分析。"}}]}}}}"#
+        )
+        .unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"agent_message","phase":"final_answer","message":"只读最终回答。"}}}}"#
+        )
+        .unwrap();
+        let message = last_message_from_file(file.path()).unwrap();
+        assert_eq!(message, "只读最终回答。");
+    }
+
+    #[test]
+    fn prefers_latest_final_answer_over_older_final_answer() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"agent_message","phase":"final_answer","message":"旧回答。"}}}}"#
+        )
+        .unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"agent_message","phase":"final_answer","message":"新回答。"}}}}"#
+        )
+        .unwrap();
+        let message = last_message_from_file(file.path()).unwrap();
+        assert_eq!(message, "新回答。");
+    }
+
+    #[test]
     fn ignores_user_message_fields() {
         let mut file = NamedTempFile::new().unwrap();
         writeln!(

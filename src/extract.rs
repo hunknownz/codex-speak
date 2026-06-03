@@ -28,6 +28,9 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
         if line.is_empty() {
             continue;
         }
+        if should_skip_structural_line(&line) {
+            continue;
+        }
         line = strip_markdown(&line);
         line = replace_inline_technical_noise(&line);
         if should_skip_line(&line) {
@@ -94,8 +97,8 @@ pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
     let aside_re =
         Regex::new(r#"(?is)<aside\b[^>]*data-codex-speak\s*=\s*["']guide["'][^>]*>(.*?)</aside>"#)
             .ok()?;
-    let p_re =
-        Regex::new(r#"(?is)<p\b[^>]*(?:data-role\s*=\s*["']([^"']+)["'])?[^>]*>(.*?)</p>"#).ok()?;
+    let p_re = Regex::new(r#"(?is)<p\b([^>]*)>(.*?)</p>"#).ok()?;
+    let role_re = Regex::new(r#"(?is)data-role\s*=\s*["']([^"']+)["']"#).ok()?;
     let tag_re = Regex::new(r"(?is)<[^>]+>").ok()?;
 
     let aside = aside_re
@@ -105,7 +108,12 @@ pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
 
     let mut parts = Vec::new();
     for caps in p_re.captures_iter(aside) {
-        let role = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+        let attrs = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
+        let role = role_re
+            .captures(attrs)
+            .and_then(|role_caps| role_caps.get(1))
+            .map(|m| m.as_str())
+            .unwrap_or_default();
         if !is_allowed_protocol_role(role) {
             continue;
         }
@@ -192,6 +200,11 @@ fn strip_fenced_code(text: &str) -> String {
 
 fn should_skip_line(line: &str) -> bool {
     let trimmed = line.trim();
+    should_skip_structural_line(trimmed) || looks_like_raw_code(trimmed)
+}
+
+fn should_skip_structural_line(line: &str) -> bool {
+    let trimmed = line.trim();
     trimmed.starts_with('|')
         || trimmed.starts_with("diff --git")
         || trimmed.starts_with("@@")
@@ -200,7 +213,6 @@ fn should_skip_line(line: &str) -> bool {
         || trimmed.starts_with("::")
         || trimmed.starts_with("http://")
         || trimmed.starts_with("https://")
-        || looks_like_raw_code(trimmed)
 }
 
 fn strip_markdown(line: &str) -> String {
@@ -309,6 +321,7 @@ fn sentence_score(sentence: &str, index: usize) -> i32 {
         "调节",
         "发音",
         "声音方案",
+        "儿童模式",
         "检查",
         "验证",
         "跑通",
@@ -541,6 +554,39 @@ mod tests {
     }
 
     #[test]
+    fn html_protocol_filters_unknown_roles_and_unescapes_entities() {
+        let text = r#"
+<aside data-codex-speak="guide">
+  <p data-role="did">我已经整理好 &lt;重点&gt;。</p>
+  <p data-role="debug">不要朗读调试细节。</p>
+  <p data-role="result"><strong>测试</strong>通过。</p>
+</aside>
+"#;
+        assert_eq!(
+            extract_html_protocol_guide(text).unwrap(),
+            "我已经整理好 <重点>。测试通过。"
+        );
+    }
+
+    #[test]
+    fn clean_for_speech_prefers_html_protocol_over_other_guides() {
+        let text = r#"
+<aside data-codex-speak="guide">
+  <p data-role="did">优先读结构化导览。</p>
+</aside>
+
+**朗读导览**
+
+不要读 Markdown 导览。
+
+<!-- codex-speak
+不要读隐藏导览。
+-->
+"#;
+        assert_eq!(clean_for_speech(text, 300), "优先读结构化导览。");
+    }
+
+    #[test]
     fn prefers_visible_guide_before_legacy_hidden_block() {
         let text = r#"
 **朗读导览**
@@ -560,6 +606,34 @@ mod tests {
         let cleaned = clean_for_speech(text, 300);
         assert!(!cleaned.contains("fn main"));
         assert!(cleaned.contains("自动触发器"));
+    }
+
+    #[test]
+    fn removes_tables_links_directives_and_fenced_visual_sources() {
+        let text = r#"
+我画了一张结构图，帮助理解流程。
+
+| 步骤 | 内容 |
+| --- | --- |
+| 一 | 不要读表格 |
+
+https://example.com/raw-log
+::git-push{cwd="/tmp/project" branch="main"}
+
+```mermaid
+graph TD
+  A --> B
+```
+
+下一步可以打开控制面板测试。
+"#;
+        let cleaned = clean_for_speech(text, 800);
+        assert!(cleaned.contains("结构图"));
+        assert!(cleaned.contains("下一步可以打开控制面板测试"));
+        assert!(!cleaned.contains("graph TD"));
+        assert!(!cleaned.contains("example.com"));
+        assert!(!cleaned.contains("::git"));
+        assert!(!cleaned.contains("不要读表格"));
     }
 
     #[test]
@@ -603,6 +677,30 @@ mod tests {
     }
 
     #[test]
+    fn fallback_reply_guide_summarizes_code_heavy_reply_without_raw_code() {
+        let text = r#"
+我已经把停止朗读按钮修好了。
+
+这次主要改了 `apps/codex-speak-control/src/main.js`，让按钮点击后调用停止接口。
+
+```javascript
+const stopButton = document.querySelector("[data-stop]");
+stopButton.addEventListener("click", () => invoke("stop_speech"));
+```
+
+验证结果：控制面板能停止正在播放的声音，测试通过。
+下一步可以继续测试不同声音方案。
+"#;
+        let guide = fallback_reply_guide(text, 800);
+        assert!(guide.contains("停止朗读按钮"));
+        assert!(guide.contains("测试通过"));
+        assert!(guide.contains("下一步"));
+        assert!(!guide.contains("document.querySelector"));
+        assert!(!guide.contains("addEventListener"));
+        assert!(!guide.contains("src/main"));
+    }
+
+    #[test]
     fn fallback_reply_guide_skips_release_metadata_and_placeholder_noise() {
         let text = r#"
 已完成并重新部署打开了。
@@ -640,6 +738,27 @@ mod tests {
         assert!(!guide.contains("75fc76f"));
         assert!(!guide.contains("::git"));
         assert!(guide.chars().count() > 50);
+    }
+
+    #[test]
+    fn fallback_reply_guide_prioritizes_product_changes_over_local_build_steps() {
+        let text = r#"
+已完成这轮优化。
+
+- 本地重新构建 CLI。
+- 本地重新构建 Tauri 控制面板。
+- 重新安装到 `~/.codex/codex-speak`。
+- 儿童模式新增更自然的成果说明，会把代码改动解释成做了什么。
+- 声音方案支持更慢、更清楚的默认参数。
+- 已打开控制面板。
+
+下一步可以用一个真实长任务测试朗读是否自然。
+"#;
+        let guide = fallback_reply_guide(text, 800);
+        assert!(guide.contains("儿童模式新增"));
+        assert!(guide.contains("声音方案支持"));
+        assert!(guide.contains("下一步可以用一个真实长任务测试"));
+        assert!(!guide.contains("重新安装到"));
     }
 
     #[test]
