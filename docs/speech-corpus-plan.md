@@ -272,7 +272,7 @@ visual_source_leak_checker
 
 暂时不做在线 RAG。
 
-后续做本地 RAG 时，只检索风格样例：
+后续做本地 RAG 时，统一使用 Qdrant，只检索风格样例：
 
 ```text
 输入：当前任务类型 + child_mode + 是否有错误/测试/架构
@@ -281,6 +281,8 @@ visual_source_leak_checker
 ```
 
 RAG 不负责事实知识，不替代 Codex 对当前任务的理解。
+
+Qdrant 详细设计见 [Qdrant 风格 RAG 方案](qdrant-style-rag.md)。
 
 ## 第一批建设任务
 
@@ -291,3 +293,4 @@ RAG 不负责事实知识，不替代 Codex 对当前任务的理解。
 5. 增加 10 条成人模式摘要样例。
 6. 增加 10 条视觉支架样例。
 7. 写一个本地校验脚本，检查 JSONL、禁词、句长和源码泄漏。
+8. 当样例超过 50 条并通过质量检查后，再接入 Qdrant 本地检索。

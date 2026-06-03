@@ -134,4 +134,4 @@ visual_aids_enabled = true
 visual_aids_level = "auto" | "always_ask" | "off"
 ```
 
-第三阶段：本地样例库增加视觉样例，必要时做本地检索；image model 作为可选插件能力接入。
+第三阶段：本地样例库增加视觉样例，必要时用 Qdrant 做本地检索；image model 作为可选插件能力接入。
