@@ -32,6 +32,8 @@ if command -v "$NODE_BIN" >/dev/null 2>&1; then
   "$NODE_BIN" --check scripts/write-release-manifest.mjs
   "$NODE_BIN" --check scripts/prepare-qa-handoff.mjs
   "$NODE_BIN" --check scripts/check-release-readiness.mjs
+  "$NODE_BIN" --check scripts/check-mcp-stdio.mjs
+  "$NODE_BIN" scripts/check-mcp-stdio.mjs target/release/codex-speak
   "$NODE_BIN" --check apps/codex-speak-control/vite.config.js
   "$NODE_BIN" --check apps/codex-speak-control/src/main.js
   "$NODE_BIN" scripts/prepare-qa-handoff.mjs \

@@ -170,7 +170,7 @@ pub fn collect() -> Result<DoctorReport> {
         "plugin_mcp_config",
         "Codex Speak MCP config",
         &config::installed_plugin_dir()?.join(".mcp.json"),
-        bundled::PLUGIN_MCP_CONFIG,
+        &bundled::plugin_mcp_config(&config::bin_dir()?.join(binary_name())),
         &mut checks,
     );
     check_file_matches(

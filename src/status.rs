@@ -162,7 +162,7 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             plugin_mcp_config_installed: plugin_mcp_config_path.is_file(),
             plugin_mcp_config_current: file_matches(
                 &plugin_mcp_config_path,
-                bundled::PLUGIN_MCP_CONFIG,
+                &bundled::plugin_mcp_config(&cli_path),
             ),
             plugin_mcp_script_installed: plugin_mcp_script_path.is_file(),
             plugin_mcp_script_current: file_matches(&plugin_mcp_script_path, expected_mcp_script()),

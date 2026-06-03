@@ -188,7 +188,7 @@ marketplace 条目使用本地路径：
 ./plugins/codex-speak
 ```
 
-这样 Codex App 可以发现插件，插件里的 MCP 脚本会调用同一份已安装的 Rust CLI。
+这样 Codex App 可以发现插件。安装器会按当前系统生成 `.mcp.json`，让 MCP server 直接调用同一份已安装的 Rust CLI；macOS 指向 `codex-speak`，Windows 指向 `codex-speak.exe`。插件里的 MCP 脚本仍会随包保留，作为调试和兼容入口。
 
 ## 自检
 

@@ -11,12 +11,11 @@ Codex Speak Plugin adds Codex-facing controls and tools on top of the Rust CLI.
 
 ## What It Cannot Reliably Do Yet
 
-The current Codex plugin surface does not provide a documented API for rewriting or hiding already-rendered chat messages. For hiding or folding protocol content, use these two approaches:
+The current Codex plugin surface does not provide a documented API for rewriting or hiding already-rendered chat messages. Codex Speak therefore avoids putting custom protocol content into normal chat messages:
 
 - Preferred: `codex_speak_prepare` side-channel, so the full spoken guide does not have to appear in chat.
-- Progressive enhancement: wrap the visible protocol block in native HTML `details`, which may render as folded when the Codex renderer allows it.
-
-Visible HTML is only a fallback when MCP is unavailable.
+- Compatibility: the Rust CLI can still parse old HTML or Markdown fallback blocks from previous sessions and QA fixtures.
+- If MCP is unavailable, the Skill keeps the visible reply natural and speech-friendly, and the Hook cleans the final reply as a last resort.
 
 ## MCP Tools
 
@@ -32,6 +31,9 @@ Visible HTML is only a fallback when MCP is unavailable.
 - `codex_speak_set_voice_profile`
 - `codex_speak_set_provider`
 - `codex_speak_install_model`
+- `codex_speak_list_pronunciation`
+- `codex_speak_set_pronunciation`
+- `codex_speak_remove_pronunciation`
 
 The plugin expects the Rust CLI to be installed at `~/.codex/codex-speak/bin/codex-speak` or available on `PATH`.
 
@@ -50,4 +52,6 @@ The marketplace entry uses a local source path:
 ./plugins/codex-speak
 ```
 
-That keeps Plugin, Skill, MCP scripts, Hook, and the installed Rust CLI on the same local version.
+During product installation, `.mcp.json` is generated for the current platform and points directly at the installed Rust CLI in `~/.codex/codex-speak/bin`. The wrapper scripts stay in the plugin for debugging and compatibility.
+
+That keeps Plugin, Skill, MCP config, Hook, and the installed Rust CLI on the same local version.

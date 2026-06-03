@@ -45,6 +45,7 @@ async function main() {
   check(Boolean(repo), "GitHub origin", repo ?? "could not parse origin remote");
 
   checkRequiredFiles();
+  checkSkillFallbackPolicy();
   checkLocalReleaseArtifactsIfPresent();
   checkManualQaMixedEnglishCoverage();
   checkWorkflowRuntime();
@@ -126,6 +127,7 @@ function checkRequiredFiles() {
     "scripts/check-release-manifest.mjs",
     "scripts/write-release-manifest.mjs",
     "scripts/prepare-qa-handoff.mjs",
+    "scripts/check-mcp-stdio.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/build-pet-assets-from-spritesheet.swift",
     "tests/fixtures/ci-artifacts.json",
@@ -156,6 +158,7 @@ function checkRequiredFiles() {
     "scripts/check-release-manifest.mjs",
     "scripts/write-release-manifest.mjs",
     "scripts/prepare-qa-handoff.mjs",
+    "scripts/check-mcp-stdio.mjs",
     "scripts/check-release-readiness.mjs",
     "scripts/verify-local.sh"
   ];
@@ -289,6 +292,35 @@ function checkManualQaMixedEnglishCoverage() {
       missing.length === 0,
       `manual QA mixed English coverage ${file}`,
       missing.length === 0 ? "extended mixed-English sample covered" : `missing: ${missing.join(", ")}`
+    );
+  }
+}
+
+function checkSkillFallbackPolicy() {
+  const files = [
+    "skills/codex-speak/SKILL.md",
+    "plugins/codex-speak/skills/codex-speak/SKILL.md",
+    "plugins/codex-speak/README.md",
+    "docs/requirements.md",
+    "docs/technical-design.md",
+    "docs/plugin-design.md",
+    "docs/protocol-v1.md"
+  ];
+  const forbidden = [
+    "include a folded Codex Speak Protocol block",
+    "otherwise include the folded visible Codex Speak Protocol block",
+    "Skill 生成协议块",
+    "新回答优先输出 HTML 微格式协议",
+    "不能调用时退回 HTML Protocol",
+    "Visible HTML is only a fallback when MCP is unavailable"
+  ];
+  for (const file of files) {
+    const content = readFileSync(file, "utf8");
+    const hits = forbidden.filter((term) => content.includes(term));
+    check(
+      hits.length === 0,
+      `skill side-channel fallback policy ${file}`,
+      hits.length === 0 ? "does not instruct new HTML fallback output" : `forbidden phrase: ${hits.join(", ")}`
     );
   }
 }

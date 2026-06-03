@@ -1,6 +1,6 @@
 ---
 name: codex-speak
-description: Use when Codex should prepare speech-friendly replies for children or beginners through Codex Speak. Prefer the plugin side-channel when available; otherwise include the folded visible Codex Speak Protocol block.
+description: Use when Codex should prepare speech-friendly replies for children or beginners through Codex Speak. Prefer the plugin side-channel when available; otherwise keep the visible reply natural and speech-friendly.
 metadata:
   short-description: Prepare Codex Speak narration
 ---

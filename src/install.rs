@@ -234,7 +234,10 @@ fn install_plugin() -> Result<()> {
         root.join(".codex-plugin/plugin.json"),
         bundled::PLUGIN_MANIFEST,
     )?;
-    fs::write(root.join(".mcp.json"), bundled::PLUGIN_MCP_CONFIG)?;
+    fs::write(
+        root.join(".mcp.json"),
+        bundled::plugin_mcp_config(&config::bin_dir()?.join(binary_name())),
+    )?;
     fs::write(root.join("README.md"), bundled::PLUGIN_README)?;
     fs::write(
         root.join("skills/codex-speak/SKILL.md"),
