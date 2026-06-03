@@ -87,6 +87,11 @@ pub fn last_message_from_file(path: &Path) -> Result<String> {
         let Ok(item) = serde_json::from_str::<Value>(line) else {
             continue;
         };
+        if is_user_event(&item) {
+            anyhow::bail!(
+                "latest session activity is a user message, not an assistant final answer"
+            );
+        }
         if let Some(message) = message_from_event(&item) {
             if !message.trim().is_empty() {
                 return Ok(message);
@@ -121,19 +126,44 @@ fn message_from_event(item: &Value) -> Option<String> {
         }
     }
 
-    find_string_key(payload, "last_agent_message").or_else(|| find_string_key(payload, "message"))
+    if payload_type == "message"
+        && payload.get("role").and_then(Value::as_str) == Some("assistant")
+        && payload
+            .get("phase")
+            .and_then(Value::as_str)
+            .map_or(true, |phase| phase == "final_answer")
+    {
+        return assistant_content_text(payload);
+    }
+
+    None
 }
 
-fn find_string_key(value: &Value, key: &str) -> Option<String> {
-    match value {
-        Value::Object(map) => {
-            if let Some(found) = map.get(key).and_then(Value::as_str) {
-                return Some(found.to_string());
+fn is_user_event(item: &Value) -> bool {
+    let payload = item.get("payload").unwrap_or(item);
+    let payload_type = payload
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    payload_type == "user_message" || payload.get("role").and_then(Value::as_str) == Some("user")
+}
+
+fn assistant_content_text(payload: &Value) -> Option<String> {
+    let mut parts = Vec::new();
+    for item in payload.get("content")?.as_array()? {
+        if matches!(
+            item.get("type").and_then(Value::as_str),
+            Some("output_text" | "text")
+        ) {
+            if let Some(text) = item.get("text").and_then(Value::as_str) {
+                parts.push(text);
             }
-            map.values().find_map(|v| find_string_key(v, key))
         }
-        Value::Array(values) => values.iter().find_map(|v| find_string_key(v, key)),
-        _ => None,
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n"))
     }
 }
 
@@ -155,5 +185,51 @@ mod tests {
         .unwrap();
         let message = last_message_from_file(file.path()).unwrap();
         assert!(message.contains("codex-speak"));
+    }
+
+    #[test]
+    fn reads_assistant_final_response_item_message() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","phase":"final_answer","content":[{{"type":"output_text","text":"我完成了检查。"}}]}}}}"#
+        )
+        .unwrap();
+        let message = last_message_from_file(file.path()).unwrap();
+        assert_eq!(message, "我完成了检查。");
+    }
+
+    #[test]
+    fn ignores_user_message_fields() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"response_item","payload":{{"type":"message","role":"user","content":[{{"type":"input_text","text":"请把我的输入读出来。"}}]}}}}"#
+        )
+        .unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"user_message","message":"请把我的输入读出来。"}}}}"#
+        )
+        .unwrap();
+        let err = last_message_from_file(file.path()).unwrap_err().to_string();
+        assert!(err.contains("user message"));
+    }
+
+    #[test]
+    fn does_not_replay_previous_assistant_after_new_user_message() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"payload":{{"type":"task_complete","last_agent_message":"上一轮回答。"}}}}"#
+        )
+        .unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"event_msg","payload":{{"type":"user_message","message":"新问题。"}}}}"#
+        )
+        .unwrap();
+        let err = last_message_from_file(file.path()).unwrap_err().to_string();
+        assert!(err.contains("user message"));
     }
 }
