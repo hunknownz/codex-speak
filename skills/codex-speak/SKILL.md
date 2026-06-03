@@ -47,23 +47,11 @@ When the user asks to control speech settings in natural language, use the avail
 
 Available providers are `sherpa_melo`, `sherpa_kokoro`, `sherpa_zipvoice`, `piper`, and `system`. Extra local models may be required for everything except `system` and the default installed MeloTTS path.
 
-## Fallback Path: Folded HTML Protocol
+## Fallback Path: Plain Chat
 
-If `codex_speak_prepare` is not available, include a folded Codex Speak Protocol block at the end of substantial implementation, debugging, setup, research, or multi-step answers:
+If `codex_speak_prepare` is not available, do not inject the folded HTML protocol into the chat by default.
 
-```html
-<details class="codex-speak-fold">
-  <summary>朗读导览</summary>
-  <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
-    <p class="codex-speak-did" data-role="did">我刚才帮你改了朗读助手的规则。</p>
-    <p class="codex-speak-code-summary" data-role="code-summary">代码部分的作用是：让程序先找到适合朗读的导览，而不是直接朗读整段技术回答。</p>
-    <p class="codex-speak-result" data-role="result">我运行了测试，结果通过了。</p>
-    <p class="codex-speak-next" data-role="next">接下来，你可以让我继续把这个协议接进插件通道。</p>
-  </aside>
-</details>
-```
-
-The folded HTML block is only a fallback. Some Codex renderers may fold it, while others may show it as normal content. Do not rely on folding for correctness.
+Instead, keep the visible final answer natural, concise, and speech-friendly. The local Hook can still clean the visible answer as a last resort, and the product may continue parsing old HTML/Markdown fallback blocks for compatibility, but the skill should not create new ones during normal use.
 
 For very short conversational answers, skip the guide if the whole answer is already natural to hear.
 
@@ -85,6 +73,7 @@ For very short conversational answers, skip the guide if the whole answer is alr
 ## Bad Patterns
 
 - Do not add a long hidden HTML comment for speech.
+- Do not add a folded `<details class="codex-speak-fold">` HTML protocol block during normal use.
 - Do not make the spoken guide a tiny one-line summary that loses what Codex actually did.
 - Do not repeat the full final answer.
 - Do not read code, commands, file paths, or logs verbatim.

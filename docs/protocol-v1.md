@@ -86,7 +86,15 @@ codex_speak_speak_text
 
 `background: true` 表示由本地进程在后台生成并播放这句短提示，MCP 工具快速返回，Codex 可以继续执行任务。它适合少量进度节点，不适合逐句朗读所有思考过程。最终结果仍然用 `codex_speak_prepare` 写入完整导览，再由 Hook 在回复结束后朗读。
 
-## Fallback：HTML 微格式
+## 历史兼容：HTML 微格式
+
+HTML 微格式不是新架构的默认输出方式。它主要用于三种情况：
+
+- 已经存在的旧 Chat Session。
+- MCP side-channel 暂时不可用时的开发排障样例。
+- 老版本 Hook/CLI 的兼容解析。
+
+正常使用时，Skill 不应该为了朗读主动把这段 HTML 注入 Chat Session。
 
 ```html
 <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
@@ -97,9 +105,9 @@ codex_speak_speak_text
 </aside>
 ```
 
-## Fallback 可折叠显示
+## 历史 Fallback 可折叠显示
 
-如果不希望朗读导览在 Chat Session 中占太多位置，可以把协议块外面包一层原生 HTML `details`：
+如果某条历史消息或排障样例已经需要把协议块放进 Chat Session，可以把协议块外面包一层原生 HTML `details`：
 
 ```html
 <details class="codex-speak-fold">
@@ -116,13 +124,13 @@ codex_speak_speak_text
 
 - 如果 Codex 渲染器支持 `details`，用户会看到一个可展开的“朗读导览”。
 - 如果 Codex 渲染器不支持，Rust CLI 仍然能从里面找到 `aside[data-codex-speak="guide"]`。
-- 如果想让朗读内容尽量不显示在 Chat 中，应优先使用 MCP side-channel；HTML 微格式只是插件或 MCP 不可用时的兼容兜底。
+- 新架构下如果想让朗读内容不显示在 Chat 中，应使用 MCP side-channel；HTML 微格式只是历史兼容和排障兜底。
 
 ## 结构解释
 
 ### aside
 
-`aside` 表示这是一段和主回答相关、但可以独立阅读和朗读的补充导览。它应该能自然显示在 Chat Session 中，而不是隐藏元数据。
+`aside` 表示这是一段和主回答相关、但可以独立阅读和朗读的补充导览。在新架构中，它不是常规聊天内容，而是历史兼容或排障协议。
 
 必填属性：
 
@@ -216,17 +224,17 @@ Rust CLI 的提取顺序：
 
 ## 与 Plugin 的关系
 
-没有 Plugin 时：
+没有 Plugin/MCP 时：
 
 ```text
-Skill 生成协议块 -> Hook 触发 -> Rust CLI 提取 -> 本地 TTS 朗读
+Skill 输出自然回答 -> Hook 触发 -> Rust CLI 清洗最终回答 -> 本地 TTS 朗读
 ```
 
 Plugin 加入后主要做三件事：
 
 - 通过 MCP side-channel 传递朗读导览。
-- 校验协议是否合格，并提示为什么用了兜底朗读。
-- 后续把 fallback 协议块显示成更好看的“朗读导览卡片”。
+- 提供状态、停止、试听、儿童模式、语速和声音切换等控制工具。
+- 在开发和排障场景校验历史 fallback 协议是否合格。
 
 第一版 side-channel 文件：
 
@@ -247,9 +255,9 @@ Plugin 加入后主要做三件事：
 
 Rust CLI 只读取最近几分钟内写入的 `latest.json`，并在成功读取后消费掉它，避免很久以前或上一轮的朗读稿误触发。
 
-Plugin 不负责理解内容。理解发生在 Codex 生成协议块的那一刻。
+Plugin 不负责理解内容。理解发生在 Codex 生成朗读导览并调用 side-channel 工具的那一刻。
 
-当前 Plugin 也不承诺直接隐藏或改写已经渲染的 Chat Session 消息；如果未来 Codex 提供消息渲染扩展点，再把协议块升级成真正的折叠卡片。
+当前 Plugin 也不承诺直接隐藏或改写已经渲染的 Chat Session 消息；如果未来 Codex 提供消息渲染扩展点，可以把历史 fallback 协议显示成排障卡片，但正常主路径仍然使用 side-channel。
 
 ## 与 SSML 的关系
 
@@ -267,7 +275,9 @@ v1 不直接要求 Codex 输出 SSML。原因是 SSML 适合语音引擎，不�
 
 这个转换应该发生在本地 TTS 前，不直接显示给用户。
 
-## 示例
+## 历史 HTML 示例
+
+下面示例用于说明历史 HTML fallback 的结构。新回答的主路径应把同样的 role/text items 传给 `codex_speak_prepare`，不要默认把 HTML 放进 Chat Session。
 
 ### 代码修改场景
 
@@ -337,7 +347,8 @@ v1 不直接要求 Codex 输出 SSML。原因是 SSML 适合语音引擎，不�
 
 v1 必须保持向后兼容：
 
-- 新回答优先输出 HTML 微格式协议。
+- 新回答优先调用 MCP side-channel，不主动输出 HTML 微格式协议。
+- Rust CLI 继续支持历史 HTML 微格式协议。
 - Rust CLI 继续支持旧版 Markdown `朗读导览`。
 - Rust CLI 继续支持旧版 HTML 注释调试块，但优先级低于可见导览。
 - 如果没有协议，仍然使用规则清洗兜底，保证不会完全失声。
@@ -345,6 +356,6 @@ v1 必须保持向后兼容：
 ## 演进方向
 
 - v1.1：增加 `data-priority` 或 `data-speak="false"`，允许细粒度控制是否朗读。
-- v1.2：Plugin 校验协议并展示卡片。
-- v2：Plugin side-channel 成为主路径，HTML 协议作为可见 fallback。
+- v1.2：Plugin 校验 side-channel payload，并在排障场景展示历史协议卡片。
+- v2：继续强化 MCP side-channel，HTML 协议只保留为历史兼容。
 - TTS 层：把 role 转成停顿、语速和强调，生成内部 SSML。

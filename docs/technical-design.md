@@ -6,13 +6,13 @@
 
 ```text
 Codex Skill
-  -> 让回答自然包含朗读导览
+  -> 让 Codex 生成适合朗读的导览内容
 Codex Speak Plugin / MCP
   -> 写入 side-channel，也可触发少量后台进度朗读
 Codex Hook
   -> 回复结束后自动触发最终导览朗读
 speak-engine
-  -> 消费 side-channel、提取 fallback 协议、清洗、配置、调度
+  -> 消费 side-channel、解析历史 fallback、清洗、配置、调度
 本地 TTS
   -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 播放器
@@ -48,28 +48,20 @@ Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览�
 | 本地 TTS | 是 | 把朗读导览变成声音 |
 | Tauri 控制面板 | 是 | 给普通用户提供开关、语速、声音和停止按钮 |
 
-不再要求 Chat Session 正常显示自定义协议。首选方式是 Codex 调用 MCP 工具：
+不再要求 Chat Session 正常显示自定义协议，也不再让 Skill 默认输出 HTML 折叠协议块。首选方式是 Codex 调用 MCP 工具：
 
 ```text
 codex_speak_prepare
 ```
 
-写入结构化 side-channel。只有 MCP 不可用时，才在最终回答里放 HTML fallback：
-
-```html
-<aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
-  <p class="codex-speak-did" data-role="did">我刚才帮你把朗读助手的规则改好了。</p>
-  <p class="codex-speak-code-summary" data-role="code-summary">现在它不会把代码、命令和长路径一个字一个字读出来，而是会说明这些内容解决了什么问题。</p>
-  <p class="codex-speak-next" data-role="next">接下来，小朋友听完就能知道现在做到哪一步，也知道可以怎么继续问 Codex。</p>
-</aside>
-```
+写入结构化 side-channel。MCP 不可用时，最终回答仍保持自然可读；Hook 会清洗普通回复作为最后兜底。HTML/Markdown 协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
 
 Hook 提取策略：
 
 ```text
 优先读取并消费新鲜的 MCP side-channel latest.json
-找不到 -> 读取 HTML 微格式协议 aside[data-codex-speak="guide"]
-找不到 -> 读取旧版 Markdown 朗读导览
+找不到 -> 读取历史 HTML 微格式协议 aside[data-codex-speak="guide"]
+找不到 -> 读取历史 Markdown 朗读导览
 找不到 -> 读取旧版 codex-speak 调试块
 找不到 -> 规则清洗最后一条回复
 清洗失败 -> 系统朗读兜底
@@ -87,7 +79,7 @@ Hook 提取策略：
 - 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
 - 技术词转成更容易听懂的说法。
 
-导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；HTML 微格式 `aside` 是 Plugin 不可用时的 fallback，`data-*` 供 Rust CLI 稳定解析，`class` 供未来 Plugin 渲染和校验。
+导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
 
 当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
 
@@ -426,9 +418,9 @@ skip_code_blocks = true
 
 ### M1：可用原型
 
-- Skill 生成 Codex Speak Protocol 朗读导览。
+- Skill 生成适合朗读的中文导览。
 - Plugin/MCP 优先写入 side-channel。
-- Hook 优先消费 side-channel，其次提取 HTML 微格式协议或旧版导览。
+- Hook 优先消费 side-channel，其次解析历史 HTML/Markdown 兼容导览，最后清洗普通回复。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 

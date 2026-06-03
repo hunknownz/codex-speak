@@ -10,10 +10,10 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 - 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速、声音档位和 TTS Provider。
 - 让朗读内容不必以自定义协议的形式出现在最终回答里。
 
-需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块。它采用两种现实方案：
+需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块，而是让正常路径不再把协议块写进 Chat Session：
 
 - 主路径：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里；任务中途用 `codex_speak_speak_text background=true` 播放简短进度。
-- 兜底路径：协议块外包一层 HTML `details`，如果 Codex 渲染器支持，就折叠显示；如果不支持，也不影响解析和朗读。
+- 兼容路径：Rust CLI 继续能解析历史 HTML/Markdown fallback；MCP 不可用时，Hook 清洗普通最终回答作为最后兜底，Skill 不再默认输出新的 HTML 协议块。
 
 核心分工：
 
@@ -21,7 +21,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 Skill：让 Codex 生成符合协议的朗读导览
 Plugin/MCP：把导览写入 side-channel，提供状态/控制工具，必要时触发后台进度朗读
 Hook：回复结束后触发朗读，并优先消费 side-channel
-Rust CLI：读取 side-channel、解析兜底协议、调用本地 TTS、播放声音
+Rust CLI：读取 side-channel、解析历史兜底协议、调用本地 TTS、播放声音
 ```
 
 ## 当前插件功能：Side-Channel 主路径
@@ -155,13 +155,13 @@ Provider 当前支持：
 | `piper` | 低配兜底 | 可通过模型安装工具下载中文轻量模型 |
 | `system` | 系统语音 | 不需要模型，适合快速验证 |
 
-## 第二阶段插件功能：显示和校验
+## 第二阶段插件功能：兼容显示和校验
 
-第二阶段开始承担更强的产品能力。
+第二阶段开始承担更强的产品能力，但仍不依赖在 Chat Session 中注入协议块。
 
-### 1. Protocol Preview
+### 1. Legacy Protocol Preview
 
-当 Codex 回复中存在：
+当历史消息或排障样例中存在：
 
 ```html
 <aside class="codex-speak-guide" data-codex-speak="guide">
@@ -175,7 +175,7 @@ Plugin 可以识别并显示为“朗读导览卡片”：
 - 下一步
 
 如果 Codex UI 支持渲染扩展，Plugin 可以把原始 HTML 协议美化成卡片。  
-如果不支持，仍保留原始 HTML 的可见文本，不影响 Rust CLI 提取。
+如果不支持，仍保留原始 HTML 的可见文本，不影响 Rust CLI 对历史内容的提取。
 
 ### 2. 协议校验
 
@@ -208,15 +208,15 @@ Plugin 可以提供：
 
 ```text
 1. side-channel latest.json
-2. HTML microformat protocol aside
-3. Markdown 朗读导览
-4. HTML comment 调试块
+2. 历史 HTML microformat protocol aside
+3. 历史 Markdown 朗读导览
+4. 历史 HTML comment 调试块
 5. 清洗最终回答
 ```
 
 这样可以做到：
 
-- Chat 中自然显示导览，或不显示导览。
+- 正常 Chat 中不再出现自定义协议块。
 - Rust CLI 始终有稳定结构化输入。
 - Hook 不需要理解内容。
 
@@ -226,7 +226,7 @@ Plugin 可以提供：
 
 - 与 Tauri App 共享同一份配置。
 - 提供更细的配置工具，例如儿童模式、语速、声音档位。
-- 当 Codex Plugin 未来支持消息渲染扩展时，把 HTML fallback 渲染成折叠卡片。
+- 当 Codex Plugin 未来支持消息渲染扩展时，只把历史 fallback 或排障样例渲染成卡片；正常朗读仍走 side-channel。
 
 ## 插件不负责什么
 
@@ -275,17 +275,17 @@ Plugin 负责：
 
 ## 实施路线
 
-### P1：协议落地
+### P1：协议兼容落地
 
 - Rust CLI 支持解析 HTML Protocol v1。
-- Skill 改为输出 `<aside class="codex-speak-guide" data-codex-speak="guide">`。
+- Skill 输出自然回答，并把 HTML Protocol v1 仅作为历史兼容格式记录在文档中。
 - 保留 Markdown 和 HTML 注释兼容。
 
 ### P2：Plugin MCP Side-Channel
 
 - 增加 `codex_speak_prepare` 工具。
 - Rust CLI 支持读取并消费 spool。
-- Skill 改为优先调用工具，不能调用时退回 HTML Protocol。
+- Skill 改为优先调用工具，不能调用时保持自然回答，由 Hook 清洗普通回复兜底。
 - 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`、`codex_speak_list_pronunciation`、`codex_speak_set_pronunciation`、`codex_speak_remove_pronunciation`。
 - `codex_speak_speak_text` 支持 `background: true`，用于长任务中的非阻塞进度提示。
 
