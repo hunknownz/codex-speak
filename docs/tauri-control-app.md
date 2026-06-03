@@ -96,6 +96,8 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 
 控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性、发音词典是否能解析，以及 Skill、Hook wrapper、Plugin 和 MCP 脚本是否与当前 CLI 内置版本一致；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型、发音词典摘要和最近日志的本地排障目录。
 
+“最近朗读”来自 `~/.codex/codex-speak/logs/last-spoken.txt`，并显示该文件的最近更新时间。控制面板会定时安静刷新状态；点击“试听”后也会立刻重新读取状态，避免朗读已经完成但界面仍显示旧内容。
+
 ## 桌面 Pet
 
 macOS 桌面 Pet 已经从 Tauri WebView 迁移为原生 AppKit helper：

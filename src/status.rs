@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use serde::Serialize;
 
 use crate::bundled;
@@ -35,6 +36,7 @@ pub struct Status {
     pub providers: Vec<ProviderStatus>,
     pub pet_state: PetState,
     pub last_spoken: Option<String>,
+    pub last_spoken_at: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -110,9 +112,17 @@ pub fn collect(cfg: &Config) -> Result<Status> {
     let plugin_skill_path = plugin_path.join("skills/codex-speak/SKILL.md");
     let plugin_mcp_config_path = plugin_path.join(".mcp.json");
     let plugin_mcp_script_path = plugin_path.join(mcp_script_path());
-    let last_spoken = fs::read_to_string(config::logs_dir()?.join("last-spoken.txt"))
+    let last_spoken_path = config::logs_dir()?.join("last-spoken.txt");
+    let last_spoken = fs::read_to_string(&last_spoken_path)
         .ok()
         .map(|text| preview(&text));
+    let last_spoken_at = fs::metadata(&last_spoken_path)
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
+        .map(|modified| {
+            let datetime: DateTime<Local> = modified.into();
+            datetime.to_rfc3339()
+        });
     let (pronunciation_terms, pronunciation_error) = match pronunciation::load_user_dictionary() {
         Ok(dictionary) => (dictionary.terms.len(), None),
         Err(err) => (0, Some(err.to_string())),
@@ -178,6 +188,7 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         providers: provider_statuses()?,
         pet_state: crate::pet_state::read_state().unwrap_or_default(),
         last_spoken,
+        last_spoken_at,
     })
 }
 

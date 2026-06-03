@@ -30,6 +30,7 @@ const controls = {
   marketplaceState: $("marketplaceState"),
   petState: $("petState"),
   lastSpoken: $("lastSpoken"),
+  lastSpokenAt: $("lastSpokenAt"),
   health: $("health"),
   log: $("log")
 };
@@ -37,6 +38,7 @@ const controls = {
 let applying = false;
 let saveTimer = null;
 let pronunciationTerms = {};
+let refreshTimer = null;
 
 function setLog(message) {
   controls.log.textContent = message || "";
@@ -86,6 +88,7 @@ function renderStatus(status) {
   controls.marketplaceState.textContent = status.checks.marketplace_configured ? "已连接" : "缺失";
   controls.petState.textContent = petStateLabel(status.pet_state?.state, status.checks);
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
+  controls.lastSpokenAt.textContent = formatTime(status.last_spoken_at);
 
   const ok = status.checks.config_exists
     && status.checks.cli_exists
@@ -181,6 +184,16 @@ async function refresh() {
   }
 }
 
+async function refreshStatusOnly() {
+  if (applying || saveTimer) return;
+  try {
+    const status = await invoke("load_status");
+    renderStatus(status);
+  } catch (error) {
+    setLog(String(error));
+  }
+}
+
 function selectedPronunciation() {
   return {
     term: controls.pronunciationTerm.value.trim(),
@@ -250,6 +263,7 @@ $("testSpeak").addEventListener("click", async () => {
   setBusy(true);
   try {
     await invoke("speak_sample");
+    await refreshStatusOnly();
     setLog("试听完成");
   } catch (error) {
     setLog(String(error));
@@ -386,4 +400,17 @@ function escapeHtml(text) {
     .replaceAll("'", "&#39;");
 }
 
+function formatTime(value) {
+  if (!value) return "暂无时间";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(date);
+}
+
 refresh();
+refreshTimer = setInterval(refreshStatusOnly, 3000);
+window.addEventListener("beforeunload", () => clearInterval(refreshTimer));
