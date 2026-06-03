@@ -360,6 +360,13 @@ function checkCiSmokeArtifactPolicy() {
     content.includes("Upload smoke release package artifacts") ? "present" : "missing"
   );
   check(
+    content.includes("artifact_name: codex-speak-macos") && content.includes("artifact_name: codex-speak-windows"),
+    "CI smoke artifact matrix names",
+    content.includes("artifact_name: codex-speak-macos") && content.includes("artifact_name: codex-speak-windows")
+      ? "macOS/Windows artifact names configured"
+      : "missing"
+  );
+  check(
     content.includes("dist/${{ matrix.artifact_name }}.*"),
     "CI smoke artifact package glob",
     content.includes("dist/${{ matrix.artifact_name }}.*") ? "macOS/Windows package archives uploaded" : "missing"

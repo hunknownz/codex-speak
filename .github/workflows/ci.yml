@@ -61,9 +61,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - macos-14
-          - windows-2022
+        include:
+          - os: macos-14
+            artifact_name: codex-speak-macos
+          - os: windows-2022
+            artifact_name: codex-speak-windows
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
