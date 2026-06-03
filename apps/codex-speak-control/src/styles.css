@@ -145,6 +145,13 @@ input[type="text"] {
   margin-top: 16px;
 }
 
+.voice-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
 input[type="range"] {
   width: min(320px, 48vw);
   accent-color: #168a70;
@@ -285,7 +292,8 @@ button:hover {
 
   .dictionary-form,
   .dictionary-preview,
-  .dictionary-row {
+  .dictionary-row,
+  .voice-presets {
     grid-template-columns: 1fr;
   }
 

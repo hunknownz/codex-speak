@@ -16,6 +16,9 @@ struct SettingsPatch {
     child_mode: Option<bool>,
     provider: Option<String>,
     speed: Option<f32>,
+    vits_noise_scale: Option<f32>,
+    vits_noise_scale_w: Option<f32>,
+    tts_silence_scale: Option<f32>,
     max_read_chars: Option<usize>,
     voice_profile: Option<String>,
 }
@@ -55,6 +58,18 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
     if let Some(speed) = patch.speed {
         args.push("--speed".to_string());
         args.push(format!("{speed:.2}"));
+    }
+    if let Some(vits_noise_scale) = patch.vits_noise_scale {
+        args.push("--vits-noise-scale".to_string());
+        args.push(format!("{vits_noise_scale:.2}"));
+    }
+    if let Some(vits_noise_scale_w) = patch.vits_noise_scale_w {
+        args.push("--vits-noise-scale-w".to_string());
+        args.push(format!("{vits_noise_scale_w:.2}"));
+    }
+    if let Some(tts_silence_scale) = patch.tts_silence_scale {
+        args.push("--tts-silence-scale".to_string());
+        args.push(format!("{tts_silence_scale:.2}"));
     }
     if let Some(max_read_chars) = patch.max_read_chars {
         args.push("--max-read-chars".to_string());

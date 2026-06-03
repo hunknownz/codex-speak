@@ -13,6 +13,9 @@ pub struct ConfigPatch {
     pub child_mode: Option<bool>,
     pub provider: Option<String>,
     pub speed: Option<f32>,
+    pub vits_noise_scale: Option<f32>,
+    pub vits_noise_scale_w: Option<f32>,
+    pub tts_silence_scale: Option<f32>,
     pub max_read_chars: Option<usize>,
     pub voice_profile: Option<String>,
 }
@@ -55,6 +58,21 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
         validate_speed(speed)?;
         cfg.speed = speed;
         changed.push("speed".to_string());
+    }
+    if let Some(vits_noise_scale) = patch.vits_noise_scale {
+        validate_vits_noise_scale(vits_noise_scale)?;
+        cfg.vits_noise_scale = vits_noise_scale;
+        changed.push("vits_noise_scale".to_string());
+    }
+    if let Some(vits_noise_scale_w) = patch.vits_noise_scale_w {
+        validate_vits_noise_scale_w(vits_noise_scale_w)?;
+        cfg.vits_noise_scale_w = vits_noise_scale_w;
+        changed.push("vits_noise_scale_w".to_string());
+    }
+    if let Some(tts_silence_scale) = patch.tts_silence_scale {
+        validate_tts_silence_scale(tts_silence_scale)?;
+        cfg.tts_silence_scale = tts_silence_scale;
+        changed.push("tts_silence_scale".to_string());
     }
     if let Some(max_read_chars) = patch.max_read_chars {
         validate_max_read_chars(max_read_chars)?;
@@ -114,6 +132,27 @@ fn apply_voice_profile(cfg: &mut Config, profile: &str) -> Result<()> {
 fn validate_speed(speed: f32) -> Result<()> {
     if !(0.6..=1.3).contains(&speed) {
         bail!("speed must be between 0.6 and 1.3");
+    }
+    Ok(())
+}
+
+fn validate_vits_noise_scale(value: f32) -> Result<()> {
+    if !(0.0..=1.0).contains(&value) {
+        bail!("vits_noise_scale must be between 0.0 and 1.0");
+    }
+    Ok(())
+}
+
+fn validate_vits_noise_scale_w(value: f32) -> Result<()> {
+    if !(0.0..=1.0).contains(&value) {
+        bail!("vits_noise_scale_w must be between 0.0 and 1.0");
+    }
+    Ok(())
+}
+
+fn validate_tts_silence_scale(value: f32) -> Result<()> {
+    if !(0.1..=1.5).contains(&value) {
+        bail!("tts_silence_scale must be between 0.1 and 1.5");
     }
     Ok(())
 }

@@ -154,6 +154,12 @@ enum ConfigCommand {
         #[arg(long)]
         speed: Option<f32>,
         #[arg(long)]
+        vits_noise_scale: Option<f32>,
+        #[arg(long)]
+        vits_noise_scale_w: Option<f32>,
+        #[arg(long)]
+        tts_silence_scale: Option<f32>,
+        #[arg(long)]
         max_read_chars: Option<usize>,
         #[arg(long)]
         voice_profile: Option<String>,
@@ -281,6 +287,9 @@ fn main() -> Result<()> {
                 child_mode,
                 provider,
                 speed,
+                vits_noise_scale,
+                vits_noise_scale_w,
+                tts_silence_scale,
                 max_read_chars,
                 voice_profile,
             } => {
@@ -295,6 +304,9 @@ fn main() -> Result<()> {
                         child_mode,
                         provider,
                         speed,
+                        vits_noise_scale,
+                        vits_noise_scale_w,
+                        tts_silence_scale,
                         max_read_chars,
                         voice_profile,
                     },

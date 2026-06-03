@@ -264,6 +264,31 @@ controls.voiceProfile.addEventListener("change", () => {
   savePatch({ voiceProfile: controls.voiceProfile.value });
 });
 
+document.querySelectorAll("[data-voice-preset]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const patch = {
+      voiceProfile: "clear_bright",
+      speed: Number(button.dataset.speed),
+      vitsNoiseScale: Number(button.dataset.noise),
+      vitsNoiseScaleW: Number(button.dataset.noiseW),
+      ttsSilenceScale: Number(button.dataset.silence)
+    };
+    setBusy(true);
+    try {
+      const status = await invoke("update_settings", { patch });
+      renderStatus(status);
+      await invoke("speak_sample");
+      await refreshStatusOnly();
+      setLog(`已应用并试听：${button.textContent.trim()}`);
+    } catch (error) {
+      setLog(String(error));
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  });
+});
+
 controls.speed.addEventListener("input", () => {
   controls.speedValue.value = Number(controls.speed.value).toFixed(2);
   schedulePatch({ speed: Number(controls.speed.value) });
