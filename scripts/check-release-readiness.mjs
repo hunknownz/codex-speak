@@ -46,6 +46,7 @@ async function main() {
 
   checkRequiredFiles();
   checkSkillFallbackPolicy();
+  checkSpeechTimingPolicy();
   checkLocalReleaseArtifactsIfPresent();
   checkManualQaMixedEnglishCoverage();
   checkWorkflowRuntime();
@@ -136,7 +137,9 @@ function checkRequiredFiles() {
     "plugins/codex-speak/skills/codex-speak/SKILL.md",
     "plugins/codex-speak/scripts/codex-speak-mcp",
     "plugins/codex-speak/scripts/codex-speak-mcp.ps1",
+    "docs/architecture.md",
     "docs/installation.md",
+    "docs/speech-timing.md",
     "docs/release-qa.md",
     "docs/signing.md",
     "docs/product-completion-plan.md",
@@ -282,7 +285,7 @@ function checkManualQaMixedEnglishCoverage() {
     "授权登录协议",
     "插件通道",
     "数据格式",
-    "英文短语",
+    "构建失败，因为超时",
     "英文编号"
   ];
   for (const file of ["scripts/manual-qa-macos.sh", "scripts/manual-qa-windows.ps1"]) {
@@ -321,6 +324,52 @@ function checkSkillFallbackPolicy() {
       hits.length === 0,
       `skill side-channel fallback policy ${file}`,
       hits.length === 0 ? "does not instruct new HTML fallback output" : `forbidden phrase: ${hits.join(", ")}`
+    );
+  }
+}
+
+function checkSpeechTimingPolicy() {
+  const required = [
+    {
+      file: "docs/speech-timing.md",
+      terms: [
+        "过程中少量进度提示，结束后完整导览",
+        "codex_speak_speak_text",
+        "background = true",
+        "codex_speak_prepare",
+        "不做逐字流式朗读"
+      ]
+    },
+    {
+      file: "docs/technical-design.md",
+      terms: [
+        "过程中少量提示、结束后完整导览",
+        "当前架构不把聊天流式输出逐字送进 TTS"
+      ]
+    },
+    {
+      file: "docs/requirements.md",
+      terms: [
+        "过程中少量进度提示，结束后完整导览",
+        "不会逐字朗读流式聊天输出"
+      ]
+    },
+    {
+      file: "plugins/codex-speak/README.md",
+      terms: [
+        "progress prompts and final guides separate",
+        "does not stream every generated chat token into TTS"
+      ]
+    }
+  ];
+
+  for (const item of required) {
+    const content = readFileSync(item.file, "utf8");
+    const missing = item.terms.filter((term) => !content.includes(term));
+    check(
+      missing.length === 0,
+      `speech timing policy ${item.file}`,
+      missing.length === 0 ? "hybrid progress/final-guide policy documented" : `missing: ${missing.join(", ")}`
     );
   }
 }

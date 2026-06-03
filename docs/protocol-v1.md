@@ -86,6 +86,8 @@ codex_speak_speak_text
 
 `background: true` 表示由本地进程在后台生成并播放这句短提示，MCP 工具快速返回，Codex 可以继续执行任务。它适合少量进度节点，不适合逐句朗读所有思考过程。最终结果仍然用 `codex_speak_prepare` 写入完整导览，再由 Hook 在回复结束后朗读。
 
+完整朗读时机策略见 [朗读时机策略](speech-timing.md)。Protocol v1 不要求、也不推荐读取聊天流式 token 后逐字朗读；它把“过程提示”和“最终导览”分成两个明确通道，避免孩子听到未清洗的代码、日志、路径或半成品判断。
+
 ## 历史兼容：HTML 微格式
 
 HTML 微格式不是新架构的默认输出方式。它主要用于三种情况：
@@ -212,7 +214,7 @@ Rust CLI 的提取顺序：
 2. `aside[data-codex-speak="guide"]`
 3. 旧版 Markdown `朗读导览`
 4. 旧版 `<!-- codex-speak -->` 调试块
-5. 清洗后的最终回答
+5. 从最终回答清洗并压缩出来的短导览
 
 在 HTML 协议块内：
 
@@ -227,7 +229,7 @@ Rust CLI 的提取顺序：
 没有 Plugin/MCP 时：
 
 ```text
-Skill 输出自然回答 -> Hook 触发 -> Rust CLI 清洗最终回答 -> 本地 TTS 朗读
+Skill 输出自然回答 -> Hook 触发 -> Rust CLI 生成短导览兜底 -> 本地 TTS 朗读
 ```
 
 Plugin 加入后主要做三件事：
@@ -351,7 +353,7 @@ v1 必须保持向后兼容：
 - Rust CLI 继续支持历史 HTML 微格式协议。
 - Rust CLI 继续支持旧版 Markdown `朗读导览`。
 - Rust CLI 继续支持旧版 HTML 注释调试块，但优先级低于可见导览。
-- 如果没有协议，仍然使用规则清洗兜底，保证不会完全失声。
+- 如果没有协议，仍然使用短导览兜底，保证不会完全失声，也不会整段朗读最终回复。
 
 ## 演进方向
 

@@ -10,6 +10,8 @@ use tauri::Manager;
 #[serde(rename_all = "camelCase")]
 struct SettingsPatch {
     enabled: Option<bool>,
+    final_guide_enabled: Option<bool>,
+    progress_prompts_enabled: Option<bool>,
     child_mode: Option<bool>,
     provider: Option<String>,
     speed: Option<f32>,
@@ -28,6 +30,14 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
     if let Some(enabled) = patch.enabled {
         args.push("--enabled".to_string());
         args.push(enabled.to_string());
+    }
+    if let Some(final_guide_enabled) = patch.final_guide_enabled {
+        args.push("--final-guide-enabled".to_string());
+        args.push(final_guide_enabled.to_string());
+    }
+    if let Some(progress_prompts_enabled) = patch.progress_prompts_enabled {
+        args.push("--progress-prompts-enabled".to_string());
+        args.push(progress_prompts_enabled.to_string());
     }
     if let Some(child_mode) = patch.child_mode {
         args.push("--child-mode".to_string());

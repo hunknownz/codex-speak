@@ -8,6 +8,7 @@ Codex Speak Plugin adds Codex-facing controls and tools on top of the Rust CLI.
 - Provide MCP tools for status, preview, stop, test speech, background progress speech, enable/disable, child mode, speed, voice profiles, TTS provider switching, model installation, and side-channel preparation.
 - Let Codex write a spoken guide to `~/.codex/codex-speak/spool/latest.json` so the hook can read that guide without relying only on visible chat text.
 - Let Codex say a short non-blocking progress prompt with `codex_speak_speak_text` and `background: true` during long tasks.
+- Keep progress prompts and final guides separate: progress speech is sparse and non-authoritative; the final guide is prepared through `codex_speak_prepare` and played after the Codex reply completes.
 
 ## What It Cannot Reliably Do Yet
 
@@ -16,6 +17,7 @@ The current Codex plugin surface does not provide a documented API for rewriting
 - Preferred: `codex_speak_prepare` side-channel, so the full spoken guide does not have to appear in chat.
 - Compatibility: the Rust CLI can still parse old HTML or Markdown fallback blocks from previous sessions and QA fixtures.
 - If MCP is unavailable, the Skill keeps the visible reply natural and speech-friendly, and the Hook cleans the final reply as a last resort.
+- The plugin does not stream every generated chat token into TTS. Continuous token-level speech is not the default product behavior because it can read unfinished, uncleaned, or later-corrected content aloud.
 
 ## MCP Tools
 

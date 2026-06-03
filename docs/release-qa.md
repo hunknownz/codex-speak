@@ -132,10 +132,10 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板、Pet helper 和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
 - `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
-- `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
-- `~/.codex/codex-speak/bin/codex-speak extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU、XYZ、build failed because timeout 和 ProjectAlpha42。"` 应把常见技术英文、文件名、命令参数、代码标识符、缩写和混在中文里的未知英文转换成中文可懂说法，例如“你好世界示例”“说明文件”“准备朗读导览的插件工具”“命令参数”“开放路由平台”“授权登录协议”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”“英文短语”“英文编号”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`build failed`、`ProjectAlpha42` 让中文语音逐字母读。
+- `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
+- `~/.codex/codex-speak/bin/codex-speak extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU、XYZ、build failed because timeout 和 ProjectAlpha42。"` 应把常见技术英文、文件名、命令参数、代码标识符、缩写和混在中文里的未知英文转换成中文可懂说法，例如“你好世界示例”“说明文件”“准备朗读导览的插件工具”“命令参数”“开放路由平台”“授权登录协议”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”“构建失败，因为超时”“英文编号”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`build failed`、`ProjectAlpha42` 让中文语音逐字母读。
 - `~/.codex/codex-speak/bin/codex-speak app open` 能打开控制面板。
-- 控制面板能显示当前 provider、儿童模式、语速、模型状态，并能添加、预览、删除一条发音词典规则。
+- 控制面板能显示当前 provider、总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、模型状态，并能添加、预览、删除一条发音词典规则。
 - 点击试听后能听到系统兜底或已安装模型的声音。
 - 混合中英文试听时，技术英文不应一个字母一个字母地读。
 - 点击停止后朗读会停止。
@@ -188,10 +188,10 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、控制面板和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
 - `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
-- `codex-speak.exe verify-controls` 应通过，用来证明自动朗读、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
-- `codex-speak.exe extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU、XYZ、build failed because timeout 和 ProjectAlpha42。"` 应把常见技术英文、文件名、命令参数、代码标识符、缩写和混在中文里的未知英文转换成中文可懂说法，例如“你好世界示例”“说明文件”“准备朗读导览的插件工具”“命令参数”“开放路由平台”“授权登录协议”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”“英文短语”“英文编号”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`build failed`、`ProjectAlpha42` 让中文语音逐字母读。
+- `codex-speak.exe verify-controls` 应通过，用来证明总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
+- `codex-speak.exe extract --text "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU、XYZ、build failed because timeout 和 ProjectAlpha42。"` 应把常见技术英文、文件名、命令参数、代码标识符、缩写和混在中文里的未知英文转换成中文可懂说法，例如“你好世界示例”“说明文件”“准备朗读导览的插件工具”“命令参数”“开放路由平台”“授权登录协议”“插件通道”“数据格式”“命令行工具”“处理器”“英文缩写”“构建失败，因为超时”“英文编号”，不能原样留下 `README.md`、`codex_speak_prepare`、`--provider`、`OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`build failed`、`ProjectAlpha42` 让中文语音逐字母读。
 - `codex-speak.exe app open` 能打开 Tauri 控制面板。
-- 控制面板能切换儿童模式、语速、声音档位和 provider，并能添加、预览、删除一条发音词典规则。
+- 控制面板能切换总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、声音档位和 provider，并能添加、预览、删除一条发音词典规则。
 - `codex-speak.exe speak --text "你好，这是 Windows 朗读测试。"` 能播放。
 - 混合中英文试听时，技术英文不应一个字母一个字母地读。
 - `codex-speak.exe stop` 能停止正在播放的声音。

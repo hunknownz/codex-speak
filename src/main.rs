@@ -136,6 +136,10 @@ enum ConfigCommand {
         #[arg(long)]
         enabled: Option<bool>,
         #[arg(long)]
+        final_guide_enabled: Option<bool>,
+        #[arg(long)]
+        progress_prompts_enabled: Option<bool>,
+        #[arg(long)]
         child_mode: Option<bool>,
         #[arg(long)]
         provider: Option<String>,
@@ -209,6 +213,10 @@ fn main() -> Result<()> {
             no_play,
         } => {
             let cfg = config::Config::load_or_default()?;
+            if text.is_none() && fixture.is_none() && !cfg.final_guide_enabled {
+                let _ = side_channel::read_fresh_latest(cfg.max_read_chars, true);
+                return Ok(());
+            }
             let extracted = session::resolve_text_for_speech(text, fixture.as_deref(), &cfg)?;
             tts::speak(&cfg, &extracted, no_play)?;
         }
@@ -251,6 +259,8 @@ fn main() -> Result<()> {
             }
             ConfigCommand::Set {
                 enabled,
+                final_guide_enabled,
+                progress_prompts_enabled,
                 child_mode,
                 provider,
                 speed,
@@ -262,6 +272,8 @@ fn main() -> Result<()> {
                     cfg,
                     settings::ConfigPatch {
                         enabled,
+                        final_guide_enabled,
+                        progress_prompts_enabled,
                         child_mode,
                         provider,
                         speed,

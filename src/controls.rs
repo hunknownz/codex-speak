@@ -100,6 +100,30 @@ fn run_control_roundtrip(original: &Config, checks: &mut Vec<ControlCheck>) {
     apply_and_expect(
         &mut cfg,
         ConfigPatch {
+            final_guide_enabled: Some(!original.final_guide_enabled),
+            ..ConfigPatch::default()
+        },
+        "final_guide_enabled_toggle",
+        "Final guide toggle",
+        |loaded| loaded.final_guide_enabled != original.final_guide_enabled,
+        checks,
+    );
+
+    apply_and_expect(
+        &mut cfg,
+        ConfigPatch {
+            progress_prompts_enabled: Some(!original.progress_prompts_enabled),
+            ..ConfigPatch::default()
+        },
+        "progress_prompts_enabled_toggle",
+        "Progress prompts toggle",
+        |loaded| loaded.progress_prompts_enabled != original.progress_prompts_enabled,
+        checks,
+    );
+
+    apply_and_expect(
+        &mut cfg,
+        ConfigPatch {
             child_mode: Some(!original.child_mode),
             ..ConfigPatch::default()
         },
@@ -217,6 +241,8 @@ fn verify_status_view(checks: &mut Vec<ControlCheck>) {
     match status::collect(&cfg) {
         Ok(view)
             if view.enabled == cfg.enabled
+                && view.final_guide_enabled == cfg.final_guide_enabled
+                && view.progress_prompts_enabled == cfg.progress_prompts_enabled
                 && view.child_mode == cfg.child_mode
                 && view.provider == cfg.provider
                 && view.voice_profile == cfg.voice_profile

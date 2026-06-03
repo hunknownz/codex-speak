@@ -189,7 +189,7 @@ if (
   $MixedExtract.Contains("命令行工具") -and
   $MixedExtract.Contains("处理器") -and
   $MixedExtract.Contains("英文缩写") -and
-  $MixedExtract.Contains("英文短语") -and
+  $MixedExtract.Contains("构建失败，因为超时") -and
   $MixedExtract.Contains("英文编号") -and
   -not $MixedExtract.Contains("README.md") -and
   -not $MixedExtract.Contains("codex_speak_prepare") -and

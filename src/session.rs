@@ -45,7 +45,11 @@ fn resolve_text_with_options(
         last_message_from_file(&path)?
     };
 
-    let cleaned = extract::clean_for_speech(&raw, cfg.max_read_chars);
+    let cleaned = if consume_side_channel {
+        extract::fallback_reply_guide(&raw, cfg.max_read_chars)
+    } else {
+        extract::clean_for_speech(&raw, cfg.max_read_chars)
+    };
     if cleaned.is_empty() {
         Ok("Codex 说：做好啦。".to_string())
     } else {

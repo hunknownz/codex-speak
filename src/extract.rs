@@ -28,18 +28,60 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
         if line.is_empty() {
             continue;
         }
+        line = strip_markdown(&line);
+        line = replace_inline_technical_noise(&line);
         if should_skip_line(&line) {
             continue;
         }
-        line = strip_markdown(&line);
         line = simplify_terms(&line);
-        if !line.is_empty() {
-            lines.push(line);
+        for segment in speakable_segments(&line) {
+            if !segment.is_empty() && !should_skip_line(&segment) {
+                lines.push(segment);
+            }
         }
     }
 
     let joined = normalize_space(&lines.join("。"));
     truncate_chars(&joined, max_chars)
+}
+
+pub fn fallback_reply_guide(text: &str, max_chars: usize) -> String {
+    if let Some(guide) = extract_html_protocol_guide(text) {
+        return truncate_chars(&guide, max_chars);
+    }
+    if let Some(guide) = extract_spoken_guide(text) {
+        return truncate_chars(&guide, max_chars);
+    }
+    if let Some(block) = extract_speak_block(text) {
+        return truncate_chars(&block, max_chars);
+    }
+
+    let cleaned = clean_for_speech(text, max_chars);
+    let guide_limit = max_chars.min(360);
+    let sentences = split_sentences(&cleaned);
+    if sentences.is_empty() {
+        return String::new();
+    }
+
+    let mut chosen: Vec<String> = Vec::new();
+    push_unique(&mut chosen, &sentences[0]);
+
+    for sentence in scored_sentences(&sentences) {
+        if chosen.len() >= 4 {
+            break;
+        }
+        push_unique(&mut chosen, sentence);
+    }
+
+    if let Some(next) = sentences
+        .iter()
+        .rev()
+        .find(|sentence| is_next_step_sentence(sentence))
+    {
+        push_unique(&mut chosen, next);
+    }
+
+    truncate_chars(&normalize_space(&chosen.join("。")), guide_limit)
 }
 
 pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
@@ -145,9 +187,7 @@ fn should_skip_line(line: &str) -> bool {
         || trimmed.starts_with("::")
         || trimmed.starts_with("http://")
         || trimmed.starts_with("https://")
-        || trimmed.contains("/Users/")
-        || trimmed.contains("\\Users\\")
-        || trimmed.len() > 220
+        || looks_like_raw_code(trimmed)
 }
 
 fn strip_markdown(line: &str) -> String {
@@ -173,6 +213,140 @@ fn strip_markdown(line: &str) -> String {
 
 fn simplify_terms(line: &str) -> String {
     pronunciation::normalize_for_tts(line)
+}
+
+fn replace_inline_technical_noise(line: &str) -> String {
+    let mut output = line.to_string();
+    let replacements = [
+        (
+            r#"(?i)代码片段[:：]\s*[^。！？\n]*?\{[^。！？\n]*?\}"#,
+            "代码片段已经跳过",
+        ),
+        (r#"/Users/[^\s，。；；、！？)]+"#, "项目里的文件"),
+        (r#"[A-Za-z]:\\Users\\[^\s，。；；、！？)]+"#, "项目里的文件"),
+    ];
+    for (pattern, replacement) in replacements {
+        if let Ok(re) = Regex::new(pattern) {
+            output = re.replace_all(&output, replacement).to_string();
+        }
+    }
+    output
+}
+
+fn speakable_segments(line: &str) -> Vec<String> {
+    if line.chars().count() <= 220 {
+        return vec![line.trim().to_string()];
+    }
+
+    line.split_inclusive(['。', '！', '？', '；'])
+        .map(str::trim)
+        .filter(|segment| !segment.is_empty())
+        .map(|segment| truncate_chars(segment, 220))
+        .collect()
+}
+
+fn split_sentences(text: &str) -> Vec<String> {
+    let normalized = normalize_space(text);
+    normalized
+        .split_inclusive(['。', '！', '？'])
+        .flat_map(|chunk| chunk.split('；'))
+        .map(|sentence| sentence.trim_matches(['。', '！', '？', '；', ' ', '\n', '\t']))
+        .filter(|sentence| {
+            !sentence.is_empty()
+                && !is_heading_like_sentence(sentence)
+                && !is_detail_list_sentence(sentence)
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+fn scored_sentences(sentences: &[String]) -> Vec<&String> {
+    let mut scored = sentences
+        .iter()
+        .enumerate()
+        .map(|(index, sentence)| (sentence_score(sentence, index), sentence))
+        .filter(|(score, _)| *score > 0)
+        .collect::<Vec<_>>();
+    scored.sort_by(|left, right| right.0.cmp(&left.0));
+    scored.into_iter().map(|(_, sentence)| sentence).collect()
+}
+
+fn sentence_score(sentence: &str, index: usize) -> i32 {
+    let mut score = 0;
+    for word in [
+        "完成",
+        "通过",
+        "成功",
+        "已经",
+        "修",
+        "更新",
+        "检查",
+        "验证",
+        "跑通",
+        "全绿",
+        "失败",
+        "问题",
+        "风险",
+        "下一步",
+        "建议",
+        "可以",
+    ] {
+        if sentence.contains(word) {
+            score += 3;
+        }
+    }
+    for word in ["代码", "命令", "路径", "日志", "参数", "文件"] {
+        if sentence.contains(word) {
+            score -= 1;
+        }
+    }
+    if index == 0 {
+        score += 2;
+    }
+    if sentence.chars().count() > 120 {
+        score -= 2;
+    }
+    score
+}
+
+fn is_next_step_sentence(sentence: &str) -> bool {
+    ["下一步", "接下来", "可以继续", "你可以", "建议"]
+        .iter()
+        .any(|word| sentence.contains(word))
+}
+
+fn is_heading_like_sentence(sentence: &str) -> bool {
+    sentence.chars().count() <= 32 && sentence.ends_with([':', '：'])
+}
+
+fn is_detail_list_sentence(sentence: &str) -> bool {
+    sentence.matches('、').count() >= 4 || sentence.matches(',').count() >= 4
+}
+
+fn push_unique(items: &mut Vec<String>, sentence: &str) {
+    let sentence = sentence.trim();
+    if sentence.is_empty() || items.iter().any(|item| item == sentence) {
+        return;
+    }
+    items.push(sentence.to_string());
+}
+
+fn looks_like_raw_code(line: &str) -> bool {
+    let code_markers = [
+        "fn ",
+        "function ",
+        "const ",
+        "let ",
+        "var ",
+        "=>",
+        "println!",
+        "```",
+    ];
+    let marker_hits = code_markers
+        .iter()
+        .filter(|marker| line.contains(**marker))
+        .count();
+    marker_hits >= 2 || (marker_hits >= 1 && line.contains('{') && line.contains('}'))
 }
 
 pub fn truncate_chars(text: &str, max_chars: usize) -> String {
@@ -268,6 +442,46 @@ mod tests {
         let cleaned = clean_for_speech(text, 300);
         assert!(!cleaned.contains("fn main"));
         assert!(cleaned.contains("自动触发器"));
+    }
+
+    #[test]
+    fn keeps_useful_text_when_line_contains_paths_and_inline_code() {
+        let text = "我运行 cargo test，并检查 /Users/sherry/Documents/project/src/main.rs、codex_speak_prepare、--provider sherpa_melo、M C P、J.S.O.N、OpenRouter、build failed because timeout。代码片段：fn main() { println!(\"hello world\"); } 下一步要看测试是否通过。";
+        let cleaned = clean_for_speech(text, 500);
+        assert!(!cleaned.is_empty());
+        assert!(cleaned.contains("我运行"));
+        assert!(cleaned.contains("项目里的文件"));
+        assert!(cleaned.contains("下一步要看测试是否通过"));
+        assert!(!cleaned.contains("/Users/"));
+        assert!(!cleaned.contains("fn main"));
+        assert!(!cleaned.contains("codex_speak_prepare"));
+    }
+
+    #[test]
+    fn fallback_reply_guide_does_not_read_entire_long_reply() {
+        let text = r#"
+我已经帮你打开最新安装版控制面板了。
+
+当前做到的程度：
+
+- Mac 本机安装版已跑通。
+- doctor 全绿：CLI、Hook、Skill、Plugin、MCP、控制面板、Pet helper、MeloTTS 模型、播放器都 OK。
+- 默认朗读引擎：MeloTTS 中文女声。
+
+你现在可以这样测：
+
+```bash
+~/.codex/codex-speak/bin/codex-speak doctor
+```
+
+如果你想测试自动朗读，可以让 Codex 做一个长任务。下一步可以重点验证过程提示是否会在测试开始时播放。
+"#;
+        let guide = fallback_reply_guide(text, 800);
+        assert!(guide.contains("控制面板"));
+        assert!(guide.contains("下一步"));
+        assert!(!guide.contains("你现在可以这样测"));
+        assert!(!guide.contains("命令行工具、自动触发器、技能规则、插件、插件通道、控制面板"));
+        assert!(guide.chars().count() < 260);
     }
 
     #[test]

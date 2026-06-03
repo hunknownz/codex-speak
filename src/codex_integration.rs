@@ -263,7 +263,7 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "接口",
         "处理器",
         "英文缩写",
-        "英文短语",
+        "构建失败，因为超时",
         "英文编号",
     ] {
         if !cleaned.contains(required) {

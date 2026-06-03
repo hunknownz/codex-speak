@@ -7,6 +7,8 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 它负责：
 
 - 开启或关闭自动朗读。
+- 开启或关闭最终导览自动朗读。
+- 开启或关闭长任务中的过程提示。
 - 开启或关闭儿童模式。
 - 调整语速。
 - 选择声音档位。
@@ -70,7 +72,9 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | UI 操作 | Rust CLI |
 | --- | --- |
 | 刷新状态 | `codex-speak status` |
-| 自动朗读开关 | `codex-speak config set --enabled ...` |
+| 总朗读开关 | `codex-speak config set --enabled ...` |
+| 最终导览开关 | `codex-speak config set --final-guide-enabled ...` |
+| 过程提示开关 | `codex-speak config set --progress-prompts-enabled ...` |
 | 儿童模式 | `codex-speak config set --child-mode ...` |
 | 朗读引擎 | `codex-speak config set --provider ...` |
 | 语速 | `codex-speak config set --speed ...` |

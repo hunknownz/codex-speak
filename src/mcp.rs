@@ -162,11 +162,13 @@ fn tools() -> Value {
         },
         {
             "name": "codex_speak_update_config",
-            "description": "Update Codex Speak settings such as TTS provider, child mode, speed, max read length, or voice profile.",
+            "description": "Update Codex Speak settings such as playback switches, TTS provider, child mode, speed, max read length, or voice profile.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "enabled": { "type": "boolean" },
+                    "final_guide_enabled": { "type": "boolean" },
+                    "progress_prompts_enabled": { "type": "boolean" },
                     "child_mode": { "type": "boolean" },
                     "provider": {
                         "type": "string",
@@ -349,6 +351,9 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
                 .unwrap_or(false);
             let cleaned = extract::clean_for_speech(input, cfg.max_read_chars);
             if background && !no_play {
+                if !cfg.progress_prompts_enabled {
+                    return Ok(format!("skipped: progress prompts disabled: {}", cleaned));
+                }
                 speak_text_in_background(&cleaned)?;
                 format!("queued: {}", cleaned)
             } else {
@@ -376,6 +381,10 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
         "codex_speak_update_config" => {
             let patch = settings::ConfigPatch {
                 enabled: args.get("enabled").and_then(Value::as_bool),
+                final_guide_enabled: args.get("final_guide_enabled").and_then(Value::as_bool),
+                progress_prompts_enabled: args
+                    .get("progress_prompts_enabled")
+                    .and_then(Value::as_bool),
                 child_mode: args.get("child_mode").and_then(Value::as_bool),
                 provider: optional_string(&args, "provider"),
                 speed: args.get("speed").and_then(Value::as_f64).map(|v| v as f32),

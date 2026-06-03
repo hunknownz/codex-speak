@@ -27,7 +27,11 @@ installer
 Skill + MCP side-channel + Hook + 本地 TTS + Tauri 控制面板
 ```
 
-Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览，并在 MCP 不可用时兜底清洗普通回复。
+简洁版架构和当前验证状态见 [Codex Speak 架构](architecture.md)。本文保留更细的技术选型、安装和发布设计。
+
+Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览，并在 MCP 不可用时从普通回复生成短导览兜底。
+
+朗读时机采用 [过程中少量提示、结束后完整导览](speech-timing.md) 的混合策略。当前架构不把聊天流式输出逐字送进 TTS；过程朗读只通过 MCP 后台短提示触发，最终权威内容仍由 `codex_speak_prepare` 写入 side-channel，再由 Hook 在回复结束后播放。
 
 ## 设计原则
 
@@ -54,7 +58,7 @@ Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览�
 codex_speak_prepare
 ```
 
-写入结构化 side-channel。MCP 不可用时，最终回答仍保持自然可读；Hook 会清洗普通回复作为最后兜底。HTML/Markdown 协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
+写入结构化 side-channel。MCP 不可用时，最终回答仍保持自然可读；Hook 会从普通回复生成短导览作为最后兜底。HTML/Markdown 协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
 
 Hook 提取策略：
 
@@ -63,8 +67,8 @@ Hook 提取策略：
 找不到 -> 读取历史 HTML 微格式协议 aside[data-codex-speak="guide"]
 找不到 -> 读取历史 Markdown 朗读导览
 找不到 -> 读取旧版 codex-speak 调试块
-找不到 -> 规则清洗最后一条回复
-清洗失败 -> 系统朗读兜底
+找不到 -> 规则清洗最后一条回复，并压缩为导览式兜底
+导览兜底为空 -> 系统朗读兜底
 ```
 
 ## 文本处理方案
@@ -84,6 +88,14 @@ Hook 提取策略：
 当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
 
 长任务中如果需要让孩子知道“正在做什么”，Codex 可以调用 `codex_speak_speak_text` 并设置 `background: true`，播放一句简短进度提示。这个通道不替代 Hook，也不朗读完整回复；它只负责任务中途的少量提示。
+
+过程提示和最终导览的边界：
+
+| 通道 | 触发时机 | 内容性质 | 是否权威 | 默认用途 |
+| --- | --- | --- | --- | --- |
+| 过程提示 | 任务执行中 | 一句话进度 | 否 | 降低等待焦虑 |
+| 最终导览 | 回复结束后 | Codex 理解后的行动导览 | 是 | 告诉用户结果和下一步 |
+| 短导览兜底 | MCP 不可用时 | 最终可见回复的导览式压缩版 | 部分 | 保证仍可朗读但不读整段 |
 
 ### 第二层：规则清洗兜底
 
@@ -306,7 +318,9 @@ apps/codex-speak-control
 
 它提供：
 
-- 自动朗读开关。
+- 总朗读开关。
+- 最终导览开关。
+- 过程提示开关。
 - 儿童模式开关。
 - 语速滑块。
 - 最大朗读字数滑块。
@@ -377,6 +391,8 @@ sha256 = "..."
 
 ```toml
 enabled = true
+final_guide_enabled = true
+progress_prompts_enabled = true
 language = "zh"
 child_mode = true
 max_read_chars = 800
@@ -420,7 +436,7 @@ skip_code_blocks = true
 
 - Skill 生成适合朗读的中文导览。
 - Plugin/MCP 优先写入 side-channel。
-- Hook 优先消费 side-channel，其次解析历史 HTML/Markdown 兼容导览，最后清洗普通回复。
+- Hook 优先消费 side-channel，其次解析历史 HTML/Markdown 兼容导览，最后从普通回复生成短导览兜底。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 
@@ -452,7 +468,7 @@ skip_code_blocks = true
 - 中文多音字和少量英文品牌名混读仍可能不自然，但常见英文技术缩写和系统语音逐字母读的问题已有规则兜底。
 - 不同 Windows 机器音频播放环境差异较大。
 - 模型许可要单独核对，尤其是后续打包分发时。
-- Skill 不是强制执行机制，仍需 Hook 规则清洗作为兜底。
+- Skill 不是强制执行机制，仍需 Hook 短导览兜底避免整段朗读。
 - macOS Gatekeeper 和 Windows SmartScreen 会影响普通用户安装体验。
 - 模型下载速度、校验失败和断点续传会影响首次安装体验。
 

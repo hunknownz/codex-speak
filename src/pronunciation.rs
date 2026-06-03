@@ -32,6 +32,11 @@ pub fn normalize_for_tts_with_dictionary(
     dictionary: &PronunciationDictionary,
 ) -> String {
     let (mut result, protected_terms) = protect_user_dictionary_terms(text, dictionary);
+    if contains_cjk(&result) {
+        for (pattern, replacement) in CHINESE_CONTEXT_REPLACEMENTS {
+            result = replace_word_case_insensitive(&result, pattern, replacement);
+        }
+    }
     for (pattern, replacement) in TERM_REPLACEMENTS {
         result = replace_word_case_insensitive(&result, pattern, replacement);
     }
@@ -246,6 +251,14 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("child_mode", "儿童模式"),
     ("max_read_chars", "最大朗读长度"),
     ("tts_silence_scale", "朗读停顿设置"),
+];
+
+const CHINESE_CONTEXT_REPLACEMENTS: &[(&str, &str)] = &[
+    ("cargo test", "测试命令"),
+    ("cargo build", "构建命令"),
+    ("cargo run", "运行命令"),
+    ("cargo", "代码构建工具"),
+    ("build failed because timeout", "构建失败，因为超时"),
 ];
 
 fn protect_user_dictionary_terms(
@@ -519,14 +532,22 @@ mod tests {
     }
 
     #[test]
+    fn normalizes_common_developer_commands_and_errors() {
+        let text = normalize_for_tts("我运行 cargo test，看到 build failed because timeout。");
+        assert!(text.contains("测试命令"));
+        assert!(text.contains("构建失败，因为超时"));
+        assert!(!text.contains("cargo test"));
+        assert!(!text.contains("build failed"));
+    }
+
+    #[test]
     fn replaces_remaining_english_spans_in_mixed_chinese_speech() {
-        let text =
-            normalize_for_tts("我看到 build failed because timeout，然后处理 ProjectAlpha42。");
+        let text = normalize_for_tts("我看到 deploy preview failed，然后处理 ProjectAlpha42。");
         assert!(text.contains("英文短语"));
         assert!(text.contains("英文编号"));
-        assert!(!text.contains("build"));
+        assert!(!text.contains("deploy"));
+        assert!(!text.contains("preview"));
         assert!(!text.contains("failed"));
-        assert!(!text.contains("timeout"));
         assert!(!text.contains("ProjectAlpha42"));
     }
 

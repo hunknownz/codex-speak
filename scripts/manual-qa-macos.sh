@@ -266,7 +266,7 @@ if grep -q "你好世界示例" "$mixed_stdout" \
   && grep -q "命令行工具" "$mixed_stdout" \
   && grep -q "处理器" "$mixed_stdout" \
   && grep -q "英文缩写" "$mixed_stdout" \
-  && grep -q "英文短语" "$mixed_stdout" \
+  && grep -q "构建失败，因为超时" "$mixed_stdout" \
   && grep -q "英文编号" "$mixed_stdout" \
   && ! grep -q "README.md" "$mixed_stdout" \
   && ! grep -q "codex_speak_prepare" "$mixed_stdout" \

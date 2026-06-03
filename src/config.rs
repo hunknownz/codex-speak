@@ -10,6 +10,8 @@ pub const APP_DIR_NAME: &str = "codex-speak";
 #[serde(default)]
 pub struct Config {
     pub enabled: bool,
+    pub final_guide_enabled: bool,
+    pub progress_prompts_enabled: bool,
     pub language: String,
     pub child_mode: bool,
     pub max_read_chars: usize,
@@ -28,6 +30,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             enabled: true,
+            final_guide_enabled: true,
+            progress_prompts_enabled: true,
             language: "zh".to_string(),
             child_mode: true,
             max_read_chars: 800,

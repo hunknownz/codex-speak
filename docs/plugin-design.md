@@ -7,7 +7,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 - 通过 Skill 要求 Codex 生成儿童友好的朗读导览。
 - 通过 MCP `codex_speak_prepare` 写入 side-channel。
 - 通过 MCP `codex_speak_speak_text` 的 `background: true` 做少量任务中途进度朗读。
-- 通过 MCP 工具展示状态、停止、试听、改开关、儿童模式、语速、声音档位和 TTS Provider。
+- 通过 MCP 工具展示状态、停止、试听、改总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、声音档位和 TTS Provider。
 - 让朗读内容不必以自定义协议的形式出现在最终回答里。
 
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块，而是让正常路径不再把协议块写进 Chat Session：
@@ -225,7 +225,7 @@ Plugin 可以提供：
 第三阶段不再把 side-channel 当作未来功能，而是继续围绕它做产品体验：
 
 - 与 Tauri App 共享同一份配置。
-- 提供更细的配置工具，例如儿童模式、语速、声音档位。
+- 提供更细的配置工具，例如最终导览、过程提示、儿童模式、语速、声音档位。
 - 当 Codex Plugin 未来支持消息渲染扩展时，只把历史 fallback 或排障样例渲染成卡片；正常朗读仍走 side-channel。
 
 ## 插件不负责什么
@@ -291,5 +291,5 @@ Plugin 负责：
 
 ### P3：Tauri 控制面板
 
-- 用按钮控制儿童模式、开关、语速、试听和停止。
+- 用按钮控制总朗读、最终导览、过程提示、儿童模式、语速、试听和停止。
 - 与 Plugin MCP 共享 Rust CLI 和配置文件。

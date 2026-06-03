@@ -7,6 +7,8 @@ use crate::model_catalog;
 #[derive(Debug, Default, Clone)]
 pub struct ConfigPatch {
     pub enabled: Option<bool>,
+    pub final_guide_enabled: Option<bool>,
+    pub progress_prompts_enabled: Option<bool>,
     pub child_mode: Option<bool>,
     pub provider: Option<String>,
     pub speed: Option<f32>,
@@ -26,6 +28,14 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
     if let Some(enabled) = patch.enabled {
         cfg.enabled = enabled;
         changed.push("enabled".to_string());
+    }
+    if let Some(final_guide_enabled) = patch.final_guide_enabled {
+        cfg.final_guide_enabled = final_guide_enabled;
+        changed.push("final_guide_enabled".to_string());
+    }
+    if let Some(progress_prompts_enabled) = patch.progress_prompts_enabled {
+        cfg.progress_prompts_enabled = progress_prompts_enabled;
+        changed.push("progress_prompts_enabled".to_string());
     }
     if let Some(child_mode) = patch.child_mode {
         cfg.child_mode = child_mode;
