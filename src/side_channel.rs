@@ -97,7 +97,14 @@ fn is_fresh(modified: SystemTime) -> bool {
 fn is_allowed_role(role: &str) -> bool {
     matches!(
         role,
-        "did" | "why" | "code-summary" | "command-summary" | "result" | "next" | "warning"
+        "did"
+            | "why"
+            | "code-summary"
+            | "command-summary"
+            | "visual-summary"
+            | "result"
+            | "next"
+            | "warning"
     )
 }
 
@@ -133,6 +140,10 @@ mod tests {
                     text: "我做了插件。".to_string(),
                 },
                 SpeakItem {
+                    role: "visual-summary".to_string(),
+                    text: "我画了一张小图。".to_string(),
+                },
+                SpeakItem {
                     role: "unknown".to_string(),
                     text: "不要读。".to_string(),
                 },
@@ -143,6 +154,9 @@ mod tests {
             ],
         };
 
-        assert_eq!(spool_text(&spool, 200), "我做了插件。下一步可以测试。");
+        assert_eq!(
+            spool_text(&spool, 200),
+            "我做了插件。我画了一张小图。下一步可以测试。"
+        );
     }
 }

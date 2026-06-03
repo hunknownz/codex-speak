@@ -102,7 +102,7 @@ fn tools() -> Value {
                             "properties": {
                                 "role": {
                                     "type": "string",
-                                    "enum": ["did", "why", "code-summary", "command-summary", "result", "next", "warning"]
+                                    "enum": ["did", "why", "code-summary", "command-summary", "visual-summary", "result", "next", "warning"]
                                 },
                                 "text": { "type": "string" }
                             },

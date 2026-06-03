@@ -23,6 +23,7 @@ Use these roles:
 - `did`: what Codex just did.
 - `code-summary`: what code changed or what problem the code solved.
 - `command-summary`: what commands, installation, or verification steps did.
+- `visual-summary`: what visual aid was shown and what it helps the listener understand.
 - `result`: whether the work passed or what changed.
 - `next`: what the user can naturally ask next.
 - `warning`: only when something is incomplete or risky.
@@ -36,6 +37,25 @@ When the side-channel succeeds:
 - Keep the final answer natural and concise.
 - Do not include the full HTML protocol block.
 - Mention only the important visible result for the user.
+
+## Visual Learning Aids
+
+In child mode, use a small visual aid when it naturally helps the child understand architecture, flow, state changes, cause and effect, or an abstract concept. The visual is for the chat screen; the spoken guide should only summarize what the visual shows.
+
+Choose the lightest useful format:
+
+- Mermaid diagram for flows, architecture, state machines, and before/after paths.
+- Simple HTML when a small labeled card, table, or comparison panel helps more than a graph.
+- Generated image when the child needs a concrete metaphor, character, scene, or visual memory hook. Treat image generation as an optional online enhancement, not a required local dependency.
+
+Rules:
+
+- Do not create a visual for every answer.
+- Keep diagrams tiny: 3 to 6 nodes or 2 to 4 rows.
+- Use child-readable labels, not raw class names, long paths, or command strings.
+- Put any Mermaid/HTML in the visible answer, not in the spoken guide.
+- In `codex_speak_prepare`, add at most one `visual-summary` item such as "我还画了一张小图，帮你看到消息是怎么从 Codex 走到声音里的。"
+- If the visual is not important for the next action, skip it.
 
 ## Listener Modes
 
@@ -69,6 +89,7 @@ Child-mode style rules:
 - Prefer concrete verbs: "打开", "点一下", "检查", "读出来", "停下来".
 - Explain abstract technical words as actions: "插件通道" can become "让我把要读的话放到本地的小文件里".
 - Add at most one tiny learning moment when it naturally grows from the result. It should help the child notice a pattern, cause, or test method.
+- When a concept is hard to imagine, prefer one tiny visual plus one spoken sentence over a long explanation.
 - Prefer discovery prompts over lessons: "你可以看看..." or "这说明..." rather than "你需要学习...".
 - Skip teaching when the task is simple, emotional, urgent, or already cognitively heavy.
 - Do not turn the guide into a mini lecture, definition list, quiz, or moral lesson.

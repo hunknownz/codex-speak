@@ -49,6 +49,7 @@ codex_speak_prepare
   "items": [
     {"role": "did", "text": "我刚才帮你修改了朗读规则。"},
     {"role": "code-summary", "text": "代码部分的作用是：让自动触发器优先读取本地朗读稿。"},
+    {"role": "visual-summary", "text": "我还可以画一张小图，帮你看懂消息是怎么变成声音的。"},
     {"role": "result", "text": "我运行了测试，结果通过了。"},
     {"role": "next", "text": "下一步可以继续做控制面板。"}
   ]
@@ -162,6 +163,7 @@ HTML 微格式不是新架构的默认输出方式。它主要用于三种情况
 | `why` | 为什么这么做 | 可选 |
 | `code-summary` | 代码大概解决什么问题 | 有代码时推荐 |
 | `command-summary` | 命令、安装、测试步骤做了什么 | 有命令时推荐 |
+| `visual-summary` | 可视化辅助展示了什么 | 有 Mermaid、HTML 或图片辅助时推荐 |
 | `result` | 结果、验证、测试是否通过 | 推荐 |
 | `next` | 小朋友下一步可以怎么继续 | 必须 |
 | `warning` | 限制、风险、没完成的地方 | 需要时使用 |

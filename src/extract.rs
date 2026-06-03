@@ -123,7 +123,14 @@ pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
 fn is_allowed_protocol_role(role: &str) -> bool {
     matches!(
         role,
-        "" | "did" | "why" | "code-summary" | "command-summary" | "result" | "next" | "warning"
+        "" | "did"
+            | "why"
+            | "code-summary"
+            | "command-summary"
+            | "visual-summary"
+            | "result"
+            | "next"
+            | "warning"
     )
 }
 

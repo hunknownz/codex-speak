@@ -46,6 +46,7 @@ codex_speak_prepare
   "lang": "zh-CN",
   "items": [
     {"role": "did", "text": "我刚才帮你修改了朗读规则。"},
+    {"role": "visual-summary", "text": "我还可以画一张小图，帮你看懂这条流程。"},
     {"role": "result", "text": "我运行了测试，结果通过了。"},
     {"role": "next", "text": "接下来可以继续做插件控制面板。"}
   ]
