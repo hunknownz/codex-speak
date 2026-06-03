@@ -9,6 +9,8 @@ use crate::pet_state;
 use crate::process;
 use crate::pronunciation;
 
+const WAV_TAIL_SILENCE_MS: u32 = 450;
+
 pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
     if !cfg.enabled {
         return Ok(());
@@ -103,6 +105,7 @@ fn speak_with_sherpa_melo(cfg: &Config, text: &str, no_play: bool) -> Result<()>
     if !output.status.success() {
         anyhow::bail!("sherpa-onnx melo failed with status {}", output.status);
     }
+    add_wav_tail_silence(&wav, WAV_TAIL_SILENCE_MS)?;
 
     if !no_play {
         play_wav(&wav)?;
@@ -158,6 +161,7 @@ fn speak_with_sherpa_kokoro(cfg: &Config, text: &str, no_play: bool) -> Result<(
         .arg(format!("--output-filename={}", wav.display()))
         .arg(text);
     run_tts_command(command, "sherpa-onnx kokoro")?;
+    add_wav_tail_silence(&wav, WAV_TAIL_SILENCE_MS)?;
 
     if !no_play {
         play_wav(&wav)?;
@@ -215,6 +219,7 @@ fn speak_with_sherpa_zipvoice(cfg: &Config, text: &str, no_play: bool) -> Result
         .arg(format!("--output-filename={}", wav.display()))
         .arg(text);
     run_tts_command(command, "sherpa-onnx zipvoice")?;
+    add_wav_tail_silence(&wav, WAV_TAIL_SILENCE_MS)?;
 
     if !no_play {
         play_wav(&wav)?;
@@ -254,6 +259,7 @@ fn speak_with_piper(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
         .arg(format!("--output-filename={}", wav.display()))
         .arg(text);
     run_tts_command(command, "sherpa-onnx piper-vits")?;
+    add_wav_tail_silence(&wav, WAV_TAIL_SILENCE_MS)?;
 
     if !no_play {
         play_wav(&wav)?;
@@ -276,6 +282,101 @@ fn write_tts_logs(stdout: &[u8], stderr: &[u8]) -> Result<()> {
     fs::write(config::logs_dir()?.join("last-tts.stdout.log"), stdout)?;
     fs::write(config::logs_dir()?.join("last-tts.stderr.log"), stderr)?;
     Ok(())
+}
+
+fn add_wav_tail_silence(path: &Path, tail_ms: u32) -> Result<()> {
+    if tail_ms == 0 {
+        return Ok(());
+    }
+    let mut bytes = fs::read(path).with_context(|| format!("failed to read {}", path.display()))?;
+    if bytes.len() < 44 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        anyhow::bail!("{} is not a RIFF/WAVE file", path.display());
+    }
+
+    let mut cursor = 12usize;
+    let mut byte_rate = None;
+    let mut block_align = None;
+    let mut data_chunk = None;
+    while cursor + 8 <= bytes.len() {
+        let chunk_id = &bytes[cursor..cursor + 4];
+        let chunk_size = read_u32_le(&bytes, cursor + 4)? as usize;
+        let chunk_start = cursor + 8;
+        let chunk_end = chunk_start
+            .checked_add(chunk_size)
+            .context("wav chunk size overflow")?;
+        if chunk_end > bytes.len() {
+            anyhow::bail!("{} has a truncated wav chunk", path.display());
+        }
+        if chunk_id == b"fmt " && chunk_size >= 16 {
+            byte_rate = Some(read_u32_le(&bytes, chunk_start + 8)?);
+            block_align = Some(read_u16_le(&bytes, chunk_start + 12)? as usize);
+        } else if chunk_id == b"data" {
+            data_chunk = Some((cursor, chunk_start, chunk_size));
+            break;
+        }
+        cursor = chunk_end + (chunk_size % 2);
+    }
+
+    let byte_rate = byte_rate.context("wav fmt chunk missing byte rate")?;
+    let block_align = block_align.filter(|value| *value > 0).unwrap_or(1);
+    let (data_header, data_start, data_size) = data_chunk.context("wav data chunk missing")?;
+    let data_end = data_start
+        .checked_add(data_size)
+        .context("wav data chunk overflow")?;
+    let raw_tail_bytes = (byte_rate as usize)
+        .saturating_mul(tail_ms as usize)
+        .checked_div(1000)
+        .unwrap_or(0);
+    let tail_bytes = align_up(raw_tail_bytes.max(block_align), block_align);
+    let new_data_size = data_size
+        .checked_add(tail_bytes)
+        .context("wav data size overflow")?;
+    if new_data_size > u32::MAX as usize {
+        anyhow::bail!("wav data chunk too large after tail padding");
+    }
+
+    bytes.splice(data_end..data_end, std::iter::repeat(0).take(tail_bytes));
+    write_u32_le(&mut bytes, data_header + 4, new_data_size as u32)?;
+    let riff_size = bytes
+        .len()
+        .checked_sub(8)
+        .context("wav riff size underflow")?;
+    if riff_size > u32::MAX as usize {
+        anyhow::bail!("wav file too large after tail padding");
+    }
+    write_u32_le(&mut bytes, 4, riff_size as u32)?;
+    fs::write(path, bytes).with_context(|| format!("failed to write {}", path.display()))?;
+    Ok(())
+}
+
+fn read_u16_le(bytes: &[u8], offset: usize) -> Result<u16> {
+    let slice = bytes
+        .get(offset..offset + 2)
+        .context("wav u16 read out of range")?;
+    Ok(u16::from_le_bytes([slice[0], slice[1]]))
+}
+
+fn read_u32_le(bytes: &[u8], offset: usize) -> Result<u32> {
+    let slice = bytes
+        .get(offset..offset + 4)
+        .context("wav u32 read out of range")?;
+    Ok(u32::from_le_bytes([slice[0], slice[1], slice[2], slice[3]]))
+}
+
+fn write_u32_le(bytes: &mut [u8], offset: usize, value: u32) -> Result<()> {
+    let target = bytes
+        .get_mut(offset..offset + 4)
+        .context("wav u32 write out of range")?;
+    target.copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+fn align_up(value: usize, align: usize) -> usize {
+    if align <= 1 {
+        value
+    } else {
+        value.div_ceil(align) * align
+    }
 }
 
 fn speak_with_system(text: &str, no_play: bool) -> Result<()> {
@@ -514,5 +615,41 @@ mod tests {
         assert_eq!(segments[1].lang, SystemSpeechLang::English);
         assert_eq!(segments[1].text, "hello world，");
         assert_eq!(segments[2].lang, SystemSpeechLang::Chinese);
+    }
+
+    #[test]
+    fn adds_wav_tail_silence_and_updates_sizes() {
+        let file = tempfile::NamedTempFile::new().expect("temp wav");
+        let path = file.path();
+        fs::write(path, minimal_wav(4)).expect("write wav");
+
+        add_wav_tail_silence(path, 500).expect("pad wav");
+
+        let bytes = fs::read(path).expect("read wav");
+        let riff_size = read_u32_le(&bytes, 4).expect("riff size") as usize;
+        let data_size = read_u32_le(&bytes, 40).expect("data size") as usize;
+        assert_eq!(riff_size, bytes.len() - 8);
+        assert_eq!(data_size, 4 + 16000);
+        assert_eq!(bytes.len(), 44 + data_size);
+        assert!(bytes[44 + 4..].iter().all(|byte| *byte == 0));
+    }
+
+    fn minimal_wav(data_size: u32) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(b"RIFF");
+        bytes.extend_from_slice(&(36 + data_size).to_le_bytes());
+        bytes.extend_from_slice(b"WAVE");
+        bytes.extend_from_slice(b"fmt ");
+        bytes.extend_from_slice(&16u32.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&16000u32.to_le_bytes());
+        bytes.extend_from_slice(&32000u32.to_le_bytes());
+        bytes.extend_from_slice(&2u16.to_le_bytes());
+        bytes.extend_from_slice(&16u16.to_le_bytes());
+        bytes.extend_from_slice(b"data");
+        bytes.extend_from_slice(&data_size.to_le_bytes());
+        bytes.extend(std::iter::repeat(1).take(data_size as usize));
+        bytes
     }
 }

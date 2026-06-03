@@ -43,7 +43,7 @@ impl Default for Config {
             num_threads: 4,
             vits_noise_scale: 0.45,
             vits_noise_scale_w: 0.6,
-            tts_silence_scale: 0.25,
+            tts_silence_scale: 0.45,
             fallback_provider: "system".to_string(),
             previous_notify: None,
         }

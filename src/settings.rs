@@ -90,21 +90,21 @@ fn apply_voice_profile(cfg: &mut Config, profile: &str) -> Result<()> {
             cfg.speed = 0.9;
             cfg.vits_noise_scale = 0.45;
             cfg.vits_noise_scale_w = 0.6;
-            cfg.tts_silence_scale = 0.25;
+            cfg.tts_silence_scale = 0.45;
         }
         "slow_clear" => {
             cfg.voice_profile = profile.to_string();
             cfg.speed = 0.82;
             cfg.vits_noise_scale = 0.42;
             cfg.vits_noise_scale_w = 0.55;
-            cfg.tts_silence_scale = 0.3;
+            cfg.tts_silence_scale = 0.5;
         }
         "quick_preview" => {
             cfg.voice_profile = profile.to_string();
             cfg.speed = 1.0;
             cfg.vits_noise_scale = 0.5;
             cfg.vits_noise_scale_w = 0.65;
-            cfg.tts_silence_scale = 0.18;
+            cfg.tts_silence_scale = 0.32;
         }
         other => bail!("unsupported voice profile: {other}"),
     }
