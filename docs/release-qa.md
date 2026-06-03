@@ -45,6 +45,8 @@ node scripts/check-release-readiness.mjs --offline --allow-dirty
 
 `--offline` 是不访问 GitHub 的本地预检：它会跳过 `origin/main` 和 GitHub Actions 状态检查，适合在网络受限或外部 QA 机器上先验证文件、脚本、签名门禁和 QA 报告结构。正式发布前仍应运行不带 `--offline` 的检查，确认本地 `HEAD` 已推到 `origin/main` 且 CI/Release 状态正常。
 
+不带 `--offline` 的检查会访问 GitHub Actions API；如果遇到匿名 API 限流，先设置 `GITHUB_TOKEN` 再运行。
+
 发给外部测试者前，可以生成 QA 交付说明：
 
 ```bash

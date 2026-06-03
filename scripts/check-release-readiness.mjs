@@ -531,7 +531,10 @@ async function githubJson(apiPath) {
     throw new Error(`GitHub API returned non-JSON for ${apiPath}: ${body.slice(0, 120)}`);
   }
   if (!response.ok) {
-    throw new Error(`GitHub API ${response.status} for ${apiPath}: ${json.message ?? body}`);
+    const tokenHint = response.status === 403
+      ? " Set GITHUB_TOKEN to a GitHub token with Actions read access and retry."
+      : "";
+    throw new Error(`GitHub API ${response.status} for ${apiPath}: ${json.message ?? body}${tokenHint}`);
   }
   return json;
 }
