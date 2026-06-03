@@ -34,8 +34,14 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
             continue;
         }
         line = simplify_terms(&line);
+        if is_low_value_speech_sentence(&line) {
+            continue;
+        }
         for segment in speakable_segments(&line) {
-            if !segment.is_empty() && !should_skip_line(&segment) {
+            if !segment.is_empty()
+                && !should_skip_line(&segment)
+                && !is_low_value_speech_sentence(&segment)
+            {
                 lines.push(segment);
             }
         }
@@ -199,6 +205,9 @@ fn should_skip_line(line: &str) -> bool {
 
 fn strip_markdown(line: &str) -> String {
     let mut s = line.trim().to_string();
+    if let Ok(numbered_list_re) = Regex::new(r"^\d+[.)]\s+") {
+        s = numbered_list_re.replace(&s, "").to_string();
+    }
     while s.starts_with('#') || s.starts_with('-') || s.starts_with('*') || s.starts_with('>') {
         s = s[1..].trim_start().to_string();
     }
@@ -262,6 +271,7 @@ fn split_sentences(text: &str) -> Vec<String> {
             !sentence.is_empty()
                 && !is_heading_like_sentence(sentence)
                 && !is_detail_list_sentence(sentence)
+                && !is_low_value_speech_sentence(sentence)
         })
         .map(str::to_string)
         .collect()
@@ -286,7 +296,19 @@ fn sentence_score(sentence: &str, index: usize) -> i32 {
         "成功",
         "已经",
         "修",
+        "修复",
         "更新",
+        "新增",
+        "支持",
+        "安装",
+        "构建",
+        "部署",
+        "打开",
+        "播放",
+        "调整",
+        "调节",
+        "发音",
+        "声音方案",
         "检查",
         "验证",
         "跑通",
@@ -306,6 +328,15 @@ fn sentence_score(sentence: &str, index: usize) -> i32 {
         if sentence.contains(word) {
             score -= 1;
         }
+    }
+    if contains_speech_placeholder_noise(sentence) {
+        score -= 8;
+    }
+    if is_release_metadata_sentence(sentence) {
+        score -= 8;
+    }
+    if is_local_build_sentence(sentence) {
+        score -= 3;
     }
     if index == 0 {
         score += 2;
@@ -328,6 +359,63 @@ fn is_heading_like_sentence(sentence: &str) -> bool {
 
 fn is_detail_list_sentence(sentence: &str) -> bool {
     sentence.matches('、').count() >= 4 || sentence.matches(',').count() >= 4
+}
+
+fn is_low_value_speech_sentence(sentence: &str) -> bool {
+    is_placeholder_only_sentence(sentence) || is_release_metadata_sentence(sentence)
+}
+
+fn contains_speech_placeholder_noise(sentence: &str) -> bool {
+    [
+        "英文单词",
+        "英文名称",
+        "英文短语",
+        "英文编号",
+        "英文缩写",
+        "命令名",
+    ]
+    .iter()
+    .any(|placeholder| sentence.contains(placeholder))
+}
+
+fn is_placeholder_only_sentence(sentence: &str) -> bool {
+    let trimmed = sentence.trim_matches(['。', '！', '？', '；', ' ', '\n', '\t']);
+    Regex::new(r"^(英文单词|英文名称|英文短语|英文编号|英文缩写|命令名)(\s*(通过|失败|成功|已完成|已打开|已播放))?$")
+        .map(|re| re.is_match(trimmed))
+        .unwrap_or(false)
+}
+
+fn is_release_metadata_sentence(sentence: &str) -> bool {
+    let trimmed = sentence.trim();
+    if trimmed.starts_with("::") {
+        return true;
+    }
+
+    let has_revisionish_token = Regex::new(r"\b[0-9a-f]{7,40}\b")
+        .map(|re| re.is_match(trimmed))
+        .unwrap_or(false);
+    let is_repo_update = ["推送到", "提交", "commit", "代码托管平台"]
+        .iter()
+        .any(|word| trimmed.contains(word));
+    if has_revisionish_token && is_repo_update {
+        return true;
+    }
+
+    let technical_tail = ["自检命令", "doctor", "release", "build", "cargo"]
+        .iter()
+        .any(|word| trimmed.contains(word));
+    technical_tail && trimmed.chars().count() <= 28
+}
+
+fn is_local_build_sentence(sentence: &str) -> bool {
+    [
+        "本地重新构建",
+        "重新安装到",
+        "构建 命令行工具",
+        "构建 桌面应用框架",
+    ]
+    .iter()
+    .any(|word| sentence.contains(word))
 }
 
 fn push_unique(items: &mut Vec<String>, sentence: &str) {
@@ -512,6 +600,46 @@ mod tests {
         assert!(!guide.contains("你现在可以这样测"));
         assert!(!guide.contains("命令行工具、自动触发器、技能规则、插件、插件通道、控制面板"));
         assert!(guide.chars().count() < 260);
+    }
+
+    #[test]
+    fn fallback_reply_guide_skips_release_metadata_and_placeholder_noise() {
+        let text = r#"
+已完成并重新部署打开了。
+
+这次做了两件事：
+
+1. 控制面板新增 MeloTTS 声音方案试听。
+2. 配置层支持底层发音参数，包括语速、噪声、韵律和停顿。
+
+已完成：
+- 本地重新构建 CLI。
+- 本地重新构建 Tauri 控制面板。
+- 重新安装到 `~/.codex/codex-speak`。
+- 已打开控制面板。
+- 已播放测试音。
+- `doctor` 通过。
+- 推送到 GitHub：`75fc76f`。
+
+::git-stage{cwd="/tmp/codex-speak"}
+::git-commit{cwd="/tmp/codex-speak"}
+::git-push{cwd="/tmp/codex-speak" branch="main"}
+"#;
+        let cleaned = clean_for_speech(text, 800);
+        assert!(cleaned.contains("控制面板新增"));
+        assert!(!cleaned.contains("英文单词"));
+        assert!(!cleaned.contains("75fc76f"));
+        assert!(!cleaned.contains("::git"));
+
+        let guide = fallback_reply_guide(text, 800);
+        assert!(guide.contains("已完成并重新部署打开了"));
+        assert!(guide.contains("控制面板新增"));
+        assert!(guide.contains("发音参数"));
+        assert!(!guide.contains("英文单词"));
+        assert!(!guide.contains("英文名称"));
+        assert!(!guide.contains("75fc76f"));
+        assert!(!guide.contains("::git"));
+        assert!(guide.chars().count() > 50);
     }
 
     #[test]
