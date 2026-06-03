@@ -361,9 +361,32 @@ pub fn truncate_chars(text: &str, max_chars: usize) -> String {
     if count <= max_chars {
         return text.to_string();
     }
+    if let Some(sentence) = truncate_at_sentence_boundary(text, max_chars) {
+        return sentence;
+    }
     let mut s: String = text.chars().take(max_chars).collect();
     s.push('…');
     s
+}
+
+fn truncate_at_sentence_boundary(text: &str, max_chars: usize) -> Option<String> {
+    let boundary_chars = ['。', '！', '？', '.', '!', '?'];
+    let min_useful_chars = (max_chars / 3).max(6);
+    let mut best = None;
+    let mut char_count = 0;
+    for (byte_index, ch) in text.char_indices() {
+        char_count += 1;
+        if char_count > max_chars {
+            break;
+        }
+        if boundary_chars.contains(&ch) {
+            let end = byte_index + ch.len_utf8();
+            if char_count >= min_useful_chars {
+                best = Some(text[..end].trim().to_string());
+            }
+        }
+    }
+    best
 }
 
 fn normalize_space(text: &str) -> String {
@@ -502,5 +525,11 @@ mod tests {
     #[test]
     fn truncates_by_chars() {
         assert_eq!(truncate_chars("你好世界", 2), "你好…");
+    }
+
+    #[test]
+    fn truncates_at_sentence_boundary_when_possible() {
+        let text = "我已经整理好游戏想法。第二句会继续展开很多内容，里面有角色、场景、玩法和下一步测试安排。";
+        assert_eq!(truncate_chars(text, 18), "我已经整理好游戏想法。");
     }
 }
