@@ -4,6 +4,8 @@
 
 如果 Codex Speak 后续需要向量数据库，本项目统一使用 Qdrant。
 
+本轮不实现 Qdrant。当前第一阶段只交付来源登记、主样例库、许可门禁和 `codex-speak style validate` 校验闭环。Qdrant 是第二阶段能力，等数据质量稳定后再接入。
+
 理由：
 
 - Qdrant 本身是 Rust 技术栈，和 Codex Speak 的 Rust CLI 更贴合。

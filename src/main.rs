@@ -16,6 +16,7 @@ mod session;
 mod settings;
 mod side_channel;
 mod status;
+mod style;
 mod support;
 mod tts;
 
@@ -106,6 +107,11 @@ enum Command {
         #[command(subcommand)]
         command: PronunciationCommand,
     },
+    /// Validate and inspect speech style corpus data.
+    Style {
+        #[command(subcommand)]
+        command: StyleCommand,
+    },
     /// Download or repair local TTS models.
     Models {
         #[command(subcommand)]
@@ -190,6 +196,14 @@ enum ModelsCommand {
         #[arg(long)]
         all: bool,
     },
+}
+
+#[derive(Debug, Subcommand)]
+enum StyleCommand {
+    /// Validate bundled speech style sources, principles, and examples.
+    Validate,
+    /// Print speech style source candidates as JSON.
+    Sources,
 }
 
 #[derive(Debug, Subcommand)]
@@ -312,6 +326,10 @@ fn main() -> Result<()> {
                     pronunciation::normalize_for_tts_with_dictionary(&text, &dictionary)
                 );
             }
+        },
+        Command::Style { command } => match command {
+            StyleCommand::Validate => style::validate()?,
+            StyleCommand::Sources => style::print_sources()?,
         },
         Command::Models { command } => match command {
             ModelsCommand::List => {

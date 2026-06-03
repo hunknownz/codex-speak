@@ -8,6 +8,7 @@ Files:
 
 - `source-candidates.jsonl`: candidate public sources, license status, use level, and risk notes.
 - `distilled-principles.jsonl`: product-ready style principles distilled from reviewed sources.
+- `style-examples.jsonl`: normalized master examples for child, adult, and visual speech style.
 
 Use levels:
 
@@ -15,3 +16,10 @@ Use levels:
 - `sample_reference`: may inspect small samples and create original examples.
 - `research_only`: do not ingest into product data.
 - `blocked`: do not use.
+
+Validation:
+
+```bash
+codex-speak style validate
+codex-speak style sources
+```

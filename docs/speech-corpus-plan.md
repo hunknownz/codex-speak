@@ -26,14 +26,34 @@
 - 很多教育对话数据有非商用、ShareAlike、隐私或年龄段不匹配问题。
 - 高质量儿童表达样例更适合“小而精”的本地 style pack。
 
-推荐路线：
+当前落地路线：
 
 ```text
-阶段 1：规则蒸馏 + 少量原创样例
-阶段 2：来源登记表 + 人工验证样例库
-阶段 3：本地检索 2-3 条相似风格样例
-阶段 4：质量守卫自动打分
+阶段 1：来源登记表 + 主样例库 + CLI 校验
+阶段 2：本地检索 2-3 条相似风格样例
+阶段 3：质量守卫自动打分
 ```
+
+## 第一阶段已交付
+
+第一阶段先把语料变成可验证的数据资产，暂不接 Qdrant。
+
+已落地文件：
+
+- `data/speech-style/source-candidates.jsonl`
+- `data/speech-style/distilled-principles.jsonl`
+- `data/speech-style/style-examples.jsonl`
+- `skills/codex-speak/speech-style-examples.jsonl`
+- `plugins/codex-speak/skills/codex-speak/speech-style-examples.jsonl`
+
+已落地命令：
+
+```bash
+codex-speak style validate
+codex-speak style sources
+```
+
+`style-examples.jsonl` 是主库，至少 50 条，包含儿童表达、成人摘要和视觉支架。Skill 里只安装精选小样本，用来给 Codex 提供少量稳定参考。
 
 ## 已发现的候选来源
 
@@ -51,6 +71,13 @@
 | 协康会儿童语言表达资料 | 儿童语言发展/表达 | 中文 | 机构公开资料 | 提炼日常互动、句式示范原则 |
 
 ## 来源分级
+
+许可门禁：
+
+- `ingest_allowed: true` 只允许宽松、商业友好许可，例如 Apache-2.0、MIT、CC-BY、CC0 或项目原创样例。
+- 非商用、ShareAlike、许可未知、隐私敏感数据不进入产品语料。
+- 第一批外部数据里，只有 `hf_lumees_age_specific` 进入可采样入库队列。
+- Eedi、MathDial、Google Education Dialogue、MCTS 暂时只做研究参考或等待许可复核。
 
 ### A 类：可直接蒸馏成规则
 
@@ -119,7 +146,10 @@ data/speech-style/source-candidates.jsonl
   "license": "apache-2.0",
   "use_level": "sample_reference",
   "risks": ["age_too_young", "generated_data"],
-  "status": "candidate"
+  "status": "candidate",
+  "license_status": "approved_permissive",
+  "ingest_allowed": true,
+  "attribution_required": true
 }
 ```
 
@@ -146,17 +176,17 @@ data/speech-style/distilled-principles.jsonl
 
 ### 样例库
 
-现有文件：
+主库文件：
+
+```text
+data/speech-style/style-examples.jsonl
+```
+
+Skill 精选样例：
 
 ```text
 skills/codex-speak/speech-style-examples.jsonl
 plugins/codex-speak/skills/codex-speak/speech-style-examples.jsonl
-```
-
-后续建议新增规范化主库：
-
-```text
-data/speech-style/style-examples.jsonl
 ```
 
 字段：
@@ -167,15 +197,24 @@ data/speech-style/style-examples.jsonl
   "mode": "child",
   "scene": "debugging",
   "label": "good",
-  "source": "original",
+  "language": "zh-CN",
   "text": "刚才小伙伴没有出现，是因为旧记录挡住了它。我们清掉它，再打开一次，就能看到结果了。",
-  "checks": {
+  "source": "original",
+  "source_ids": ["internal_project_case"],
+  "tags": ["debugging", "cause_effect", "next_action"],
+  "quality": {
     "meta_talk": false,
     "over_teaching": false,
-    "sentence_count": 3,
+    "visual_source_leak": false,
     "has_next_action": true
   }
 }
+```
+
+固定字段：
+
+```text
+id, mode, scene, label, language, text, source, source_ids, tags, quality
 ```
 
 ## 收集流程
@@ -217,6 +256,19 @@ data/speech-style/style-examples.jsonl
 - 元话术，例如“我要生成儿童能听懂的内容”。
 - 夸张表扬、幼稚化语气。
 - 无关文化背景或需要额外解释的典故。
+
+## 自动校验
+
+`codex-speak style validate` 会检查：
+
+- JSONL 是否能逐行解析。
+- 必填字段是否完整。
+- `id` 是否重复。
+- `source_ids` 是否存在。
+- `ingest_allowed` 是否搭配商业友好许可。
+- 儿童样例是否出现元话术、过度教学、长句。
+- 朗读文本是否泄漏代码、命令、长路径、HTML 或图表源码。
+- 主样例库是否至少包含 50 条样例、30 条儿童样例、10 条成人样例、10 条视觉支架样例。
 
 必须保留或改写：
 

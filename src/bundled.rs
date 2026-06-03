@@ -14,6 +14,10 @@ pub const PLUGIN_MCP_SCRIPT_UNIX: &str =
     include_str!("../plugins/codex-speak/scripts/codex-speak-mcp");
 pub const PLUGIN_MCP_SCRIPT_WINDOWS: &str =
     include_str!("../plugins/codex-speak/scripts/codex-speak-mcp.ps1");
+pub const SPEECH_STYLE_SOURCES: &str = include_str!("../data/speech-style/source-candidates.jsonl");
+pub const SPEECH_STYLE_PRINCIPLES: &str =
+    include_str!("../data/speech-style/distilled-principles.jsonl");
+pub const SPEECH_STYLE_EXAMPLES: &str = include_str!("../data/speech-style/style-examples.jsonl");
 
 pub fn plugin_mcp_config(cli_path: &Path) -> String {
     let payload = json!({
