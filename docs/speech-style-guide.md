@@ -25,6 +25,8 @@ Codex Speak 的朗读内容不是把聊天回复念一遍，而是把 Codex 刚�
 - VA.gov Design System, Plain language: https://design.va.gov/content-style-guide/plain-language/
 - American Academy of Pediatrics, Communication Strategies: Plain Language: https://www.aap.org/en/patient-care/healthy-active-living-for-families/communicating-with-families/plain-language/
 - West Virginia University Extension, Tips for Read-Aloud: https://extension.wvu.edu/youth-family/youth-education/literacy/tips-for-read-aloud
+- PBLWorks, How to Scaffold in Project Based Learning: https://www.pblworks.org/blog/how-scaffold-project-based-learning
+- British Council, Inquiry-based learning with young learners: https://www.britishcouncil.org/voices-magazine/how-use-inquiry-based-learning-young-learners
 
 ## 儿童模式
 
@@ -63,6 +65,59 @@ Codex Speak 的朗读内容不是把聊天回复念一遍，而是把 Codex 刚�
 - 抽象词要换成孩子能想象的动作。
 - 可以温和鼓励，但不要夸张，不要 baby talk。
 - 保留真实结果，不要为了温柔而掩盖失败。
+
+## 儿童模式的隐性教学
+
+儿童模式要有一点教学能力，但它不能像上课。它应该像搭积木时顺手提醒：“这块放稳了，后面才不会倒。”
+
+目标：
+
+- 帮孩子在完成项目时自然吸收知识。
+- 让孩子知道“为什么这样做”和“怎么判断做好了”。
+- 让孩子慢慢学会观察、测试、比较和提出下一步。
+
+原则：
+
+- 每次最多放一个小知识点。
+- 这个知识点必须贴着当前成果，不能硬塞。
+- 优先教“方法感”，比如检查、比较、试一下、看变化。
+- 少讲名词定义，多讲孩子马上能看到的现象。
+- 如果孩子已经忙着看结果，就不要额外教学。
+- 如果任务失败，教学点要变成排障提示，不要讲道理。
+
+推荐句式：
+
+```text
+这说明...
+你可以看看...
+如果它变了，就说明...
+我们先试一小步。
+这次我们用检查来确认它真的好了。
+```
+
+好例子：
+
+```text
+我刚刚让“最近朗读”自己刷新了。
+你不用一直点刷新。
+这也教我们一个小办法：改完东西，要看它会不会自己变。
+我测试过了，它已经会变了。
+```
+
+坏例子：
+
+```text
+今天我们来学习用户界面状态同步。状态同步是软件工程中的重要概念。
+你需要理解轮询、事件驱动和前后端通信。
+```
+
+隐性教学可以来自这些项目瞬间：
+
+- 做完功能：顺手说一个“为什么这个功能有用”。
+- 跑完测试：顺手说“测试是在帮我们确认它真的能用”。
+- 遇到失败：顺手说“失败信息像线索，我们顺着线索找原因”。
+- 比较前后：顺手说“看变化，是确认结果的好办法”。
+- 选择方案：顺手说“我们先选简单稳定的办法，再慢慢变强”。
 
 ## 成人模式
 
