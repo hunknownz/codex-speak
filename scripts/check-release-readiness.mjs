@@ -271,11 +271,15 @@ function checkManualQaMixedEnglishCoverage() {
     "OAuth",
     "M C P",
     "J.S.O.N",
+    "build failed because timeout",
+    "ProjectAlpha42",
     "你好世界示例",
-    "Open Router 平台",
+    "开放路由平台",
     "授权登录协议",
     "插件通道",
-    "数据格式"
+    "数据格式",
+    "英文短语",
+    "英文编号"
   ];
   for (const file of ["scripts/manual-qa-macos.sh", "scripts/manual-qa-windows.ps1"]) {
     const content = readFileSync(file, "utf8");
@@ -465,6 +469,24 @@ async function checkCiRun() {
   const runs = await githubJson(`/repos/${repo}/actions/runs?per_page=50`);
   const run = runs.workflow_runs?.find((item) => item.name === "CI" && item.head_sha === head);
   check(run?.conclusion === "success", "latest HEAD CI", run ? `${run.status}/${run.conclusion} ${run.html_url}` : "not found");
+  if (run?.conclusion === "success") {
+    await checkCiSmokeArtifacts(run.id);
+  }
+}
+
+async function checkCiSmokeArtifacts(runId) {
+  const artifacts = await githubJson(`/repos/${repo}/actions/runs/${runId}/artifacts?per_page=100`);
+  const requiredArtifacts = ["codex-speak-macos-ci", "codex-speak-windows-ci"];
+  for (const name of requiredArtifacts) {
+    const artifact = artifacts.artifacts?.find((item) => item.name === name);
+    check(
+      artifact && artifact.expired === false && artifact.size_in_bytes > 0,
+      `CI smoke artifact ${name}`,
+      artifact
+        ? `${artifact.expired ? "expired" : "active"} ${artifact.size_in_bytes} bytes`
+        : "missing"
+    );
+  }
 }
 
 async function checkReleaseRun(tagName) {

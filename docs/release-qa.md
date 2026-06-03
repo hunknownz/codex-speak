@@ -65,7 +65,7 @@ node scripts/prepare-qa-handoff.mjs --allow-missing
 - CI 对当前 `HEAD` 已经成功。
 - 指定 tag 已经推到远端，且 release workflow 成功。
 - release 脚本、安装脚本、文档、Pet 素材和图标都存在。
-- main CI 的 release package smoke 会上传 macOS/Windows QA artifacts，便于从最新成功 CI 取得 Windows 外测包。
+- main CI 的 release package smoke 会上传 macOS/Windows QA artifacts，便于从最新成功 CI 取得 Windows 外测包；`check-release-readiness.mjs` 会在线确认这两个 CI artifact 存在、未过期且大小大于零。
 - release workflow 对稳定版 tag 有签名门禁，避免正式版本在缺少 secrets 时继续发布。
 - 如果本地 `dist` 里已经有 release 包或 QA handoff，它们的 manifest 必须匹配当前 `HEAD`，压缩包 `.sha256` 也必须匹配实际文件，避免把旧包误发给外部测试者。
 - 如果本地 QA handoff 只包含单个平台，readiness 会给 warning，提醒它只是部分外部验收材料。
