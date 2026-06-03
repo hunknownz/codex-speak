@@ -46,7 +46,11 @@ fn resolve_text_with_options(
     };
 
     let cleaned = if consume_side_channel {
-        extract::fallback_reply_guide(&raw, cfg.max_read_chars)
+        if extract::has_explicit_spoken_source(&raw) {
+            extract::fallback_reply_guide(&raw, cfg.max_read_chars)
+        } else {
+            extract::conservative_reply_notice(&raw, cfg.max_read_chars)
+        }
     } else {
         extract::clean_for_speech(&raw, cfg.max_read_chars)
     };
@@ -231,6 +235,36 @@ mod tests {
         .unwrap();
         let message = last_message_from_file(file.path()).unwrap();
         assert_eq!(message, "新回答。");
+    }
+
+    #[test]
+    fn speech_fallback_is_conservative_without_explicit_guide() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"payload":{{"type":"task_complete","last_agent_message":"修好了：\n- HTML 协议里的 `data-role=\"debug\"` 已过滤。\n- `cargo test`：80 个测试全部通过。\n- 产品变化优先于本地构建步骤。"}}}}"#
+        )
+        .unwrap();
+        let cfg = Config::default();
+        let text = resolve_text_for_speech(None, Some(file.path()), &cfg).unwrap();
+        assert!(text.contains("修好了"));
+        assert!(text.contains("测试通过"));
+        assert!(!text.contains("网页标记"));
+        assert!(!text.contains("命令名"));
+        assert!(!text.contains("产品变化优先于本地构建步骤"));
+    }
+
+    #[test]
+    fn speech_fallback_prefers_visible_spoken_guide_when_present() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"payload":{{"type":"task_complete","last_agent_message":"**朗读导览**\n\n我刚刚修好了朗读导览。测试通过了。\n\n**验证**\n- `cargo test` 通过。"}}}}"#
+        )
+        .unwrap();
+        let cfg = Config::default();
+        let text = resolve_text_for_speech(None, Some(file.path()), &cfg).unwrap();
+        assert_eq!(text, "我刚刚修好了朗读导览。测试通过了。");
     }
 
     #[test]

@@ -58,16 +58,18 @@ Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览�
 codex_speak_prepare
 ```
 
-写入结构化 side-channel。MCP 不可用时，最终回答仍保持自然可读；Hook 会从普通回复生成短导览作为最后兜底。HTML/Markdown 协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
+写入结构化 side-channel。MCP 不可用时，Skill 必须在最终回答中写一个短的 `**朗读导览**`，由 Hook 直接读取。Hook 不再把普通 final answer 当作主要朗读源；没有 side-channel 和显式导览时，只播放极保守短播报。
+
+HTML 微格式协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
 
 Hook 提取策略：
 
 ```text
 优先读取并消费新鲜的 MCP side-channel latest.json
 找不到 -> 读取历史 HTML 微格式协议 aside[data-codex-speak="guide"]
-找不到 -> 读取历史 Markdown 朗读导览
+找不到 -> 读取 Markdown 朗读导览
 找不到 -> 读取旧版 codex-speak 调试块
-找不到 -> 规则清洗最后一条回复，并压缩为导览式兜底
+找不到 -> 极保守短播报，不读整段最终回复
 导览兜底为空 -> 系统朗读兜底
 ```
 
@@ -83,7 +85,7 @@ Hook 提取策略：
 - 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
 - 技术词转成更容易听懂的说法。
 
-导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
+导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；MCP 不可用时使用短的可见 Markdown `朗读导览`。HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
 
 当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
 

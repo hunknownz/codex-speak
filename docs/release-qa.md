@@ -221,7 +221,7 @@ codex-speak.exe doctor --json
 - Codex Speak Skill 可用。
 - MCP side-channel 可写入朗读导览。
 - Hook 能优先消费 side-channel。
-- 没有 side-channel 时，Hook 会清洗普通回复后朗读。
+- 没有 side-channel 时，Hook 会优先读取可见 `朗读导览`；如果也没有导览，只播放极保守短播报，不把普通 final answer 当作主要朗读源。
 - 长代码、命令、路径不会被逐字朗读，而会变成适合听的摘要。
 
 自动化预检先运行：

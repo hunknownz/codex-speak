@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -109,13 +110,26 @@ pub fn collect() -> Result<CodexIntegrationReport> {
 
     match verify_fallback_cleaner(&cfg) {
         Ok(detail) => checks.push(CodexIntegrationCheck::ok(
-            "fallback_cleaner",
-            "Fallback reply cleaner",
+            "text_cleaner",
+            "Text cleaner",
             detail,
         )),
         Err(err) => checks.push(CodexIntegrationCheck::fail(
-            "fallback_cleaner",
-            "Fallback reply cleaner",
+            "text_cleaner",
+            "Text cleaner",
+            format!("{err:#}"),
+        )),
+    }
+
+    match verify_conservative_no_guide_fallback(&cfg) {
+        Ok(detail) => checks.push(CodexIntegrationCheck::ok(
+            "conservative_no_guide_fallback",
+            "Conservative no-guide fallback",
+            detail,
+        )),
+        Err(err) => checks.push(CodexIntegrationCheck::fail(
+            "conservative_no_guide_fallback",
+            "Conservative no-guide fallback",
             format!("{err:#}"),
         )),
     }
@@ -243,6 +257,41 @@ fn main() {
         anyhow::bail!("fallback cleaner lost the useful summary: {cleaned}");
     }
     Ok("code blocks, commands, and long paths were skipped".to_string())
+}
+
+fn verify_conservative_no_guide_fallback(cfg: &Config) -> Result<String> {
+    let path = std::env::temp_dir().join(format!(
+        "codex-speak-no-guide-fallback-{}-{}.jsonl",
+        std::process::id(),
+        Local::now().timestamp_nanos_opt().unwrap_or_default()
+    ));
+    let mut file =
+        fs::File::create(&path).with_context(|| format!("failed to create {}", path.display()))?;
+    writeln!(
+        file,
+        r#"{{"payload":{{"type":"task_complete","last_agent_message":"修好了：\n- HTML 协议里的 `data-role=\"debug\"` 已过滤。\n- 产品变化优先于本地构建步骤。\n- `cargo test`：84 个测试全部通过。"}}}}"#
+    )?;
+    drop(file);
+
+    let text = session::resolve_text_for_speech(None, Some(&path), cfg)?;
+    let _ = fs::remove_file(&path);
+    if !text.contains("修好了") || !text.contains("测试通过") {
+        anyhow::bail!("conservative fallback lost useful completion signal: {text}");
+    }
+    for forbidden in [
+        "网页标记",
+        "命令名",
+        "英文单词",
+        "产品变化优先于本地构建步骤",
+    ] {
+        if text.contains(forbidden) {
+            anyhow::bail!("conservative fallback leaked technical report detail: {forbidden}");
+        }
+    }
+    Ok(
+        "without side-channel or visible guide, hook fallback stays short and conservative"
+            .to_string(),
+    )
 }
 
 fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {

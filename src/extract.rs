@@ -10,6 +10,12 @@ pub fn extract_speak_block(text: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+pub fn has_explicit_spoken_source(text: &str) -> bool {
+    extract_html_protocol_guide(text).is_some()
+        || extract_spoken_guide(text).is_some()
+        || extract_speak_block(text).is_some()
+}
+
 pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
     if let Some(guide) = extract_html_protocol_guide(text) {
         return truncate_chars(&guide, max_chars);
@@ -52,6 +58,42 @@ pub fn clean_for_speech(text: &str, max_chars: usize) -> String {
 
     let joined = normalize_space(&lines.join("。"));
     truncate_chars(&joined, max_chars)
+}
+
+pub fn conservative_reply_notice(text: &str, max_chars: usize) -> String {
+    let source = prepare_reply_for_fallback(text);
+    let cleaned = clean_for_speech(&source, max_chars.min(240));
+    let sentences = split_sentences(&cleaned);
+    let mut chosen: Vec<String> = Vec::new();
+
+    if let Some(first) = sentences.iter().find(|sentence| {
+        !is_heading_like_sentence(sentence) && !is_too_technical_for_fallback(sentence)
+    }) {
+        push_unique(&mut chosen, first);
+    }
+
+    if let Some(result) = sentences.iter().find(|sentence| {
+        sentence.contains("测试和构建都通过")
+            || sentence.contains("测试通过")
+            || sentence.contains("构建通过")
+            || sentence.contains("验证通过")
+    }) {
+        push_unique(&mut chosen, result);
+    }
+
+    if let Some(next) = sentences
+        .iter()
+        .find(|sentence| is_next_step_sentence(sentence) && sentence.chars().count() <= 80)
+    {
+        push_unique(&mut chosen, next);
+    }
+
+    let text = if chosen.is_empty() {
+        "这次回答已经完成了。你可以看一下屏幕上的结果。".to_string()
+    } else {
+        normalize_space(&chosen.join("。"))
+    };
+    truncate_chars(&ensure_terminal_punctuation(&text), max_chars.min(220))
 }
 
 pub fn fallback_reply_guide(text: &str, max_chars: usize) -> String {
@@ -165,7 +207,9 @@ pub fn extract_spoken_guide(text: &str) -> Option<String> {
             continue;
         }
         if in_guide {
-            if next_heading.is_match(line) && !line.trim().is_empty() {
+            if !line.trim().is_empty()
+                && (next_heading.is_match(line) || is_plain_section_heading(line))
+            {
                 break;
             }
             if line.trim_start().starts_with("<!--") {
@@ -184,6 +228,16 @@ pub fn extract_spoken_guide(text: &str) -> Option<String> {
     } else {
         Some(guide)
     }
+}
+
+fn is_plain_section_heading(line: &str) -> bool {
+    let stripped = strip_markdown(line);
+    let trimmed = stripped.trim();
+    if !trimmed.ends_with([':', '：']) {
+        return false;
+    }
+    let body = trimmed.trim_end_matches([':', '：']).trim();
+    !body.is_empty() && body.chars().count() <= 24 && !body.contains(['。', '，', '；', '！', '？'])
 }
 
 fn strip_fenced_code(text: &str) -> String {
@@ -666,6 +720,15 @@ mod tests {
     }
 
     #[test]
+    fn visible_spoken_guide_stops_at_plain_section_heading() {
+        let text = "**朗读导览**\n\n我改了规则。\n测试通过了。\n\n验证：\n- `cargo test` 通过。";
+        assert_eq!(
+            extract_spoken_guide(text).unwrap(),
+            "我改了规则。测试通过了。"
+        );
+    }
+
+    #[test]
     fn extracts_html_protocol_guide() {
         let text = r#"
 <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" lang="zh-CN">
@@ -742,6 +805,20 @@ mod tests {
 -->
 "#;
         assert_eq!(clean_for_speech(text, 300), "我会读这一段。");
+    }
+
+    #[test]
+    fn detects_explicit_spoken_sources() {
+        assert!(has_explicit_spoken_source("**朗读导览**\n\n我会读这里。"));
+        assert!(has_explicit_spoken_source(
+            r#"<aside data-codex-speak="guide"><p data-role="did">读这里。</p></aside>"#
+        ));
+        assert!(has_explicit_spoken_source(
+            "<!-- codex-speak\n读这里。\n-->"
+        ));
+        assert!(!has_explicit_spoken_source(
+            "普通最终回答，没有专门朗读导览。"
+        ));
     }
 
     #[test]
@@ -948,6 +1025,35 @@ stopButton.addEventListener("click", () => invoke("stop_speech"));
         assert!(!guide.contains("命令参数"));
         assert!(!guide.contains("产品变化优先于本地构建步骤"));
         assert!(!guide.contains("dd2c46c"));
+    }
+
+    #[test]
+    fn conservative_notice_does_not_read_visible_technical_report() {
+        let text = r#"
+补好了，并且这次测试真的抓出了两个现有问题，我也一起修了：
+
+- HTML 协议里的 `data-role="debug"` 之前会误读，现在会正确过滤。
+- 表格行在去 Markdown 后之前可能漏进朗读，现在清洗前就先跳过表格/链接/git directive。
+- 兜底摘要现在更偏向“儿童模式新增、声音方案支持”这类产品变化，少读“本地重新构建、重新安装”这种流水线信息。
+- session 层新增测试，保证只读最新的 final answer，不读过程分析，也不回放旧回答。
+
+新增/加强测试覆盖：
+- HTML 协议优先级
+- HTML role 过滤和实体反转义
+- 产品变化优先于本地构建步骤
+
+验证已通过：
+- `cargo test`：80 个测试全部通过
+- `cargo build --release`：通过
+"#;
+        let notice = conservative_reply_notice(text, 800);
+        assert!(notice.contains("补好了"));
+        assert!(notice.contains("测试和构建都通过了"));
+        assert!(notice.ends_with('。'));
+        assert!(!notice.contains("网页标记"));
+        assert!(!notice.contains("命令名"));
+        assert!(!notice.contains("英文单词"));
+        assert!(!notice.contains("产品变化优先于本地构建步骤"));
     }
 
     #[test]

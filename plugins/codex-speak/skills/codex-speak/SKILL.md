@@ -1,8 +1,8 @@
 ---
 name: codex-speak
-description: Use when Codex should prepare speech-friendly replies through Codex Speak. Prefer the plugin side-channel when available; otherwise keep the visible reply natural and speech-friendly.
+description: Use when Codex replies should be prepared for speech playback. Prefer the Codex Speak MCP side-channel when available, so the spoken guide does not need to appear in the chat.
 metadata:
-  short-description: Prepare Codex Speak narration
+  short-description: Make Codex replies speech-friendly
 ---
 
 # Codex Speak
@@ -163,9 +163,30 @@ Available providers are `sherpa_melo`, `sherpa_kokoro`, `sherpa_zipvoice`, `pipe
 
 ## Fallback Path: Plain Chat
 
-If `codex_speak_prepare` is not available, do not inject the folded HTML protocol into the chat by default.
+If `codex_speak_prepare` is not available, write a short visible Markdown guide under the heading `**朗读导览**` near the end of the final answer.
 
-Instead, keep the visible final answer natural, concise, and speech-friendly. The local Hook can still clean the visible answer as a last resort, and the product may continue parsing old HTML/Markdown fallback blocks for compatibility, but the skill should not create new ones during normal use.
+This is the only normal no-MCP fallback. Do not use folded HTML, hidden comments, `<details>`, XML, raw protocol tags, or long machine-readable blocks. The guide should look like natural user-facing text, because the Hook will read this section directly.
+
+Shape:
+
+```markdown
+**朗读导览**
+
+我刚刚做了什么。现在结果怎么样。下一步你可以怎么试。
+```
+
+Rules:
+
+- Keep it 2 to 4 short Chinese sentences.
+- Do not mention that this is a fallback, protocol, hook, MCP, Skill, or generated speech text.
+- Do not include code, commands, file paths, test command names, commit hashes, Git directives, tables, or raw English identifiers.
+- In child mode, speak directly to the child in a warm older-sister tone.
+- In adult mode, make it a concise briefing.
+- The visible final answer can still include technical details below or above it, but the guide must be the only section intended for speech.
+
+If the whole answer is already a tiny natural conversational answer, the guide may be skipped. For implementation, debugging, testing, release, or architecture work, include it.
+
+When no side-channel and no visible `朗读导览` are present, the local Hook intentionally falls back to a very conservative short notice instead of trying to read the whole final answer.
 
 For very short conversational answers, skip the guide if the whole answer is already natural to hear.
 
