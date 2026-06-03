@@ -401,11 +401,11 @@ max_read_chars = 800
 provider = "sherpa_melo"
 fallback_provider = "system"
 
-speed = 0.86
+speed = 0.82
 num_threads = 4
-vits_noise_scale = 0.34
-vits_noise_scale_w = 0.46
-tts_silence_scale = 0.5
+vits_noise_scale = 0.26
+vits_noise_scale_w = 0.36
+tts_silence_scale = 0.58
 voice = "default"
 skip_code_blocks = true
 ```

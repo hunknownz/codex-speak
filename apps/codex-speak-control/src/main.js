@@ -10,6 +10,7 @@ const controls = {
   childMode: $("childMode"),
   provider: $("provider"),
   voiceProfile: $("voiceProfile"),
+  voiceParams: $("voiceParams"),
   speed: $("speed"),
   maxChars: $("maxChars"),
   speedValue: $("speedValue"),
@@ -61,6 +62,7 @@ function renderStatus(status) {
   controls.maxChars.value = status.max_read_chars;
   controls.speedValue.value = Number(status.speed).toFixed(2);
   controls.maxCharsValue.value = status.max_read_chars;
+  controls.voiceParams.textContent = formatVoiceParams(status);
   const provider = (status.providers || []).find((item) => item.id === status.provider);
   controls.providerState.textContent = provider?.label || status.provider || "-";
   controls.providerHint.textContent = provider
@@ -103,6 +105,19 @@ function renderStatus(status) {
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";
   applying = false;
+}
+
+function formatVoiceParams(status) {
+  const parts = [
+    ["语速", status.speed, 2],
+    ["清晰度噪声", status.vits_noise_scale, 2],
+    ["韵律噪声", status.vits_noise_scale_w, 2],
+    ["停顿", status.tts_silence_scale, 2]
+  ];
+  return parts
+    .filter(([, value]) => Number.isFinite(Number(value)))
+    .map(([label, value, digits]) => `${label} ${Number(value).toFixed(digits)}`)
+    .join(" · ") || "实际参数暂不可用";
 }
 
 function renderPronunciation(dictionary) {

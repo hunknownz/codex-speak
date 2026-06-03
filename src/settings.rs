@@ -87,24 +87,24 @@ fn apply_voice_profile(cfg: &mut Config, profile: &str) -> Result<()> {
     match profile {
         "clear_bright" => {
             cfg.voice_profile = profile.to_string();
-            cfg.speed = 0.86;
-            cfg.vits_noise_scale = 0.34;
-            cfg.vits_noise_scale_w = 0.46;
-            cfg.tts_silence_scale = 0.5;
+            cfg.speed = 0.82;
+            cfg.vits_noise_scale = 0.26;
+            cfg.vits_noise_scale_w = 0.36;
+            cfg.tts_silence_scale = 0.58;
         }
         "slow_clear" => {
             cfg.voice_profile = profile.to_string();
-            cfg.speed = 0.78;
-            cfg.vits_noise_scale = 0.28;
-            cfg.vits_noise_scale_w = 0.38;
-            cfg.tts_silence_scale = 0.62;
+            cfg.speed = 0.74;
+            cfg.vits_noise_scale = 0.22;
+            cfg.vits_noise_scale_w = 0.3;
+            cfg.tts_silence_scale = 0.72;
         }
         "quick_preview" => {
             cfg.voice_profile = profile.to_string();
-            cfg.speed = 0.96;
-            cfg.vits_noise_scale = 0.4;
-            cfg.vits_noise_scale_w = 0.52;
-            cfg.tts_silence_scale = 0.38;
+            cfg.speed = 0.92;
+            cfg.vits_noise_scale = 0.34;
+            cfg.vits_noise_scale_w = 0.44;
+            cfg.tts_silence_scale = 0.44;
         }
         other => bail!("unsupported voice profile: {other}"),
     }
