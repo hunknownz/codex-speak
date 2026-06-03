@@ -252,7 +252,7 @@ marketplace 条目使用本地路径：
 如果某个英文项目名、缩写或工具名读起来别扭，可以给本机加一条发音规则：
 
 ```bash
-~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "Open Router 平台"
+~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "开放路由平台"
 ~/.codex/codex-speak/bin/codex-speak pronunciation preview --text "我配置了 OpenRouter。"
 ```
 

@@ -247,7 +247,7 @@ fn main() {
 
 fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
     let raw =
-        "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU 和 XYZ。";
+        "我运行 hello world，并检查 README.md、codex_speak_prepare、--provider sherpa_melo、OpenRouter、OAuth、M C P、J.S.O.N、CLI、API、CPU、XYZ、build failed because timeout 和 ProjectAlpha42。";
     let cleaned = session::resolve_text(Some(raw.to_string()), None, cfg)?;
     for required in [
         "你好世界示例",
@@ -255,7 +255,7 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "准备朗读导览的插件工具",
         "命令参数",
         "默认中文朗读引擎",
-        "Open Router 平台",
+        "开放路由平台",
         "授权登录协议",
         "插件通道",
         "数据格式",
@@ -263,6 +263,8 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "接口",
         "处理器",
         "英文缩写",
+        "英文短语",
+        "英文编号",
     ] {
         if !cleaned.contains(required) {
             anyhow::bail!("mixed English normalization lost expected term {required}: {cleaned}");
@@ -284,6 +286,10 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "API",
         "CPU",
         "XYZ",
+        "build",
+        "failed",
+        "timeout",
+        "ProjectAlpha42",
     ] {
         if cleaned.contains(forbidden) {
             anyhow::bail!("mixed English normalization leaked raw term {forbidden}: {cleaned}");

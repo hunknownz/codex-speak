@@ -31,10 +31,7 @@ pub fn normalize_for_tts_with_dictionary(
     text: &str,
     dictionary: &PronunciationDictionary,
 ) -> String {
-    let mut result = text.to_string();
-    for (pattern, replacement) in &dictionary.terms {
-        result = replace_word_case_insensitive(&result, pattern, replacement);
-    }
+    let (mut result, protected_terms) = protect_user_dictionary_terms(text, dictionary);
     for (pattern, replacement) in TERM_REPLACEMENTS {
         result = replace_word_case_insensitive(&result, pattern, replacement);
     }
@@ -43,6 +40,8 @@ pub fn normalize_for_tts_with_dictionary(
     result = replace_command_flags(&result);
     result = replace_code_identifiers(&result);
     result = replace_unknown_uppercase_acronyms(&result);
+    result = replace_remaining_english_spans(&result);
+    result = restore_protected_terms(&result, &protected_terms);
     normalize_spacing(&result)
 }
 
@@ -134,14 +133,16 @@ fn validate_spoken(spoken: &str) -> Result<()> {
 }
 
 const TERM_REPLACEMENTS: &[(&str, &str)] = &[
-    ("Codex Speak", "Codex 朗读助手"),
-    ("Sherpa-ONNX", "Sherpa 语音引擎"),
-    ("MeloTTS", "Melo 朗读模型"),
-    ("Kokoro", "Kokoro 语音模型"),
-    ("Piper", "Piper 语音模型"),
-    ("ZipVoice", "ZipVoice 语音模型"),
+    ("Codex Speak", "朗读助手"),
+    ("Codex", "代码助手"),
+    ("Sherpa-ONNX", "本地语音引擎"),
+    ("MeloTTS", "默认中文朗读模型"),
+    ("Kokoro", "可选朗读模型"),
+    ("Piper", "可选朗读模型"),
+    ("ZipVoice", "可选朗读模型"),
     ("OpenAI", "人工智能公司"),
-    ("OpenRouter", "Open Router 平台"),
+    ("OpenRouter", "开放路由平台"),
+    ("Open Router", "开放路由"),
     ("OAuth", "授权登录协议"),
     ("ChatGPT", "聊天机器人"),
     ("GitHub Actions", "自动构建检查"),
@@ -156,11 +157,11 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("GraphQL", "接口查询语言"),
     ("REST", "接口设计风格"),
     ("hello world", "你好世界示例"),
-    ("PowerShell", "PowerShell 命令窗口"),
+    ("PowerShell", "命令窗口"),
     ("Terminal", "命令窗口"),
     ("terminal", "命令窗口"),
-    ("Tauri", "Tauri 桌面应用框架"),
-    ("Rust", "Rust 语言"),
+    ("Tauri", "桌面应用框架"),
+    ("Rust", "系统编程语言"),
     ("Hook", "自动触发器"),
     ("hook", "自动触发器"),
     ("Plugin", "插件"),
@@ -203,31 +204,32 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("stdout", "标准输出"),
     ("stderr", "错误输出"),
     ("stdin", "标准输入"),
-    ("Node.js", "Node 运行环境"),
-    ("JavaScript", "JavaScript 语言"),
-    ("TypeScript", "TypeScript 语言"),
-    ("React", "React 框架"),
-    ("Vue", "Vue 框架"),
-    ("Vite", "Vite 构建工具"),
-    ("Next.js", "Next 框架"),
+    ("Node.js", "前端运行环境"),
+    ("JavaScript", "网页脚本语言"),
+    ("TypeScript", "类型脚本语言"),
+    ("React", "前端框架"),
+    ("Vue", "前端框架"),
+    ("Vite", "前端构建工具"),
+    ("Next.js", "前端框架"),
     ("Playwright", "浏览器自动化测试工具"),
-    ("npm", "Node 包管理工具"),
-    ("pnpm", "pnpm 包管理工具"),
-    ("yarn", "yarn 包管理工具"),
-    ("npx", "npx 命令工具"),
-    ("macOS", "mac 系统"),
-    ("Windows", "Windows 系统"),
-    ("Linux", "Linux 系统"),
+    ("npm", "包管理工具"),
+    ("pnpm", "包管理工具"),
+    ("yarn", "包管理工具"),
+    ("npx", "命令工具"),
+    ("macOS", "苹果电脑系统"),
+    ("mac", "苹果电脑"),
+    ("Windows", "微软电脑系统"),
+    ("Linux", "开源系统"),
     ("README.md", "说明文件"),
     ("config.toml", "配置文件"),
-    ("Cargo.toml", "Rust 项目配置文件"),
+    ("Cargo.toml", "项目配置文件"),
     ("package.json", "前端项目配置文件"),
-    ("install-macos.sh", "mac 安装脚本"),
-    ("manual-qa-macos.sh", "mac 手工验收脚本"),
-    ("manual-qa-windows.ps1", "Windows 手工验收脚本"),
-    ("package-macos-release.sh", "mac 发布打包脚本"),
-    ("smoke-install-macos-release.sh", "mac 安装烟测脚本"),
-    ("verify-codex", "Codex 集成自检"),
+    ("install-macos.sh", "苹果电脑安装脚本"),
+    ("manual-qa-macos.sh", "苹果电脑手工验收脚本"),
+    ("manual-qa-windows.ps1", "微软电脑手工验收脚本"),
+    ("package-macos-release.sh", "苹果电脑发布打包脚本"),
+    ("smoke-install-macos-release.sh", "苹果电脑安装烟测脚本"),
+    ("verify-codex", "集成自检"),
     ("verify-install", "安装自检"),
     ("verify-package", "安装包自检"),
     ("support-bundle", "排障支持包"),
@@ -238,13 +240,39 @@ const TERM_REPLACEMENTS: &[(&str, &str)] = &[
     ("codex_speak_speak_text", "播放朗读的插件工具"),
     ("codex_speak_stop", "停止朗读的插件工具"),
     ("sherpa_melo", "默认中文朗读引擎"),
-    ("sherpa_kokoro", "Kokoro 朗读引擎"),
-    ("sherpa_zipvoice", "ZipVoice 朗读引擎"),
+    ("sherpa_kokoro", "可选朗读引擎"),
+    ("sherpa_zipvoice", "可选朗读引擎"),
     ("voice_profile", "声音档位"),
     ("child_mode", "儿童模式"),
     ("max_read_chars", "最大朗读长度"),
     ("tts_silence_scale", "朗读停顿设置"),
 ];
+
+fn protect_user_dictionary_terms(
+    text: &str,
+    dictionary: &PronunciationDictionary,
+) -> (String, Vec<String>) {
+    let mut result = text.to_string();
+    let mut protected_terms = Vec::new();
+    for (pattern, replacement) in &dictionary.terms {
+        let placeholder = protected_placeholder(protected_terms.len());
+        result = replace_word_case_insensitive(&result, pattern, &placeholder);
+        protected_terms.push(replacement.clone());
+    }
+    (result, protected_terms)
+}
+
+fn protected_placeholder(index: usize) -> String {
+    format!("\u{E000}{index}\u{E001}")
+}
+
+fn restore_protected_terms(text: &str, protected_terms: &[String]) -> String {
+    let mut result = text.to_string();
+    for (index, replacement) in protected_terms.iter().enumerate() {
+        result = result.replace(&protected_placeholder(index), replacement);
+    }
+    result
+}
 
 fn replace_word_case_insensitive(text: &str, pattern: &str, replacement: &str) -> String {
     if pattern
@@ -315,9 +343,9 @@ fn describe_extension(ext: &str) -> &'static str {
     match ext.to_ascii_lowercase().as_str() {
         "md" => "说明文件",
         "toml" | "json" | "yaml" | "yml" => "配置文件",
-        "sh" => "shell 脚本",
-        "ps1" => "PowerShell 脚本",
-        "rs" => "Rust 源码文件",
+        "sh" => "命令脚本",
+        "ps1" => "微软系统命令脚本",
+        "rs" => "源码文件",
         "ts" | "tsx" | "js" | "jsx" => "源码文件",
         "html" => "页面文件",
         "css" => "样式文件",
@@ -355,6 +383,53 @@ fn replace_unknown_uppercase_acronyms(text: &str) -> String {
     re.replace_all(text, "英文缩写").into_owned()
 }
 
+fn replace_remaining_english_spans(text: &str) -> String {
+    if !contains_cjk(text) {
+        return text.to_string();
+    }
+    let re = Regex::new(
+        r"\b[A-Za-z][A-Za-z0-9]*(?:['][A-Za-z0-9]+)?(?:[ -]+[A-Za-z][A-Za-z0-9]*(?:['][A-Za-z0-9]+)?){0,7}\b",
+    )
+    .expect("remaining English span regex should compile");
+    re.replace_all(text, |caps: &regex::Captures| {
+        describe_english_span(caps.get(0).map(|m| m.as_str()).unwrap_or_default())
+    })
+    .into_owned()
+}
+
+fn contains_cjk(text: &str) -> bool {
+    text.chars().any(|ch| {
+        matches!(
+            ch,
+            '\u{3400}'..='\u{4DBF}'
+                | '\u{4E00}'..='\u{9FFF}'
+                | '\u{F900}'..='\u{FAFF}'
+                | '\u{20000}'..='\u{2A6DF}'
+                | '\u{2A700}'..='\u{2B73F}'
+                | '\u{2B740}'..='\u{2B81F}'
+                | '\u{2B820}'..='\u{2CEAF}'
+        )
+    })
+}
+
+fn describe_english_span(span: &str) -> &'static str {
+    let word_count = span
+        .split(|ch: char| ch.is_ascii_whitespace() || ch == '-')
+        .filter(|part| !part.is_empty())
+        .count();
+    if word_count > 1 {
+        "英文短语"
+    } else if span.chars().any(|ch| ch.is_ascii_digit()) {
+        "英文编号"
+    } else if span.chars().any(|ch| ch.is_ascii_uppercase())
+        && span.chars().any(|ch| ch.is_ascii_lowercase())
+    {
+        "英文名称"
+    } else {
+        "英文单词"
+    }
+}
+
 fn normalize_spacing(text: &str) -> String {
     let re = Regex::new(r"[ \t]+").expect("spacing regex should compile");
     re.replace_all(text, " ").trim().to_string()
@@ -380,18 +455,21 @@ mod tests {
     }
 
     #[test]
-    fn does_not_replace_inside_longer_words() {
-        assert_eq!(normalize_for_tts("capital"), "capital");
+    fn does_not_replace_known_terms_inside_longer_words() {
+        let text = normalize_for_tts("capital 这个词里不应该触发替换。");
+        assert!(text.contains("英文单词"));
+        assert!(!text.contains("接口"));
     }
 
     #[test]
     fn normalizes_file_and_script_names_for_speech() {
         let text = normalize_for_tts("README.md、src/pronunciation.rs、install-macos.sh");
         assert!(text.contains("说明文件"));
-        assert!(text.contains("Rust 源码文件"));
-        assert!(text.contains("mac 安装脚本"));
+        assert!(text.contains("源码文件"));
+        assert!(text.contains("苹果电脑安装脚本"));
         assert!(!text.contains("README.md"));
         assert!(!text.contains("pronunciation.rs"));
+        assert!(!text.contains("install-macos.sh"));
     }
 
     #[test]
@@ -430,7 +508,7 @@ mod tests {
     #[test]
     fn normalizes_common_english_terms_for_chinese_first_speech() {
         let text = normalize_for_tts("OpenRouter、OAuth、WebSocket 和 hello world。");
-        assert!(text.contains("Open Router 平台"));
+        assert!(text.contains("开放路由平台"));
         assert!(text.contains("授权登录协议"));
         assert!(text.contains("网页实时通信协议"));
         assert!(text.contains("你好世界示例"));
@@ -438,6 +516,24 @@ mod tests {
         assert!(!text.contains("OAuth"));
         assert!(!text.contains("WebSocket"));
         assert!(!text.contains("hello world"));
+    }
+
+    #[test]
+    fn replaces_remaining_english_spans_in_mixed_chinese_speech() {
+        let text =
+            normalize_for_tts("我看到 build failed because timeout，然后处理 ProjectAlpha42。");
+        assert!(text.contains("英文短语"));
+        assert!(text.contains("英文编号"));
+        assert!(!text.contains("build"));
+        assert!(!text.contains("failed"));
+        assert!(!text.contains("timeout"));
+        assert!(!text.contains("ProjectAlpha42"));
+    }
+
+    #[test]
+    fn preserves_mostly_english_text_for_english_speech_paths() {
+        let text = normalize_for_tts("The build failed because timeout.");
+        assert_eq!(text, "The build failed because timeout.");
     }
 
     #[test]
@@ -455,6 +551,18 @@ mod tests {
         assert!(text.contains("项目 X"));
         assert!(!text.contains("人工智能公司"));
         assert!(!text.contains("ProjectX"));
+    }
+
+    #[test]
+    fn protects_custom_dictionary_spoken_values_from_generic_cleanup() {
+        let mut dictionary = PronunciationDictionary::default();
+        dictionary
+            .terms
+            .insert("OpenRouter".to_string(), "Open Router 平台".to_string());
+
+        let text = normalize_for_tts_with_dictionary("我配置了 OpenRouter。", &dictionary);
+        assert!(text.contains("Open Router 平台"));
+        assert!(!text.contains("开放路由平台"));
     }
 
     #[test]

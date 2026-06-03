@@ -139,14 +139,15 @@ codex-speak uninstall
 
 - 朗读前会把常见技术词转换成更适合中文听的说法，例如 `MCP` 或 `M C P` 会读成“插件通道”，`JSON` 或 `J.S.O.N` 会读成“数据格式”，`CLI` 会读成“命令行工具”。
 - 文件名、脚本名、命令参数和代码标识符也会先变成可听懂的中文短语，例如 `README.md` 会读成“说明文件”，`codex_speak_prepare` 会读成“准备朗读导览的插件工具”，`--provider sherpa_melo` 会读成“命令参数 默认中文朗读引擎”。
-- `OpenRouter`、`OAuth`、`WebSocket`、`hello world` 这类常见英文词也会先转成中文可懂说法；`CPU`、`GPU`、`SDK` 这类常见缩写会转成中文意思；没有收录的全大写缩写会兜底读成“英文缩写”，避免中文 TTS 一个字母一个字母地念。
+- `OpenRouter`、`OAuth`、`WebSocket`、`hello world` 这类常见英文词也会先转成中文可懂说法；`CPU`、`GPU`、`SDK` 这类常见缩写会转成中文意思；没有收录的全大写缩写会兜底读成“英文缩写”。
+- 混在中文里的未知英文词和短语会先变成“英文单词”“英文短语”“英文名称”或“英文编号”这类提示，避免默认中文 TTS 一个字母一个字母地念。
 - 系统语音兜底会把中英文分段，中文段用中文系统声音，普通英文段用英文系统声音，减少中文声音把英文单词逐字母读出来的问题。
 - 如果经常听中英混读，优先使用 `sherpa_melo` 或 `sherpa_kokoro`，不要长期依赖 `system` 兜底。
 
 本地发音词典：
 
 ```bash
-~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "Open Router 平台"
+~/.codex/codex-speak/bin/codex-speak pronunciation set --term OpenRouter --spoken "开放路由平台"
 ~/.codex/codex-speak/bin/codex-speak pronunciation preview --text "我配置了 OpenRouter。"
 ```
 
