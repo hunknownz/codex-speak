@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -67,6 +67,7 @@ pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
     install_release_manifest()?;
     install_skill()?;
     install_plugin()?;
+    install_codex_plugin();
     install_hook()?;
 
     let previous = install_notify()?;
@@ -87,6 +88,7 @@ pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
 
 pub fn uninstall(remove_models: bool) -> Result<()> {
     restore_notify()?;
+    uninstall_codex_plugin();
     let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify"));
     let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify.ps1"));
     let _ = fs::remove_dir_all(config::codex_home()?.join("skills/codex-speak"));
@@ -264,6 +266,142 @@ fn install_plugin() -> Result<()> {
     upsert_personal_marketplace_entry()?;
     cleanup_legacy_plugin_dir()?;
     Ok(())
+}
+
+fn install_codex_plugin() {
+    if let Err(err) = install_codex_plugin_inner() {
+        eprintln!(
+            "Codex Speak plugin auto-install skipped: {err:#}. You can install it later with `codex plugin add codex-speak@personal`."
+        );
+    }
+}
+
+fn install_codex_plugin_inner() -> Result<()> {
+    let cli = find_codex_plugin_cli().context("Codex plugin CLI was not found")?;
+    let output = run_codex_plugin_command(&cli, &["plugin", "add", "codex-speak@personal"])?;
+    if output.status.success() {
+        eprintln!("Codex Speak plugin installed/enabled through Codex.");
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stderr.contains("service_tier") || stderr.contains("failed to load configuration") {
+        let retry = run_codex_plugin_command(
+            &cli,
+            &[
+                "-c",
+                "service_tier=\"fast\"",
+                "plugin",
+                "add",
+                "codex-speak@personal",
+            ],
+        )?;
+        if retry.status.success() {
+            eprintln!("Codex Speak plugin installed/enabled through Codex.");
+            return Ok(());
+        }
+        anyhow::bail!(
+            "Codex plugin add failed after config retry: {}",
+            command_output_summary(&retry)
+        );
+    }
+
+    anyhow::bail!(
+        "Codex plugin add failed: {}",
+        command_output_summary(&output)
+    )
+}
+
+fn uninstall_codex_plugin() {
+    if let Err(err) = uninstall_codex_plugin_inner() {
+        eprintln!("Codex Speak plugin auto-remove skipped: {err:#}.");
+    }
+}
+
+fn uninstall_codex_plugin_inner() -> Result<()> {
+    let cli = find_codex_plugin_cli().context("Codex plugin CLI was not found")?;
+    let output = run_codex_plugin_command(&cli, &["plugin", "remove", "codex-speak@personal"])?;
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stderr.contains("service_tier") || stderr.contains("failed to load configuration") {
+        let retry = run_codex_plugin_command(
+            &cli,
+            &[
+                "-c",
+                "service_tier=\"fast\"",
+                "plugin",
+                "remove",
+                "codex-speak@personal",
+            ],
+        )?;
+        if retry.status.success() {
+            return Ok(());
+        }
+        anyhow::bail!(
+            "Codex plugin remove failed after config retry: {}",
+            command_output_summary(&retry)
+        );
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if stderr.contains("not installed") || stderr.contains("not found") {
+        return Ok(());
+    }
+
+    anyhow::bail!(
+        "Codex plugin remove failed: {}",
+        command_output_summary(&output)
+    )
+}
+
+fn find_codex_plugin_cli() -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Ok(path) = std::env::var("CODEX_CLI_PATH") {
+        if !path.trim().is_empty() {
+            candidates.push(PathBuf::from(path));
+        }
+    }
+    if cfg!(target_os = "macos") {
+        candidates.push(PathBuf::from(
+            "/Applications/Codex.app/Contents/Resources/codex",
+        ));
+    }
+    candidates.push(PathBuf::from(if cfg!(windows) {
+        "codex.exe"
+    } else {
+        "codex"
+    }));
+
+    candidates
+        .into_iter()
+        .find(|candidate| codex_cli_supports_plugin_add(candidate))
+}
+
+fn codex_cli_supports_plugin_add(candidate: &Path) -> bool {
+    run_codex_plugin_command(candidate, &["plugin", "add", "--help"])
+        .is_ok_and(|output| output.status.success())
+}
+
+fn run_codex_plugin_command(cli: &Path, args: &[&str]) -> Result<Output> {
+    Command::new(cli)
+        .args(args)
+        .output()
+        .with_context(|| format!("failed to run {} {}", cli.display(), args.join(" ")))
+}
+
+fn command_output_summary(output: &Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        format!("exit status {}", output.status)
+    }
 }
 
 fn uninstall_plugin() -> Result<()> {

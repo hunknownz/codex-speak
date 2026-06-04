@@ -239,7 +239,8 @@ bootstrap installer
   -> 安装 Hook wrapper
   -> 安装 speak-engine
   -> 下载/校验 TTS 引擎和模型
-  -> 可选安装 Plugin
+  -> 安装 Plugin 源目录和 marketplace entry
+  -> 尝试执行 codex plugin add codex-speak@personal
   -> 可选安装 Tauri 控制面板
   -> 写入配置
   -> 运行 doctor 自检

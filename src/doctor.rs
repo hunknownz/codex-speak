@@ -5,6 +5,7 @@ use std::process::Command;
 use anyhow::Result;
 use chrono::Local;
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::{bundled, config, pronunciation};
 
@@ -181,6 +182,7 @@ pub fn collect() -> Result<DoctorReport> {
         &mut checks,
     );
     check_marketplace(&mut checks)?;
+    check_codex_plugin_install(&mut checks)?;
     check_player(&mut checks);
 
     Ok(DoctorReport::new(checks))
@@ -352,6 +354,9 @@ fn hint_for(id: &str) -> Option<&'static str> {
         "plugin_marketplace" => {
             Some("Run `codex-speak install` to add Codex Speak to the personal plugin marketplace.")
         }
+        "codex_plugin_install" => Some(
+            "Run `codex-speak install`, or run `codex plugin add codex-speak@personal` and then start a new Codex thread.",
+        ),
         "player" => Some(
             "macOS needs /usr/bin/afplay. Windows needs powershell.exe available for SoundPlayer playback.",
         ),
@@ -525,6 +530,71 @@ fn check_marketplace(checks: &mut Vec<DoctorCheck>) -> Result<()> {
     Ok(())
 }
 
+fn check_codex_plugin_install(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let version = bundled_plugin_version()?;
+    let cache_dir = config::installed_plugin_cache_root()?.join(&version);
+    let manifest_path = cache_dir.join(".codex-plugin/plugin.json");
+    let config_path = config::codex_home()?.join("config.toml");
+    let config_raw = fs::read_to_string(&config_path).unwrap_or_default();
+
+    if !plugin_enabled_in_codex_config(&config_raw) {
+        checks.push(DoctorCheck::fail(
+            "codex_plugin_install",
+            "Codex plugin install",
+            format!(
+                "codex-speak@personal is not enabled in {}; run codex plugin add codex-speak@personal",
+                config_path.display()
+            ),
+        ));
+        return Ok(());
+    }
+
+    match fs::read_to_string(&manifest_path) {
+        Ok(actual) if actual == bundled::PLUGIN_MANIFEST => checks.push(DoctorCheck::ok(
+            "codex_plugin_install",
+            "Codex plugin install",
+            format!("installed and enabled at {}", cache_dir.display()),
+        )),
+        Ok(_) => checks.push(DoctorCheck::fail(
+            "codex_plugin_install",
+            "Codex plugin install",
+            format!(
+                "{} differs from current CLI bundle",
+                manifest_path.display()
+            ),
+        )),
+        Err(_) => checks.push(DoctorCheck::fail(
+            "codex_plugin_install",
+            "Codex plugin install",
+            format!("missing {}", manifest_path.display()),
+        )),
+    }
+    Ok(())
+}
+
+fn bundled_plugin_version() -> Result<String> {
+    let manifest: Value = serde_json::from_str(bundled::PLUGIN_MANIFEST)?;
+    let Some(version) = manifest.get("version").and_then(Value::as_str) else {
+        anyhow::bail!("bundled plugin manifest does not contain version");
+    };
+    Ok(version.to_string())
+}
+
+fn plugin_enabled_in_codex_config(config_raw: &str) -> bool {
+    let mut in_plugin_table = false;
+    for line in config_raw.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_plugin_table = trimmed == "[plugins.\"codex-speak@personal\"]";
+            continue;
+        }
+        if in_plugin_table && trimmed == "enabled = true" {
+            return true;
+        }
+    }
+    false
+}
+
 fn check_player(checks: &mut Vec<DoctorCheck>) {
     if cfg!(target_os = "macos") {
         let path = Path::new("/usr/bin/afplay");
@@ -554,7 +624,9 @@ fn check_player(checks: &mut Vec<DoctorCheck>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{blocking_failures, CheckStatus, DoctorCheck, DoctorReport};
+    use super::{
+        blocking_failures, plugin_enabled_in_codex_config, CheckStatus, DoctorCheck, DoctorReport,
+    };
 
     #[test]
     fn required_fail_makes_report_not_ok() {
@@ -625,5 +697,20 @@ mod tests {
     fn ok_checks_do_not_include_hint() {
         let check = DoctorCheck::ok("plugin", "Codex Speak plugin", "present");
         assert!(check.hint.is_none());
+    }
+
+    #[test]
+    fn detects_enabled_codex_plugin_config_block() {
+        let raw = r#"
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."codex-speak@personal"]
+enabled = true
+"#;
+        assert!(plugin_enabled_in_codex_config(raw));
+        assert!(!plugin_enabled_in_codex_config(
+            "[plugins.\"codex-speak@personal\"]\nenabled = false\n"
+        ));
     }
 }

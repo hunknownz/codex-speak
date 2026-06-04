@@ -54,6 +54,12 @@ The marketplace entry uses a local source path:
 ./plugins/codex-speak
 ```
 
-During product installation, `.mcp.json` is generated for the current platform and points directly at the installed Rust CLI in `~/.codex/codex-speak/bin`. The wrapper scripts stay in the plugin for debugging and compatibility.
+During product installation, `.mcp.json` is generated for the current platform and points directly at the installed Rust CLI in `~/.codex/codex-speak/bin`. The installer also attempts the canonical Codex install step:
+
+```text
+codex plugin add codex-speak@personal
+```
+
+After that, Codex loads the installed plugin copy from `~/.codex/plugins/cache/personal/codex-speak/<version>/`. Start a new Codex thread after reinstalling so new skills and MCP tools are picked up. The wrapper scripts stay in the plugin for debugging and compatibility.
 
 That keeps Plugin, Skill, MCP config, Hook, and the installed Rust CLI on the same local version.

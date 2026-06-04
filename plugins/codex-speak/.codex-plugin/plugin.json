@@ -1,6 +1,6 @@
 {
   "name": "codex-speak",
-  "version": "0.1.0+codex.20260604155524",
+  "version": "0.1.0+codex.20260604160618",
   "description": "Control Codex Speak and prepare child-friendly spoken guides for local TTS playback.",
   "author": {
     "name": "hunknownz"

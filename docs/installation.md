@@ -2,12 +2,12 @@
 
 ## 普通安装目标
 
-Codex Speak 的安装要做到四件事：
+Codex Speak 的安装要做到五件事：
 
 - 安装 Rust CLI 到 `~/.codex/codex-speak/bin`。
 - 安装 Tauri 控制面板到 `~/.codex/codex-speak/apps`，安装 macOS 原生 Pet helper 到 `~/.codex/codex-speak/bin`。
 - 配置 Codex notify Hook，让 Codex 回复结束后自动触发朗读。
-- 安装 Codex Skill 和 Codex Plugin，让 Codex 可以生成儿童友好的朗读导览。
+- 安装 Codex Skill 和 Codex Plugin，并通过 Codex plugin install 流程启用，让 Codex 可以生成儿童友好的朗读导览。
 - 安装或修复本地 TTS runtime 和默认中文模型。
 
 ## macOS
@@ -190,9 +190,38 @@ marketplace 条目使用本地路径：
 ./plugins/codex-speak
 ```
 
-默认 personal marketplace 会被 Codex 发现。用户在 Plugins 页面安装/启用后，Codex 会把插件复制到 `~/.codex/plugins/cache/personal/codex-speak/local/` 并从 cache 加载；MCP 工具也要在安装/启用并开启新 thread 后才会暴露。
+默认 personal marketplace 会被 Codex 发现。用户在 Plugins 页面安装/启用后，Codex 会把插件复制到 `~/.codex/plugins/cache/personal/codex-speak/$VERSION/` 并从 cache 加载；MCP 工具也要在安装/启用并开启新 thread 后才会暴露。
 
 安装器会按当前系统生成 `.mcp.json`，让 MCP server 直接调用同一份已安装的 Rust CLI；macOS 指向 `codex-speak`，Windows 指向 `codex-speak.exe`。插件里的 MCP 脚本仍会随包保留，作为调试和兼容入口。
+
+## Plugin 正宗安装方式
+
+Codex Plugin 的正宗安装分两步：
+
+1. 把插件源目录写进 marketplace，让 Codex 能在插件目录看到它。
+2. 通过 Codex 的插件安装流程启用它。
+
+命令行入口是：
+
+```bash
+codex plugin add codex-speak@personal
+```
+
+也可以在 Codex App 的 Plugins 页面里选择 Personal marketplace，然后安装 Codex Speak。
+
+Codex Speak 安装器会自动尝试执行这一步。自动安装成功后，`codex plugin list` 应显示：
+
+```text
+codex-speak@personal  installed, enabled
+```
+
+如果自动安装失败，通常是本机没有找到 Codex App CLI，或者当前 Codex CLI 版本太旧。此时核心 Hook/Skill/CLI 仍会安装完成，但 MCP 工具不会在新 thread 中出现；运行下面命令即可补上：
+
+```bash
+codex plugin add codex-speak@personal
+```
+
+安装或重新安装插件后，需要打开一个新的 Codex thread，新的 Skill 和 MCP 工具才会进入上下文。
 
 ## 自检
 

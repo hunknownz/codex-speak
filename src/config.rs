@@ -99,6 +99,14 @@ pub fn installed_plugin_dir() -> Result<PathBuf> {
     Ok(personal_plugin_sources_root()?.join(APP_DIR_NAME))
 }
 
+pub fn installed_plugin_cache_root() -> Result<PathBuf> {
+    Ok(codex_home()?
+        .join("plugins")
+        .join("cache")
+        .join("personal")
+        .join(APP_DIR_NAME))
+}
+
 pub fn app_home() -> Result<PathBuf> {
     Ok(codex_home()?.join(APP_DIR_NAME))
 }
