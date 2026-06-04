@@ -14,11 +14,11 @@ Codex Plugin / MCP
 Codex Hook
   -> 回复结束后触发本地 CLI
 Rust CLI
-  -> 优先消费 side-channel，其次读取显式朗读导览，最后只做极保守短播报
+  -> Hook 主路径只消费 side-channel；缺失时播放“插件导览未到达”提示，不猜 final answer
 Codex plugin install
   -> codex plugin add codex-speak@personal，把插件安装/启用到 Codex cache
 本地 TTS
-  -> 默认 Sherpa-ONNX + MeloTTS，播放到系统播放器
+  -> 默认 Sherpa-ONNX + MeloTTS，经过播放队列后播放到系统播放器
 Tauri 控制面板
   -> 控制总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、音色和引擎
 ```
@@ -32,22 +32,29 @@ Tauri 控制面板
 
 不做默认逐字流式朗读。过程提示只负责“我正在做什么”；最终导览才负责“做了什么、结果如何、下一步怎么办”。
 
-## 兜底原则
+## 插件通道原则
 
-当 side-channel 不可用时，责任不转移给本地规则。本地 Rust 不应该假装理解完整 final answer；它只负责识别显式朗读导览和做安全兜底。
+当 side-channel 不可用时，责任不转移给本地规则。本地 Rust 不应该假装理解完整 final answer；它只播放一个明确的缺失提示，告诉用户没有收到插件准备好的朗读导览。
 
-no-MCP 的正常路径是：Skill 在可见回复里写一个短的 `**朗读导览**`。Hook 直接读取这段导览。它是自然文本，不是 HTML、XML、隐藏注释或折叠协议。
+默认 Hook 不再读取普通 final answer，不再读取用户输入，也不再要求 Skill 在 Chat Session 中写 `**朗读导览**`。这能避免把代码说明、命令、长路径、测试清单、提示词片段或用户原始输入误读出来。
 
-如果 side-channel 和 `朗读导览` 都不存在，Hook 只播放极保守短播报，例如“这次回答已经完成了。你可以看一下屏幕上的结果。”或第一句结论加验证状态。它不再把最终回复里的测试清单、命令、提交号、表格、路径和技术说明当作主要朗读源。
+历史 HTML、隐藏注释和 Markdown `朗读导览` 解析能力保留给 `extract`、fixture、旧会话和排障样例；它们不再是 Hook 的默认产品路径。
 
-保守兜底必须做到：
+缺失提示示例：
 
-- 保留有用中文上下文，不能因为同一行里有长路径或代码片段就整行丢掉。
-- 长路径替换成“项目里的文件”这类可听表达。
-- 代码片段、命令参数、日志和英文技术词转成作用或中文解释。
-- 中文导览里的常见开发短语要转成自然说法，例如 `cargo test` 读成“测试命令”，`build failed because timeout` 读成“构建失败，因为超时”。
-- 纯英文文本尽量保留给英文朗读路径，不强行中文化。
-- 不能把控制台回复、代码说明、测试方式、测试覆盖清单和长列表原样整段朗读。
+```text
+我没有收到本地插件准备好的朗读导览。这次先不乱读屏幕内容。
+请新开一个 Codex 会话，或者运行自检看看插件有没有加载。
+```
+
+## 播放队列
+
+TTS 生成和系统播放器共享一把本地播放锁，避免多个 `codex-speak speak` 进程同时写 `last.wav` 或互相停止：
+
+- Hook 最终导览使用排队策略：等当前朗读结束后完整播放。
+- MCP 过程提示使用忙时跳过策略：如果最终导览或另一句提示正在播放，就跳过这句短提示。
+- 手动试听和停止按钮仍可打断当前朗读。
+- 停止按钮会释放播放锁，并让正在等待队列的旧任务退出，避免停止后又继续播旧内容。
 
 ## 朗读风格
 
@@ -67,7 +74,7 @@ no-MCP 的正常路径是：Skill 在可见回复里写一个短的 `**朗读导
 
 - `doctor --json` 通过：CLI、Hook、Skill、Plugin、MCP、控制面板、Pet helper、MeloTTS 模型和播放器均可用。
 - `codex plugin list` 显示 `codex-speak@personal installed, enabled`；插件 cache 已生成。
-- `verify-codex --json` 通过：side-channel、Hook 消费、短导览兜底、混合英文归一化和发音词典链路可用。
+- `verify-codex --json` 通过：side-channel、Hook 消费、缺失导览提示、混合英文归一化和发音词典链路可用。
 - `verify-controls --json` 通过：总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、最大朗读长度、音色和 TTS 引擎可写入并恢复。
 - 真实 `speak --text` 已播放成功，`last_spoken` 记录为清洗后的中文导览。
 
@@ -81,6 +88,6 @@ no-MCP 的正常路径是：Skill 在可见回复里写一个短的 `**朗读导
 
 1. Codex/Skill 负责理解任务，并生成“可听”的导览。
 2. MCP 可用时，Codex 调用 `codex_speak_prepare` 写入 side-channel。
-3. MCP 不可用时，Codex 在最终回答里写短的 `**朗读导览**`。
+3. MCP 不可用时，Codex 不在 Chat Session 中补协议；Hook 播放缺失导览提示。
 4. Hook/Rust 负责传输、选择、清洗和播放，不负责深度理解。
-5. 没有结构化导览时，Hook 宁可少读，也不能乱读。
+5. 没有结构化导览时，Hook 明示缺失，不能乱读。

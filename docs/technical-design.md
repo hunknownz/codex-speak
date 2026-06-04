@@ -12,7 +12,7 @@ Codex Speak Plugin / MCP
 Codex Hook
   -> 回复结束后自动触发最终导览朗读
 speak-engine
-  -> 消费 side-channel、解析历史 fallback、清洗、配置、调度
+  -> Hook 消费 side-channel、管理播放队列、清洗手动文本、保留历史 fallback 调试能力
 本地 TTS
   -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 播放器
@@ -29,7 +29,7 @@ Skill + MCP side-channel + Hook + 本地 TTS + Tauri 控制面板
 
 简洁版架构和当前验证状态见 [Codex Speak 架构](architecture.md)。本文保留更细的技术选型、安装和发布设计。
 
-Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览，并在 MCP 不可用时从普通回复生成短导览兜底。
+Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览。MCP side-channel 不可用时，Hook 不再从普通回复生成短导览，而是播放明确的“插件导览未到达”提示。
 
 朗读时机采用 [过程中少量提示、结束后完整导览](speech-timing.md) 的混合策略。当前架构不把聊天流式输出逐字送进 TTS；过程朗读只通过 MCP 后台短提示触发，最终权威内容仍由 `codex_speak_prepare` 写入 side-channel，再由 Hook 在回复结束后播放。
 
@@ -58,7 +58,7 @@ Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览�
 codex_speak_prepare
 ```
 
-写入结构化 side-channel。MCP 不可用时，Skill 必须在最终回答中写一个短的 `**朗读导览**`，由 Hook 直接读取。Hook 不再把普通 final answer 当作主要朗读源；没有 side-channel 和显式导览时，只播放极保守短播报。
+写入结构化 side-channel。MCP 不可用时，Skill 不再为了朗读在最终回答中补 `**朗读导览**`、HTML、XML 或隐藏注释。Hook 不把普通 final answer 当作朗读源；没有 side-channel 时，只播放“没有收到插件朗读导览”的缺失提示。
 
 HTML 微格式协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
 
@@ -66,11 +66,8 @@ Hook 提取策略：
 
 ```text
 优先读取并消费新鲜的 MCP side-channel latest.json
-找不到 -> 读取历史 HTML 微格式协议 aside[data-codex-speak="guide"]
-找不到 -> 读取 Markdown 朗读导览
-找不到 -> 读取旧版 codex-speak 调试块
-找不到 -> 极保守短播报，不读整段最终回复
-导览兜底为空 -> 系统朗读兜底
+找不到 -> 播放缺失导览提示，不读取普通 final answer
+extract/fixture/manual QA -> 仍可解析历史 HTML、Markdown 和旧版调试块
 ```
 
 ## 文本处理方案
@@ -85,11 +82,11 @@ Hook 提取策略：
 - 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
 - 技术词转成更容易听懂的说法。
 
-导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；MCP 不可用时使用短的可见 Markdown `朗读导览`。HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
+导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；MCP 不可用时不再把短 Markdown `朗读导览` 注入 Chat Session。HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
 
 当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
 
-长任务中如果需要让孩子知道“正在做什么”，Codex 可以调用 `codex_speak_speak_text` 并设置 `background: true`，播放一句简短进度提示。这个通道不替代 Hook，也不朗读完整回复；它只负责任务中途的少量提示。
+长任务中如果需要让孩子知道“正在做什么”，Codex 可以调用 `codex_speak_speak_text` 并设置 `background: true`，播放一句简短进度提示。这个通道不替代 Hook，也不朗读完整回复；它只负责任务中途的少量提示。过程提示会被截短，并采用“忙时跳过”策略，不能打断最终导览。
 
 过程提示和最终导览的边界：
 
@@ -97,7 +94,7 @@ Hook 提取策略：
 | --- | --- | --- | --- | --- |
 | 过程提示 | 任务执行中 | 一句话进度 | 否 | 降低等待焦虑 |
 | 最终导览 | 回复结束后 | Codex 理解后的行动导览 | 是 | 告诉用户结果和下一步 |
-| 短导览兜底 | MCP 不可用时 | 最终可见回复的导览式压缩版 | 部分 | 保证仍可朗读但不读整段 |
+| 缺失提示 | MCP 不可用时 | 明确说明未收到插件导览 | 是 | 防止乱读 final answer |
 
 ### 第二层：规则清洗兜底
 
@@ -189,6 +186,19 @@ codex-speak models install --all
 ```
 
 Tauri App 的“安装模型”按钮调用同一个命令；Codex Plugin/MCP 的 `codex_speak_install_model` 也调用同一个 Rust 核心。
+
+## 播放队列
+
+本地播放不再依赖“新朗读开始前杀掉旧朗读”的默认行为。`codex-speak speak` 会按场景选择播放策略：
+
+| 场景 | 策略 | 目的 |
+| --- | --- | --- |
+| Hook 最终导览 | 排队等待 | 保证上一句读完，不戛然而止 |
+| MCP 过程提示 | 忙时跳过 | 不抢占最终导览，不积压短提示 |
+| 手动试听 | 打断当前朗读 | 用户主动试听时立即反馈 |
+| 停止按钮 | 停止并释放队列 | 防止停止后旧任务继续播 |
+
+实现上使用 `~/.codex/codex-speak/state/playback.lock` 保护 TTS 生成和播放器播放，避免多个进程同时写 `last.wav`。`playback.stop` 用于通知正在排队等待的旧任务退出。
 
 ## 跨平台实现
 
@@ -440,7 +450,7 @@ skip_code_blocks = true
 
 - Skill 生成适合朗读的中文导览。
 - Plugin/MCP 优先写入 side-channel。
-- Hook 优先消费 side-channel，其次解析历史 HTML/Markdown 兼容导览，最后从普通回复生成短导览兜底。
+- Hook 只把 side-channel 当作高质量朗读来源；没有 side-channel 时播放缺失提示。
 - 先用系统朗读播放。
 - 提供 macOS shell 安装脚本和卸载脚本。
 
@@ -472,7 +482,7 @@ skip_code_blocks = true
 - 中文多音字和少量英文品牌名混读仍可能不自然，但常见英文技术缩写和系统语音逐字母读的问题已有规则兜底。
 - 不同 Windows 机器音频播放环境差异较大。
 - 模型许可要单独核对，尤其是后续打包分发时。
-- Skill 不是强制执行机制，仍需 Hook 短导览兜底避免整段朗读。
+- Skill 不是强制执行机制，所以 Hook 不能猜普通 final answer；必须依赖 MCP side-channel 或明示缺失。
 - macOS Gatekeeper 和 Windows SmartScreen 会影响普通用户安装体验。
 - 模型下载速度、校验失败和断点续传会影响首次安装体验。
 

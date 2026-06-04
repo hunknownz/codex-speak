@@ -259,7 +259,7 @@ codex plugin add codex-speak@personal
 ~/.codex/codex-speak/bin/codex-speak verify-codex
 ```
 
-这个命令不会播放声音，会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查普通回复兜底清洗时不会逐字朗读代码、命令和长路径。
+这个命令不会播放声音，会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查缺失导览提示和常见英文技术缩写处理链路。
 
 还可以验证控制项能安全切换并恢复：
 

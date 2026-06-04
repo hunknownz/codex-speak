@@ -6,14 +6,30 @@ use anyhow::{Context, Result};
 
 use crate::config::{self, Config};
 use crate::pet_state;
-use crate::process;
+use crate::process::{self, PlaybackPolicy};
 use crate::pronunciation;
 
 const WAV_TAIL_SILENCE_MS: u32 = 450;
 
 pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
+    speak_with_policy(cfg, text, no_play, PlaybackPolicy::Interrupt).map(|_| ())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpeakOutcome {
+    Played,
+    SkippedBusy,
+    Disabled,
+}
+
+pub fn speak_with_policy(
+    cfg: &Config,
+    text: &str,
+    no_play: bool,
+    policy: PlaybackPolicy,
+) -> Result<SpeakOutcome> {
     if !cfg.enabled {
-        return Ok(());
+        return Ok(SpeakOutcome::Disabled);
     }
 
     fs::create_dir_all(config::logs_dir()?)?;
@@ -26,7 +42,15 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
         spoken_text
     };
 
-    process::stop_speech()?;
+    let Some(_playback_guard) = process::acquire_playback(policy)? else {
+        fs::write(
+            config::logs_dir()?.join("last-skipped.txt"),
+            "speech queue was busy; skipped a short prompt\n",
+        )?;
+        let _ = pet_state::write_state("idle", Some("朗读队列正忙，跳过这句短提示。"), "tts");
+        return Ok(SpeakOutcome::SkippedBusy);
+    };
+
     let _ = pet_state::write_state("speaking", Some(&spoken_text), "tts");
 
     let result = if let Err(err) = speak_with_provider(cfg, &spoken_text, no_play) {
@@ -50,7 +74,7 @@ pub fn speak(cfg: &Config, text: &str, no_play: bool) -> Result<()> {
 
     fs::write(config::logs_dir()?.join("last-spoken.txt"), spoken_text)?;
     let _ = pet_state::write_state("done", Some("朗读完成。"), "tts");
-    Ok(())
+    Ok(SpeakOutcome::Played)
 }
 
 fn speak_with_provider(cfg: &Config, text: &str, no_play: bool) -> Result<()> {

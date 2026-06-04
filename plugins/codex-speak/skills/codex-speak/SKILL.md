@@ -161,34 +161,20 @@ When the user asks to control speech settings in natural language, use the avail
 
 Available providers are `sherpa_melo`, `sherpa_kokoro`, `sherpa_zipvoice`, `piper`, and `system`. Extra local models may be required for everything except `system` and the default installed MeloTTS path.
 
-## Fallback Path: Plain Chat
+## No-MCP Behavior
 
-If `codex_speak_prepare` is not available, write a short visible Markdown guide under the heading `**朗读导览**` near the end of the final answer.
+If `codex_speak_prepare` is not available, do not create a hidden protocol block, folded HTML block, XML block, or visible `朗读导览` section just for the Hook.
 
-This is the only normal no-MCP fallback. Do not use folded HTML, hidden comments, `<details>`, XML, raw protocol tags, or long machine-readable blocks. The guide should look like natural user-facing text, because the Hook will read this section directly.
+The product path is MCP side-channel first. Without the MCP side-channel, the local Hook will play a short missing-guide notice instead of guessing the final answer. This is intentional: Rust rules should not pretend to understand the whole task.
 
-Shape:
+When tools are unavailable:
 
-```markdown
-**朗读导览**
+- Keep the final answer natural for the chat screen.
+- Do not add protocol-shaped content to compensate for missing tools.
+- Mention plugin/MCP availability only if the user is asking about Codex Speak itself.
+- For implementation, debugging, testing, release, or architecture work, still give the user normal technical detail in the visible final answer; it just will not be used as the primary speech source.
 
-我刚刚做了什么。现在结果怎么样。下一步你可以怎么试。
-```
-
-Rules:
-
-- Keep it 2 to 4 short Chinese sentences.
-- Do not mention that this is a fallback, protocol, hook, MCP, Skill, or generated speech text.
-- Do not include code, commands, file paths, test command names, commit hashes, Git directives, tables, or raw English identifiers.
-- In child mode, speak directly to the child in a warm older-sister tone.
-- In adult mode, make it a concise briefing.
-- The visible final answer can still include technical details below or above it, but the guide must be the only section intended for speech.
-
-If the whole answer is already a tiny natural conversational answer, the guide may be skipped. For implementation, debugging, testing, release, or architecture work, include it.
-
-When no side-channel and no visible `朗读导览` are present, the local Hook intentionally falls back to a very conservative short notice instead of trying to read the whole final answer.
-
-For very short conversational answers, skip the guide if the whole answer is already natural to hear.
+Historical HTML, hidden comments, and visible `朗读导览` are compatibility/debugging formats only. Do not emit them during normal use.
 
 ## Writing Rules
 

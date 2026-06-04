@@ -12,7 +12,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 
 - Codex 结束回复后自动朗读。
 - Codex 可以通过 Skill/MCP 生成适合朗读的儿童友好导览。
-- Hook 可以优先消费 side-channel，兜底清洗普通回复。
+- Hook 可以优先消费 side-channel；没有 side-channel 时明示缺失，不兜底猜普通回复。
 - 本地 TTS 至少有一个默认中文方案可用，并有系统语音兜底。
 - Tauri App 可以切换总朗读、最终导览、过程提示、儿童模式、语速、音色档位、TTS 引擎，能试听和停止。
 - 桌面 Pet 可以浮在桌面上，展示待命、待朗读、朗读中、完成、错误状态。
@@ -96,7 +96,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
-- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费、普通回复兜底清洗和常见英文技术缩写归一化链路。
+- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费、缺失导览提示和常见英文技术缩写归一化链路。
 - `verify-controls` 已补齐为控制项验收命令；release smoke 和手工 QA 收集脚本会验证总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能写入、重新读取，并恢复原配置。
 - 英文朗读已补齐第一层兜底：常见技术缩写会在进入 TTS 前变成中文可懂词，混在中文导览里的未知英文词、短语、英文名称和英文编号会先变成中文提示，系统语音兜底会按中英文分段选择系统声音，减少英文单词逐字母读的问题。
 - 本地发音词典已补齐：用户和 Codex MCP 都可以把项目名、英文工具名或缩写写入 `pronunciation.toml`，朗读前优先使用这些规则，`verify-codex` 会验证发音词典写入、应用、列出和删除链路。

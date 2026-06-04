@@ -28,7 +28,7 @@ v1 采用 HTML 微格式风格，而不是自造一套纯文本标记。参考�
 - Schema.org Microdata：用 HTML 属性表达可抽取的结构化内容，说明“可见内容 + 机器语义”是成熟路线。参考 [Schema.org item](https://schema.org/item)。
 - SSML：语音合成领域已有专门的朗读标记语言，但它更适合 TTS 内部，不适合直接放在 Chat Session 里。参考 [W3C SSML](https://www.w3.org/TR/speech-synthesis/)。
 
-结论：主路径使用 MCP side-channel；正常情况下不需要在 Chat Session 中注入自定义 HTML/XML 协议；Chat Session 中的 HTML 微格式只作为 fallback；TTS 内部未来可以转换为 SSML。
+结论：主路径使用 MCP side-channel；正常情况下不需要在 Chat Session 中注入自定义 HTML/XML 协议；Chat Session 中的 HTML 微格式只作为历史兼容和排障格式；TTS 内部未来可以转换为 SSML。
 
 ## 主路径：MCP Side-Channel
 
@@ -85,7 +85,7 @@ codex_speak_speak_text
 }
 ```
 
-`background: true` 表示由本地进程在后台生成并播放这句短提示，MCP 工具快速返回，Codex 可以继续执行任务。它适合少量进度节点，不适合逐句朗读所有思考过程。最终结果仍然用 `codex_speak_prepare` 写入完整导览，再由 Hook 在回复结束后朗读。
+`background: true` 表示由本地进程在后台生成并播放这句短提示，MCP 工具快速返回，Codex 可以继续执行任务。它适合少量进度节点，不适合逐句朗读所有思考过程。过程提示会被截短，并且在播放队列忙时跳过，避免打断最终导览。最终结果仍然用 `codex_speak_prepare` 写入完整导览，再由 Hook 在回复结束后朗读。
 
 完整朗读时机策略见 [朗读时机策略](speech-timing.md)。Protocol v1 不要求、也不推荐读取聊天流式 token 后逐字朗读；它把“过程提示”和“最终导览”分成两个明确通道，避免孩子听到未清洗的代码、日志、路径或半成品判断。
 
@@ -94,10 +94,10 @@ codex_speak_speak_text
 HTML 微格式不是新架构的默认输出方式。它主要用于三种情况：
 
 - 已经存在的旧 Chat Session。
-- MCP side-channel 暂时不可用时的开发排障样例。
+- 开发排障样例。
 - 老版本 Hook/CLI 的兼容解析。
 
-正常使用时，Skill 不应该为了朗读主动把这段 HTML 注入 Chat Session。
+正常使用时，Skill 不应该为了朗读主动把这段 HTML 注入 Chat Session。MCP side-channel 不可用时，Hook 会播放缺失导览提示，而不是从 Chat Session 中猜这段结构。
 
 ```html
 <aside class="codex-speak-guide" data-codex-speak="guide" data-version="1" data-audience="beginner" data-style="clear-bright" lang="zh-CN">
@@ -210,13 +210,17 @@ Rust CLI 以 `data-role` 为准，Plugin 可以用 `class` 做展示。
 
 ## 解析规则
 
-Rust CLI 的提取顺序：
+Hook 的提取顺序：
 
 1. 新鲜的 MCP side-channel `spool/latest.json`
-2. `aside[data-codex-speak="guide"]`
-3. 旧版 Markdown `朗读导览`
-4. 旧版 `<!-- codex-speak -->` 调试块
-5. 从最终回答清洗并压缩出来的短导览
+2. 缺失时播放“没有收到插件导览”的提示
+
+`extract` 命令、fixture 测试和排障工具仍保留历史解析顺序：
+
+1. `aside[data-codex-speak="guide"]`
+2. 旧版 Markdown `朗读导览`
+3. 旧版 `<!-- codex-speak -->` 调试块
+4. 从给定文本清洗出的调试预览
 
 在 HTML 协议块内：
 
@@ -231,7 +235,7 @@ Rust CLI 的提取顺序：
 没有 Plugin/MCP 时：
 
 ```text
-Skill 输出自然回答 -> Hook 触发 -> Rust CLI 生成短导览兜底 -> 本地 TTS 朗读
+Skill 输出自然回答 -> Hook 触发 -> Rust CLI 明示缺少插件导览 -> 本地 TTS 朗读提示
 ```
 
 Plugin 加入后主要做三件事：
@@ -352,10 +356,10 @@ v1 不直接要求 Codex 输出 SSML。原因是 SSML 适合语音引擎，不�
 v1 必须保持向后兼容：
 
 - 新回答优先调用 MCP side-channel，不主动输出 HTML 微格式协议。
-- Rust CLI 继续支持历史 HTML 微格式协议。
-- Rust CLI 继续支持旧版 Markdown `朗读导览`。
-- Rust CLI 继续支持旧版 HTML 注释调试块，但优先级低于可见导览。
-- 如果没有协议，仍然使用短导览兜底，保证不会完全失声，也不会整段朗读最终回复。
+- Rust CLI 的手动提取、fixture 和排障命令继续支持历史 HTML 微格式协议。
+- Rust CLI 的手动提取、fixture 和排障命令继续支持旧版 Markdown `朗读导览`。
+- Rust CLI 的手动提取、fixture 和排障命令继续支持旧版 HTML 注释调试块。
+- Hook 没有 side-channel 时只播放缺失提示，不再从普通最终回答生成短导览。
 
 ## 演进方向
 

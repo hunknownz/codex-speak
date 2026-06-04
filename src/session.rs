@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 use crate::config::{self, Config};
 use crate::{extract, side_channel};
 
+pub fn missing_side_channel_notice() -> String {
+    "我没有收到本地插件准备好的朗读导览。这次先不乱读屏幕内容。请新开一个 Codex 会话，或者运行自检看看插件有没有加载。".to_string()
+}
+
 pub fn resolve_text(text: Option<String>, fixture: Option<&Path>, cfg: &Config) -> Result<String> {
     resolve_text_with_options(text, fixture, cfg, false)
 }
@@ -35,6 +39,9 @@ fn resolve_text_with_options(
             side_channel::read_fresh_latest(cfg.max_read_chars, consume_side_channel)?
         {
             return Ok(text);
+        }
+        if consume_side_channel {
+            return Ok(missing_side_channel_notice());
         }
     }
 
@@ -265,6 +272,15 @@ mod tests {
         let cfg = Config::default();
         let text = resolve_text_for_speech(None, Some(file.path()), &cfg).unwrap();
         assert_eq!(text, "我刚刚修好了朗读导览。测试通过了。");
+    }
+
+    #[test]
+    fn missing_side_channel_notice_refuses_to_guess_final_answer() {
+        let notice = missing_side_channel_notice();
+        assert!(notice.contains("没有收到"));
+        assert!(notice.contains("不乱读"));
+        assert!(!notice.contains("final answer"));
+        assert!(!notice.contains("代码"));
     }
 
     #[test]

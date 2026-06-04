@@ -23,7 +23,7 @@ mod tts;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
 #[command(name = "codex-speak")]
@@ -43,7 +43,7 @@ enum Command {
         #[arg(long)]
         fixture: Option<PathBuf>,
     },
-    /// Speak text, a session fixture, or the latest Codex final answer.
+    /// Speak text, a session fixture, or the latest prepared Codex guide.
     Speak {
         #[arg(long)]
         text: Option<String>,
@@ -51,6 +51,8 @@ enum Command {
         fixture: Option<PathBuf>,
         #[arg(long)]
         no_play: bool,
+        #[arg(long, value_enum, hide = true)]
+        playback: Option<PlaybackArg>,
     },
     /// Stop current speech playback.
     Stop,
@@ -131,6 +133,23 @@ enum Command {
         #[arg(long)]
         remove_models: bool,
     },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum PlaybackArg {
+    Interrupt,
+    Queue,
+    SkipIfBusy,
+}
+
+impl From<PlaybackArg> for process::PlaybackPolicy {
+    fn from(value: PlaybackArg) -> Self {
+        match value {
+            PlaybackArg::Interrupt => process::PlaybackPolicy::Interrupt,
+            PlaybackArg::Queue => process::PlaybackPolicy::Queue,
+            PlaybackArg::SkipIfBusy => process::PlaybackPolicy::SkipIfBusy,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -233,14 +252,24 @@ fn main() -> Result<()> {
             text,
             fixture,
             no_play,
+            playback,
         } => {
             let cfg = config::Config::load_or_default()?;
             if text.is_none() && fixture.is_none() && !cfg.final_guide_enabled {
                 let _ = side_channel::read_fresh_latest(cfg.max_read_chars, true);
                 return Ok(());
             }
+            let is_hook_final = text.is_none() && fixture.is_none();
+            let playback_policy =
+                playback
+                    .map(process::PlaybackPolicy::from)
+                    .unwrap_or(if is_hook_final {
+                        process::PlaybackPolicy::Queue
+                    } else {
+                        process::PlaybackPolicy::Interrupt
+                    });
             let extracted = session::resolve_text_for_speech(text, fixture.as_deref(), &cfg)?;
-            tts::speak(&cfg, &extracted, no_play)?;
+            let _ = tts::speak_with_policy(&cfg, &extracted, no_play, playback_policy)?;
         }
         Command::Stop => process::stop_speech()?,
         Command::Doctor { json } => doctor::run(json)?,

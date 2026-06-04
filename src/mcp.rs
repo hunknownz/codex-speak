@@ -358,8 +358,9 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
                 if !cfg.progress_prompts_enabled {
                     return Ok(format!("skipped: progress prompts disabled: {}", cleaned));
                 }
-                speak_text_in_background(&cleaned)?;
-                format!("queued: {}", cleaned)
+                let prompt = extract::truncate_chars(&cleaned, 140);
+                speak_text_in_background(&prompt)?;
+                format!("queued if idle: {}", prompt)
             } else {
                 tts::speak(&cfg, &cleaned, no_play)?;
                 format!("ok: {}", cleaned)
@@ -531,6 +532,8 @@ fn speak_text_in_background(text: &str) -> Result<()> {
         .arg("speak")
         .arg("--text")
         .arg(text)
+        .arg("--playback")
+        .arg("skip-if-busy")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

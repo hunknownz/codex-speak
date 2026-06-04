@@ -13,7 +13,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 需要明确的是：当前 Codex Plugin 规范没有提供稳定的“改写或隐藏 Chat Session 中某条消息渲染结果”的能力。所以第一版 Plugin 不承诺强行隐藏协议块，而是让正常路径不再把协议块写进 Chat Session：
 
 - 主路径：通过 `codex_speak_prepare` 写入本地 side-channel，让朗读内容不必完整显示在最终回答里；任务中途用 `codex_speak_speak_text background=true` 播放简短进度。
-- 兼容路径：Rust CLI 继续能解析历史 HTML/Markdown fallback；MCP 不可用时，Hook 清洗普通最终回答作为最后兜底，Skill 不再默认输出新的 HTML 协议块。
+- 兼容路径：Rust CLI 的 `extract`、fixture 和排障命令继续能解析历史 HTML/Markdown fallback；MCP 不可用时，Hook 播放缺失导览提示，不再清洗普通最终回答作为产品兜底。
 
 核心分工：
 
@@ -21,7 +21,7 @@ Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex �
 Skill：让 Codex 生成符合协议的朗读导览
 Plugin/MCP：把导览写入 side-channel，提供状态/控制工具，必要时触发后台进度朗读
 Hook：回复结束后触发朗读，并优先消费 side-channel
-Rust CLI：读取 side-channel、解析历史兜底协议、调用本地 TTS、播放声音
+Rust CLI：Hook 读取 side-channel，手动调试时解析历史兜底协议，调用本地 TTS 和播放队列
 ```
 
 ## 当前插件功能：Side-Channel 主路径
@@ -193,7 +193,7 @@ Plugin 可以检查当前回答是否符合协议：
 如果不符合，Plugin 可以提示：
 
 ```text
-这次回答没有合格的朗读导览，将使用清洗兜底。
+这次没有收到合格的朗读导览，我不会乱读屏幕内容。
 ```
 
 ### 3. Skill 安装与更新
@@ -209,10 +209,8 @@ Plugin 可以提供：
 
 ```text
 1. side-channel latest.json
-2. 历史 HTML microformat protocol aside
-3. 历史 Markdown 朗读导览
-4. 历史 HTML comment 调试块
-5. 清洗最终回答
+2. 缺失时播放插件导览未到达提示
+3. 历史 HTML/Markdown/注释解析只用于 extract、fixture 和排障
 ```
 
 这样可以做到：
@@ -286,9 +284,9 @@ Plugin 负责：
 
 - 增加 `codex_speak_prepare` 工具。
 - Rust CLI 支持读取并消费 spool。
-- Skill 改为优先调用工具，不能调用时保持自然回答，由 Hook 清洗普通回复兜底。
+- Skill 改为优先调用工具，不能调用时保持自然回答；Hook 不再清洗普通回复兜底。
 - 提供 MCP 工具：`codex_speak_status`、`codex_speak_extract`、`codex_speak_speak_text`、`codex_speak_stop`、`codex_speak_set_enabled`、`codex_speak_update_config`、`codex_speak_set_child_mode`、`codex_speak_set_speed`、`codex_speak_set_voice_profile`、`codex_speak_list_pronunciation`、`codex_speak_set_pronunciation`、`codex_speak_remove_pronunciation`。
-- `codex_speak_speak_text` 支持 `background: true`，用于长任务中的非阻塞进度提示。
+- `codex_speak_speak_text` 支持 `background: true`，用于长任务中的非阻塞进度提示；队列忙时跳过，不打断最终导览。
 
 ### P3：Tauri 控制面板
 

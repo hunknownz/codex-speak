@@ -132,7 +132,7 @@ node scripts/check-manual-qa-report.mjs /path/to/codex-speak-macos-qa-...
 - `~/.codex/codex-speak/bin/codex-speak doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `--skip-tts-download`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、personal marketplace 文件、Codex plugin installed/enabled、控制面板、Pet helper 和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `codex plugin list` 或 Codex App 自带 CLI 的 `codex plugin list` 应显示 `codex-speak@personal installed, enabled`；安装后需要新开 thread 才能看到插件 MCP 工具。
 - `~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
-- `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
+- `~/.codex/codex-speak/bin/codex-speak verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、缺失导览提示、常见英文技术缩写归一化和本地发音词典链路可用。
 - `~/.codex/codex-speak/bin/codex-speak verify-controls` 应通过，用来证明总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `~/.codex/codex-speak/bin/codex-speak style validate` 应通过，用来证明内置来源登记、蒸馏原则和主样例库格式正确、许可门禁通过、没有元话术或技术源码泄漏。
 - `~/.codex/codex-speak/bin/codex-speak style sources` 应输出可解析 JSON，且只有许可清晰的数据源允许进入可采样入库队列。
@@ -191,7 +191,7 @@ node .\scripts\check-manual-qa-report.mjs C:\path\to\codex-speak-windows-qa-...
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe doctor --json` 能输出可解析 JSON，并包含版本、系统和 CPU 架构信息；如果安装时用了 `-SkipTtsDownload`，允许模型相关检查失败，但 CLI、Hook、Hook wrapper、Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置、当前平台 MCP 脚本、personal marketplace 文件、Codex plugin installed/enabled、控制面板和播放器检查必须通过；这些集成文件不只要存在，还要与当前 CLI 内置版本一致；失败或警告项应带有可执行的 `hint`。
 - `codex plugin list` 或 Codex App 自带 CLI 的 `codex plugin list` 应显示 `codex-speak@personal installed, enabled`；安装后需要新开 thread 才能看到插件 MCP 工具。
 - `%USERPROFILE%\.codex\codex-speak\bin\codex-speak.exe verify-install --allow-missing-models` 应通过，用来证明跳过模型下载时核心安装链路仍然可交付。
-- `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、普通回复兜底清洗、常见英文技术缩写归一化和本地发音词典链路可用。
+- `codex-speak.exe verify-codex` 应通过，用来证明 MCP side-channel、Hook 风格消费、缺失导览提示、常见英文技术缩写归一化和本地发音词典链路可用。
 - `codex-speak.exe verify-controls` 应通过，用来证明总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能临时切换、重新读取，并恢复原配置。
 - `codex-speak.exe style validate` 应通过，用来证明内置来源登记、蒸馏原则和主样例库格式正确、许可门禁通过、没有元话术或技术源码泄漏。
 - `codex-speak.exe style sources` 应输出可解析 JSON，且只有许可清晰的数据源允许进入可采样入库队列。
@@ -223,7 +223,7 @@ codex-speak.exe doctor --json
 - Codex Speak Skill 可用。
 - MCP side-channel 可写入朗读导览。
 - Hook 能优先消费 side-channel。
-- 没有 side-channel 时，Hook 会优先读取可见 `朗读导览`；如果也没有导览，只播放极保守短播报，不把普通 final answer 当作主要朗读源。
+- 没有 side-channel 时，Hook 播放缺失导览提示，不读取普通 final answer，也不读取用户输入。
 - 长代码、命令、路径不会被逐字朗读，而会变成适合听的摘要。
 
 自动化预检先运行：
@@ -232,7 +232,7 @@ codex-speak.exe doctor --json
 ~/.codex/codex-speak/bin/codex-speak verify-codex
 ```
 
-它不能替代真实 Codex session 的肉眼确认，但会先证明 MCP 工具写入、Hook 风格消费、兜底清洗和英文技术词归一化的本地链路没有断。
+它不能替代真实 Codex session 的肉眼确认，但会先证明 MCP 工具写入、Hook 风格消费、缺失导览提示和英文技术词归一化的本地链路没有断。
 
 ## 签名验收
 

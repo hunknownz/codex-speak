@@ -4,7 +4,7 @@
 
 ## 一句话介绍
 
-Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，优先朗读回答中自然生成的“朗读导览”，让小朋友听懂 Codex 刚才做了什么、结果是什么、下一步怎么继续。
+Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，优先朗读通过插件通道准备好的“朗读导览”，让小朋友听懂 Codex 刚才做了什么、结果是什么、下一步怎么继续。
 
 ## 为什么做
 
@@ -20,7 +20,7 @@ Codex Speak Plugin / MCP
 Codex Hook
   -> 回复结束后自动触发最终导览朗读
 speak-engine
-  -> 消费 side-channel、提取 fallback 协议、清洗兜底、配置、调度
+  -> Hook 消费 side-channel、手动调试时提取历史协议、管理播放队列
 本地 TTS
   -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 Tauri App / Native Desktop Pet
@@ -186,7 +186,7 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak verify-codex
 ```
 
-它会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查普通回复兜底清洗时不会逐字朗读代码、命令、长路径和常见英文技术缩写。
+它会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查缺失导览提示、常见英文技术缩写和本地发音词典链路。
 
 验证控制项能安全切换并恢复：
 

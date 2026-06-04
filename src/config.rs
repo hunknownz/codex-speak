@@ -143,6 +143,14 @@ pub fn playback_pid_path() -> Result<PathBuf> {
     Ok(state_dir()?.join("playback.pid"))
 }
 
+pub fn playback_lock_path() -> Result<PathBuf> {
+    Ok(state_dir()?.join("playback.lock"))
+}
+
+pub fn playback_stop_signal_path() -> Result<PathBuf> {
+    Ok(state_dir()?.join("playback.stop"))
+}
+
 pub fn spool_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("spool"))
 }

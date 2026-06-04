@@ -161,6 +161,7 @@ fn write_recent_logs(dir: &Path, redactor: &Redactor, include_private: bool) -> 
     fs::create_dir_all(&target)?;
     for name in [
         "last-spoken.txt",
+        "last-skipped.txt",
         "last-error.log",
         "last-tts.stdout.log",
         "last-tts.stderr.log",

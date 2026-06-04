@@ -16,7 +16,7 @@ The current Codex plugin surface does not provide a documented API for rewriting
 
 - Preferred: `codex_speak_prepare` side-channel, so the full spoken guide does not have to appear in chat.
 - Compatibility: the Rust CLI can still parse old HTML or Markdown fallback blocks from previous sessions and QA fixtures.
-- If MCP is unavailable, the Skill keeps the visible reply natural and speech-friendly, and the Hook cleans the final reply as a last resort.
+- If MCP is unavailable, the Skill keeps the visible reply natural, and the Hook plays a missing-guide notice instead of guessing the final reply.
 - The plugin does not stream every generated chat token into TTS. Continuous token-level speech is not the default product behavior because it can read unfinished, uncleaned, or later-corrected content aloud.
 
 ## MCP Tools
