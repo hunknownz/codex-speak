@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
-use chrono::Local;
+use chrono::{Local, Utc};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 #[cfg(unix)]
@@ -260,7 +260,8 @@ fn install_plugin() -> Result<()> {
         bundled::PLUGIN_MCP_SCRIPT_WINDOWS,
     )?;
 
-    upsert_personal_marketplace_entry()
+    upsert_personal_marketplace_entry()?;
+    register_personal_marketplace()
 }
 
 fn uninstall_plugin() -> Result<()> {
@@ -286,6 +287,10 @@ fn install_notify() -> Result<Option<Vec<String>>> {
         config::state_dir()?.join("previous-notify.json"),
         serde_json::to_string_pretty(&previous)?,
     )?;
+
+    if notify_already_routes_to_codex_speak(&existing) {
+        return Ok(previous);
+    }
 
     let hook = hook_path()?;
     let notify_line = format_notify_line(&notify_command(&hook));
@@ -345,6 +350,15 @@ fn upsert_personal_marketplace_entry() -> Result<()> {
     let marketplace = read_marketplace_json(&path)?;
     let updated = upsert_plugin_entry(marketplace);
     fs::write(&path, serde_json::to_string_pretty(&updated)?)?;
+    Ok(())
+}
+
+fn register_personal_marketplace() -> Result<()> {
+    let path = config::codex_home()?.join("config.toml");
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    backup_codex_config(&path, &existing)?;
+    let updated = upsert_personal_marketplace_config(&existing, &config::home_dir()?)?;
+    fs::write(&path, updated)?;
     Ok(())
 }
 
@@ -449,6 +463,62 @@ fn plugin_marketplace_entry() -> Value {
     })
 }
 
+fn upsert_personal_marketplace_config(existing: &str, source_root: &Path) -> Result<String> {
+    let block = format_personal_marketplace_config(source_root);
+    Ok(replace_toml_table(
+        existing,
+        "[marketplaces.personal]",
+        Some(&block),
+    ))
+}
+
+fn format_personal_marketplace_config(source_root: &Path) -> String {
+    let ts = Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
+    format!(
+        "[marketplaces.personal]\nlast_updated = \"{ts}\"\nsource_type = \"local\"\nsource = \"{}\"\n",
+        toml_escape(&source_root.display().to_string())
+    )
+}
+
+fn replace_toml_table(existing: &str, header: &str, replacement: Option<&str>) -> String {
+    let mut lines = Vec::new();
+    let mut replaced = false;
+    let mut skipping = false;
+
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if skipping && trimmed.starts_with('[') {
+            skipping = false;
+        }
+
+        if !skipping && trimmed == header {
+            if let Some(replacement) = replacement {
+                lines.extend(replacement.trim_end().lines().map(str::to_string));
+            }
+            replaced = true;
+            skipping = true;
+            continue;
+        }
+
+        if !skipping {
+            lines.push(line.to_string());
+        }
+    }
+
+    if !replaced {
+        if !lines.is_empty() && lines.last().is_some_and(|line| !line.trim().is_empty()) {
+            lines.push(String::new());
+        }
+        if let Some(replacement) = replacement {
+            lines.extend(replacement.trim_end().lines().map(str::to_string));
+        }
+    }
+
+    let mut out = lines.join("\n");
+    out.push('\n');
+    out
+}
+
 fn hook_path() -> Result<PathBuf> {
     let name = if cfg!(windows) {
         "codex-speak-notify.ps1"
@@ -485,7 +555,9 @@ fn format_notify_line(command: &[String]) -> String {
 }
 
 fn parse_previous_notify(config_text: &str) -> Option<Vec<String>> {
-    let value = toml::from_str::<toml::Value>(config_text).ok()?;
+    let value = toml::from_str::<toml::Value>(config_text)
+        .ok()
+        .or_else(|| parse_notify_value_from_line(config_text))?;
     let notify = value.get("notify")?.as_array()?;
     let mut items = Vec::new();
     for item in notify {
@@ -505,6 +577,21 @@ fn parse_previous_notify(config_text: &str) -> Option<Vec<String>> {
     } else {
         Some(items)
     }
+}
+
+fn parse_notify_value_from_line(config_text: &str) -> Option<toml::Value> {
+    let line = config_text
+        .lines()
+        .find(|line| line.trim_start().starts_with("notify ="))?;
+    let (_, array) = line.split_once('=')?;
+    toml::from_str::<toml::Value>(&format!("notify = {}", array.trim())).ok()
+}
+
+fn notify_already_routes_to_codex_speak(config_text: &str) -> bool {
+    config_text
+        .lines()
+        .find(|line| line.trim_start().starts_with("notify ="))
+        .is_some_and(|line| line.contains("codex-speak-notify"))
 }
 
 fn read_saved_previous_notify() -> Option<Vec<String>> {
@@ -949,6 +1036,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_previous_notify_when_unrelated_config_is_unknown() {
+        let raw = r#"
+service_tier = "priority"
+notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old/codex-speak-notify\"]"]
+"#;
+        let previous = parse_previous_notify(raw).unwrap();
+        assert_eq!(previous, vec!["/a/SkyComputerUseClient", "turn-ended"]);
+    }
+
+    #[test]
+    fn detects_existing_codex_speak_notify_route() {
+        let raw = r#"notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/Users/me/.codex/hooks/codex-speak-notify\"]"]"#;
+        assert!(notify_already_routes_to_codex_speak(raw));
+        assert!(!notify_already_routes_to_codex_speak(
+            "notify = [\"/other\"]"
+        ));
+    }
+
+    #[test]
     fn formats_notify_command_array() {
         let line = format_notify_line(&[
             "powershell.exe".to_string(),
@@ -1044,5 +1150,45 @@ mod tests {
             plugins[0].get("name").and_then(Value::as_str),
             Some("other")
         );
+    }
+
+    #[test]
+    fn registers_personal_marketplace_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let existing = r#"
+model = "gpt-5"
+
+[marketplaces.openai-bundled]
+last_updated = "2026-06-01T00:00:00Z"
+source_type = "local"
+source = "/bundled"
+
+[plugins."browser@openai-bundled"]
+enabled = true
+"#;
+        let out = upsert_personal_marketplace_config(existing, dir.path()).unwrap();
+        assert!(out.contains("[marketplaces.personal]"));
+        assert!(out.contains("source_type = \"local\""));
+        assert!(out.contains(&format!("source = \"{}\"", dir.path().display())));
+        assert!(out.contains("[plugins.\"browser@openai-bundled\"]"));
+    }
+
+    #[test]
+    fn refreshes_existing_personal_marketplace_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let existing = r#"
+[marketplaces.personal]
+last_updated = "old"
+source_type = "local"
+source = "/old"
+
+[plugins."codex-speak@personal"]
+enabled = true
+"#;
+        let out = upsert_personal_marketplace_config(existing, dir.path()).unwrap();
+        assert_eq!(out.matches("[marketplaces.personal]").count(), 1);
+        assert!(!out.contains("source = \"/old\""));
+        assert!(out.contains(&format!("source = \"{}\"", dir.path().display())));
+        assert!(out.contains("[plugins.\"codex-speak@personal\"]"));
     }
 }

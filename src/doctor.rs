@@ -181,6 +181,7 @@ pub fn collect() -> Result<DoctorReport> {
         &mut checks,
     );
     check_marketplace(&mut checks)?;
+    check_marketplace_registration(&mut checks)?;
     check_player(&mut checks);
 
     Ok(DoctorReport::new(checks))
@@ -349,8 +350,11 @@ fn hint_for(id: &str) -> Option<&'static str> {
         "plugin" | "plugin_skill" | "plugin_mcp_config" | "plugin_mcp_script" => Some(
             "Run `codex-speak install` to refresh the local Codex Speak plugin files.",
         ),
-        "plugin_marketplace" => Some(
-            "Run `codex-speak install` to add Codex Speak to the personal plugin marketplace.",
+        "plugin_marketplace" => {
+            Some("Run `codex-speak install` to add Codex Speak to the personal plugin marketplace.")
+        }
+        "plugin_marketplace_registration" => Some(
+            "Run `codex-speak install` to register the personal plugin marketplace in ~/.codex/config.toml, then restart Codex or start a new thread.",
         ),
         "player" => Some(
             "macOS needs /usr/bin/afplay. Windows needs powershell.exe available for SoundPlayer playback.",
@@ -520,6 +524,33 @@ fn check_marketplace(checks: &mut Vec<DoctorCheck>) -> Result<()> {
             "plugin_marketplace",
             "Plugin marketplace",
             format!("codex-speak not found in {}", path.display()),
+        ));
+    }
+    Ok(())
+}
+
+fn check_marketplace_registration(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::codex_home()?.join("config.toml");
+    let raw = fs::read_to_string(&path).unwrap_or_default();
+    let source = config::home_dir()?.display().to_string();
+    if raw.contains("[marketplaces.personal]")
+        && raw.contains("source_type = \"local\"")
+        && raw.contains(&format!("source = \"{source}\""))
+    {
+        checks.push(DoctorCheck::ok(
+            "plugin_marketplace_registration",
+            "Plugin marketplace registration",
+            "personal marketplace is registered in Codex config",
+        ));
+    } else {
+        checks.push(DoctorCheck::fail(
+            "plugin_marketplace_registration",
+            "Plugin marketplace registration",
+            format!(
+                "personal marketplace not registered in {}; expected source {}",
+                path.display(),
+                source
+            ),
         ));
     }
     Ok(())
