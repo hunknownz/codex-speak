@@ -180,7 +180,7 @@ powershell -ExecutionPolicy Bypass -File .\installers\install-windows.ps1 -SkipT
 安装器会把插件复制到个人 Codex Plugin marketplace：
 
 ```text
-~/.agents/plugins/plugins/codex-speak
+~/plugins/codex-speak
 ~/.agents/plugins/marketplace.json
 ```
 
@@ -190,15 +190,7 @@ marketplace 条目使用本地路径：
 ./plugins/codex-speak
 ```
 
-安装器还会把个人 marketplace root 注册到 `~/.codex/config.toml`：
-
-```toml
-[marketplaces.personal]
-source_type = "local"
-source = "/Users/you"
-```
-
-这样 Codex App 的 Plugins 页面才能看到 personal marketplace 里的 Codex Speak。用户在 Plugins 页面安装/启用后，Codex 会把插件复制到 `~/.codex/plugins/cache/personal/codex-speak/local/` 并从 cache 加载；MCP 工具也要在安装/启用并开启新 thread 后才会暴露。
+默认 personal marketplace 会被 Codex 发现。用户在 Plugins 页面安装/启用后，Codex 会把插件复制到 `~/.codex/plugins/cache/personal/codex-speak/local/` 并从 cache 加载；MCP 工具也要在安装/启用并开启新 thread 后才会暴露。
 
 安装器会按当前系统生成 `.mcp.json`，让 MCP server 直接调用同一份已安装的 Rust CLI；macOS 指向 `codex-speak`，Windows 指向 `codex-speak.exe`。插件里的 MCP 脚本仍会随包保留，作为调试和兼容入口。
 

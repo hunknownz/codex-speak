@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result};
-use chrono::{Local, Utc};
+use chrono::Local;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 #[cfg(unix)]
@@ -111,7 +111,8 @@ fn create_dirs() -> Result<()> {
         config::app_home()?.join("backups"),
         config::codex_home()?.join("hooks"),
         config::codex_home()?.join("skills"),
-        config::personal_plugins_root()?.join("plugins"),
+        config::personal_plugins_root()?,
+        config::personal_plugin_sources_root()?,
     ] {
         fs::create_dir_all(dir)?;
     }
@@ -261,11 +262,13 @@ fn install_plugin() -> Result<()> {
     )?;
 
     upsert_personal_marketplace_entry()?;
-    register_personal_marketplace()
+    cleanup_legacy_plugin_dir()?;
+    Ok(())
 }
 
 fn uninstall_plugin() -> Result<()> {
     let _ = fs::remove_dir_all(config::installed_plugin_dir()?);
+    let _ = fs::remove_dir_all(legacy_installed_plugin_dir()?);
     remove_personal_marketplace_entry()
 }
 
@@ -350,15 +353,6 @@ fn upsert_personal_marketplace_entry() -> Result<()> {
     let marketplace = read_marketplace_json(&path)?;
     let updated = upsert_plugin_entry(marketplace);
     fs::write(&path, serde_json::to_string_pretty(&updated)?)?;
-    Ok(())
-}
-
-fn register_personal_marketplace() -> Result<()> {
-    let path = config::codex_home()?.join("config.toml");
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    backup_codex_config(&path, &existing)?;
-    let updated = upsert_personal_marketplace_config(&existing, &config::home_dir()?)?;
-    fs::write(&path, updated)?;
     Ok(())
 }
 
@@ -463,60 +457,19 @@ fn plugin_marketplace_entry() -> Value {
     })
 }
 
-fn upsert_personal_marketplace_config(existing: &str, source_root: &Path) -> Result<String> {
-    let block = format_personal_marketplace_config(source_root);
-    Ok(replace_toml_table(
-        existing,
-        "[marketplaces.personal]",
-        Some(&block),
-    ))
+fn legacy_installed_plugin_dir() -> Result<PathBuf> {
+    Ok(config::personal_plugins_root()?
+        .join("plugins")
+        .join(PLUGIN_NAME))
 }
 
-fn format_personal_marketplace_config(source_root: &Path) -> String {
-    let ts = Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
-    format!(
-        "[marketplaces.personal]\nlast_updated = \"{ts}\"\nsource_type = \"local\"\nsource = \"{}\"\n",
-        toml_escape(&source_root.display().to_string())
-    )
-}
-
-fn replace_toml_table(existing: &str, header: &str, replacement: Option<&str>) -> String {
-    let mut lines = Vec::new();
-    let mut replaced = false;
-    let mut skipping = false;
-
-    for line in existing.lines() {
-        let trimmed = line.trim();
-        if skipping && trimmed.starts_with('[') {
-            skipping = false;
-        }
-
-        if !skipping && trimmed == header {
-            if let Some(replacement) = replacement {
-                lines.extend(replacement.trim_end().lines().map(str::to_string));
-            }
-            replaced = true;
-            skipping = true;
-            continue;
-        }
-
-        if !skipping {
-            lines.push(line.to_string());
-        }
+fn cleanup_legacy_plugin_dir() -> Result<()> {
+    let legacy = legacy_installed_plugin_dir()?;
+    let current = config::installed_plugin_dir()?;
+    if legacy != current {
+        let _ = fs::remove_dir_all(legacy);
     }
-
-    if !replaced {
-        if !lines.is_empty() && lines.last().is_some_and(|line| !line.trim().is_empty()) {
-            lines.push(String::new());
-        }
-        if let Some(replacement) = replacement {
-            lines.extend(replacement.trim_end().lines().map(str::to_string));
-        }
-    }
-
-    let mut out = lines.join("\n");
-    out.push('\n');
-    out
+    Ok(())
 }
 
 fn hook_path() -> Result<PathBuf> {
@@ -1153,42 +1106,8 @@ notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old
     }
 
     #[test]
-    fn registers_personal_marketplace_config() {
-        let dir = tempfile::tempdir().unwrap();
-        let existing = r#"
-model = "gpt-5"
-
-[marketplaces.openai-bundled]
-last_updated = "2026-06-01T00:00:00Z"
-source_type = "local"
-source = "/bundled"
-
-[plugins."browser@openai-bundled"]
-enabled = true
-"#;
-        let out = upsert_personal_marketplace_config(existing, dir.path()).unwrap();
-        assert!(out.contains("[marketplaces.personal]"));
-        assert!(out.contains("source_type = \"local\""));
-        assert!(out.contains(&format!("source = \"{}\"", dir.path().display())));
-        assert!(out.contains("[plugins.\"browser@openai-bundled\"]"));
-    }
-
-    #[test]
-    fn refreshes_existing_personal_marketplace_config() {
-        let dir = tempfile::tempdir().unwrap();
-        let existing = r#"
-[marketplaces.personal]
-last_updated = "old"
-source_type = "local"
-source = "/old"
-
-[plugins."codex-speak@personal"]
-enabled = true
-"#;
-        let out = upsert_personal_marketplace_config(existing, dir.path()).unwrap();
-        assert_eq!(out.matches("[marketplaces.personal]").count(), 1);
-        assert!(!out.contains("source = \"/old\""));
-        assert!(out.contains(&format!("source = \"{}\"", dir.path().display())));
-        assert!(out.contains("[plugins.\"codex-speak@personal\"]"));
+    fn legacy_plugin_dir_is_under_marketplace_home() {
+        let path = legacy_installed_plugin_dir().unwrap();
+        assert!(path.ends_with(".agents/plugins/plugins/codex-speak"));
     }
 }

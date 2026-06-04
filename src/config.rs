@@ -87,12 +87,16 @@ pub fn personal_plugins_root() -> Result<PathBuf> {
     Ok(agents_home()?.join("plugins"))
 }
 
+pub fn personal_plugin_sources_root() -> Result<PathBuf> {
+    Ok(home_dir()?.join("plugins"))
+}
+
 pub fn personal_marketplace_path() -> Result<PathBuf> {
     Ok(personal_plugins_root()?.join("marketplace.json"))
 }
 
 pub fn installed_plugin_dir() -> Result<PathBuf> {
-    Ok(personal_plugins_root()?.join("plugins").join(APP_DIR_NAME))
+    Ok(personal_plugin_sources_root()?.join(APP_DIR_NAME))
 }
 
 pub fn app_home() -> Result<PathBuf> {

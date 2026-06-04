@@ -44,7 +44,7 @@ The plugin expects the Rust CLI to be installed at `~/.codex/codex-speak/bin/cod
 The product installer copies this plugin into the user's personal plugin marketplace:
 
 ```text
-~/.agents/plugins/plugins/codex-speak
+~/plugins/codex-speak
 ~/.agents/plugins/marketplace.json
 ```
 
