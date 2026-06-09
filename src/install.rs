@@ -17,15 +17,22 @@ const PLUGIN_NAME: &str = "codex-speak";
 const AGENTS_BLOCK_START: &str = "<!-- BEGIN CODEX SPEAK GROWTH MODE -->";
 const AGENTS_BLOCK_END: &str = "<!-- END CODEX SPEAK GROWTH MODE -->";
 const AGENTS_BLOCK: &str = r#"<!-- BEGIN CODEX SPEAK GROWTH MODE -->
-## Codex Speak Growth Mode
+## Codex Speak 成长模式
 
-When answering, write in a gentle growth-mode style suitable for a child to read and hear. Keep the visible final answer concise, warm, concrete, and naturally speakable.
+回答时使用适合孩子阅读和收听的成长模式：温和、简洁、具体，最终可见回答本身就应该适合被本地 Hook 朗读。
 
-Put the most important result first. Avoid long code blocks, raw logs, long paths, and command dumps unless the user specifically needs them. When technical detail is necessary, keep a short child-friendly summary before the detail so the local speech hook can read the answer naturally.
+先说最重要的结果。除非用户明确需要，不要在最终回答里放长代码块、原始日志、长路径或大段命令输出。必须讲技术细节时，先给一句孩子能听懂的小结，再补必要细节。
 
-Do not add hidden protocol blocks, HTML speech blocks, or separate "朗读导览" sections for normal replies.
+正常回复不要调用 legacy MCP side-channel，也不要添加隐藏协议块、HTML 朗读块或单独的“朗读导览”章节。Hook 会直接读取最终回答。
 <!-- END CODEX SPEAK GROWTH MODE -->
 "#;
+const LEGACY_AGENTS_MCP_BLOCK: &str = r#"## Codex Speak
+
+When `codex_speak_prepare` is available and Codex Speak playback is enabled, prepare a concise Chinese spoken guide before every final answer. Use the MCP side-channel instead of visible protocol text.
+
+For normal task replies, call `codex_speak_prepare` near the end with 3 to 5 short guide items. Do not wait for the user to mention `@codex-speak`.
+
+If the tool is unavailable, answer normally. Do not add visible fallback guide sections."#;
 
 struct DownloadAsset {
     url: &'static str,
@@ -330,7 +337,7 @@ fn remove_stop_hook() -> Result<()> {
 fn install_agents_block() -> Result<()> {
     let path = agents_path()?;
     let existing = fs::read_to_string(&path).unwrap_or_default();
-    let cleaned = remove_agents_block_from_text(&existing);
+    let cleaned = remove_legacy_agents_mcp_block(&remove_agents_block_from_text(&existing));
     let mut updated = cleaned.trim_end().to_string();
     if !updated.is_empty() {
         updated.push_str("\n\n");
@@ -371,6 +378,24 @@ fn remove_agents_block_from_text(raw: &str) -> String {
     }
     out.push_str(tail);
     if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+fn remove_legacy_agents_mcp_block(raw: &str) -> String {
+    if !raw.contains("codex_speak_prepare") || !raw.contains("MCP side-channel") {
+        return raw.to_string();
+    }
+    let normalized = raw.replace("\r\n", "\n");
+    let cleaned = normalized.replace(LEGACY_AGENTS_MCP_BLOCK, "");
+    let mut out = cleaned
+        .lines()
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string();
+    if !out.is_empty() {
         out.push('\n');
     }
     out
@@ -1230,6 +1255,28 @@ notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old
         assert!(!out.contains("[mcp_servers.codex_speak]"));
         assert!(out.contains("[mcp_servers.node_repl]"));
         assert!(out.contains("model = \"x\""));
+    }
+
+    #[test]
+    fn removes_legacy_agents_mcp_block_without_touching_other_text() {
+        let raw = format!("{}\n\n## Other\nKeep me.\n", LEGACY_AGENTS_MCP_BLOCK);
+        let out = remove_legacy_agents_mcp_block(&raw);
+        assert!(!out.contains("codex_speak_prepare"));
+        assert!(!out.contains("MCP side-channel"));
+        assert!(out.contains("## Other\nKeep me."));
+    }
+
+    #[test]
+    fn agents_block_is_growth_mode_not_mcp_prepare() {
+        let cleaned = remove_legacy_agents_mcp_block(LEGACY_AGENTS_MCP_BLOCK);
+        let mut updated = cleaned.trim_end().to_string();
+        if !updated.is_empty() {
+            updated.push_str("\n\n");
+        }
+        updated.push_str(AGENTS_BLOCK);
+        assert!(updated.contains("Codex Speak 成长模式"));
+        assert!(!updated.contains("For normal task replies, call `codex_speak_prepare`"));
+        assert!(updated.contains("正常回复不要调用 legacy MCP side-channel"));
     }
 
     #[test]

@@ -126,7 +126,11 @@ fn direct_final_message(payload: &Value) -> Option<String> {
 fn transcript_path(payload: &Value) -> Option<String> {
     first_string(
         payload,
-        &["transcript_path", "transcript.path", "payload.transcript_path"],
+        &[
+            "transcript_path",
+            "transcript.path",
+            "payload.transcript_path",
+        ],
     )
     .filter(|path| !path.trim().is_empty())
 }
@@ -167,7 +171,9 @@ mod tests {
             "turn_id": "t1",
             "last_assistant_message": "我已经完成啦。\n```rs\nfn main() {}\n```"
         });
-        let job = job_from_payload(&payload, &Config::default()).unwrap().unwrap();
+        let job = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
         assert_eq!(job.session_id.as_deref(), Some("s1"));
         assert_eq!(job.turn_id.as_deref(), Some("t1"));
         assert!(job.text.contains("我已经完成"));
@@ -184,7 +190,9 @@ mod tests {
                 "last_assistant_message": "嵌套字段也可以朗读。"
             }
         });
-        let job = job_from_payload(&payload, &Config::default()).unwrap().unwrap();
+        let job = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
         assert_eq!(job.session_id.as_deref(), Some("nested-session"));
         assert_eq!(job.turn_id.as_deref(), Some("nested-turn"));
         assert!(job.text.contains("嵌套字段"));
@@ -217,8 +225,13 @@ mod tests {
             "turn_id": "t2",
             "transcript_path": file.path()
         });
-        let job = job_from_payload(&payload, &Config::default()).unwrap().unwrap();
-        assert_eq!(job.transcript_path.as_deref(), Some(file.path().to_str().unwrap()));
+        let job = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            job.transcript_path.as_deref(),
+            Some(file.path().to_str().unwrap())
+        );
         assert!(job.text.contains("最终回答"));
     }
 
@@ -228,7 +241,9 @@ mod tests {
             "hook_event_name": "PreToolUse",
             "last_assistant_message": "不要播。"
         });
-        assert!(job_from_payload(&payload, &Config::default()).unwrap().is_none());
+        assert!(job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .is_none());
     }
 
     #[test]
@@ -238,8 +253,12 @@ mod tests {
             "session_id": "s1",
             "last_assistant_message": "完成了。"
         });
-        let a = job_from_payload(&payload, &Config::default()).unwrap().unwrap();
-        let b = job_from_payload(&payload, &Config::default()).unwrap().unwrap();
+        let a = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
+        let b = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
         assert_eq!(a.id, b.id);
     }
 }

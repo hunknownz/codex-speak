@@ -40,5 +40,4 @@ mod tests {
         assert!(content.contains("/tmp/codex-speak"));
         assert!(content.contains("hook --stdin"));
     }
-
 }

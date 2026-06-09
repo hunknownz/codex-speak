@@ -173,13 +173,16 @@ fn assistant_activity_from_event(item: &Value) -> Option<LatestAssistantActivity
     }
 
     if payload_type == "agent_message" {
-        return Some(activity_for_phase(payload.get("phase").and_then(Value::as_str)));
+        return Some(activity_for_phase(
+            payload.get("phase").and_then(Value::as_str),
+        ));
     }
 
-    if payload_type == "message"
-        && payload.get("role").and_then(Value::as_str) == Some("assistant")
+    if payload_type == "message" && payload.get("role").and_then(Value::as_str) == Some("assistant")
     {
-        return Some(activity_for_phase(payload.get("phase").and_then(Value::as_str)));
+        return Some(activity_for_phase(
+            payload.get("phase").and_then(Value::as_str),
+        ));
     }
 
     None

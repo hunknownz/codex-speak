@@ -309,7 +309,11 @@ mod tests {
         enqueue_in_root(dir.path(), job("b", 2)).unwrap();
         enqueue_in_root(dir.path(), job("a", 1)).unwrap();
         let next = next_pending_job(dir.path()).unwrap().unwrap();
-        assert!(next.file_name().unwrap().to_string_lossy().starts_with("1-"));
+        assert!(next
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("1-"));
     }
 
     #[test]

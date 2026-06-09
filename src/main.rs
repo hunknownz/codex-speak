@@ -287,7 +287,7 @@ fn main() -> Result<()> {
                         process::PlaybackPolicy::Queue
                     } else {
                         process::PlaybackPolicy::Interrupt
-            });
+                    });
             let extracted = session::resolve_text_for_speech(text, fixture.as_deref(), &cfg)?;
             if extracted.trim().is_empty() {
                 return Ok(());
