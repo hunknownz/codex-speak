@@ -44,7 +44,6 @@
 - `data/speech-style/distilled-principles.jsonl`
 - `data/speech-style/style-examples.jsonl`
 - `skills/codex-speak/speech-style-examples.jsonl`
-- `plugins/codex-speak/skills/codex-speak/speech-style-examples.jsonl`
 
 已落地命令：
 
@@ -186,7 +185,6 @@ Skill 精选样例：
 
 ```text
 skills/codex-speak/speech-style-examples.jsonl
-plugins/codex-speak/skills/codex-speak/speech-style-examples.jsonl
 ```
 
 字段：

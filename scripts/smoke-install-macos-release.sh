@@ -63,14 +63,11 @@ for (const id of [
   "cli",
   "control_app",
   "pet_helper",
-  "codex_notify",
-  "codex_notify_hook",
+  "codex_stop_hook",
+  "codex_stop_hook_script",
+  "agents_hint",
+  "queue",
   "codex_skill",
-  "plugin",
-  "plugin_skill",
-  "plugin_mcp_config",
-  "plugin_mcp_script",
-  "plugin_marketplace",
   "player"
 ]) {
   const check = byId.get(id);

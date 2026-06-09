@@ -295,7 +295,7 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "处理器",
         "英文缩写",
         "构建失败，因为超时",
-        "英文编号",
+        "ProjectAlpha42",
     ] {
         if !cleaned.contains(required) {
             anyhow::bail!("mixed English normalization lost expected term {required}: {cleaned}");
@@ -320,7 +320,6 @@ fn verify_mixed_english_normalization(cfg: &Config) -> Result<String> {
         "build",
         "failed",
         "timeout",
-        "ProjectAlpha42",
     ] {
         if cleaned.contains(forbidden) {
             anyhow::bail!("mixed English normalization leaked raw term {forbidden}: {cleaned}");

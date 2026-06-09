@@ -45,7 +45,6 @@ pub fn normalize_for_tts_with_dictionary(
     result = replace_command_flags(&result);
     result = replace_code_identifiers(&result);
     result = replace_unknown_uppercase_acronyms(&result);
-    result = replace_remaining_english_spans(&result);
     result = restore_protected_terms(&result, &protected_terms);
     normalize_spacing(&result)
 }
@@ -396,20 +395,6 @@ fn replace_unknown_uppercase_acronyms(text: &str) -> String {
     re.replace_all(text, "英文缩写").into_owned()
 }
 
-fn replace_remaining_english_spans(text: &str) -> String {
-    if !contains_cjk(text) {
-        return text.to_string();
-    }
-    let re = Regex::new(
-        r"\b[A-Za-z][A-Za-z0-9]*(?:['][A-Za-z0-9]+)?(?:[ -]+[A-Za-z][A-Za-z0-9]*(?:['][A-Za-z0-9]+)?){0,7}\b",
-    )
-    .expect("remaining English span regex should compile");
-    re.replace_all(text, |caps: &regex::Captures| {
-        describe_english_span(caps.get(0).map(|m| m.as_str()).unwrap_or_default())
-    })
-    .into_owned()
-}
-
 fn contains_cjk(text: &str) -> bool {
     text.chars().any(|ch| {
         matches!(
@@ -423,24 +408,6 @@ fn contains_cjk(text: &str) -> bool {
                 | '\u{2B820}'..='\u{2CEAF}'
         )
     })
-}
-
-fn describe_english_span(span: &str) -> &'static str {
-    let word_count = span
-        .split(|ch: char| ch.is_ascii_whitespace() || ch == '-')
-        .filter(|part| !part.is_empty())
-        .count();
-    if word_count > 1 {
-        "英文短语"
-    } else if span.chars().any(|ch| ch.is_ascii_digit()) {
-        "英文编号"
-    } else if span.chars().any(|ch| ch.is_ascii_uppercase())
-        && span.chars().any(|ch| ch.is_ascii_lowercase())
-    {
-        "英文名称"
-    } else {
-        "英文单词"
-    }
 }
 
 fn normalize_spacing(text: &str) -> String {
@@ -470,7 +437,7 @@ mod tests {
     #[test]
     fn does_not_replace_known_terms_inside_longer_words() {
         let text = normalize_for_tts("capital 这个词里不应该触发替换。");
-        assert!(text.contains("英文单词"));
+        assert!(text.contains("capital"));
         assert!(!text.contains("接口"));
     }
 
@@ -541,14 +508,13 @@ mod tests {
     }
 
     #[test]
-    fn replaces_remaining_english_spans_in_mixed_chinese_speech() {
+    fn preserves_remaining_english_spans_in_mixed_chinese_speech() {
         let text = normalize_for_tts("我看到 deploy preview failed，然后处理 ProjectAlpha42。");
-        assert!(text.contains("英文短语"));
-        assert!(text.contains("英文编号"));
-        assert!(!text.contains("deploy"));
-        assert!(!text.contains("preview"));
-        assert!(!text.contains("failed"));
-        assert!(!text.contains("ProjectAlpha42"));
+        assert!(text.contains("deploy preview failed"));
+        assert!(text.contains("ProjectAlpha42"));
+        assert!(!text.contains("英文短语"));
+        assert!(!text.contains("英文编号"));
+        assert!(!text.contains("英文单词"));
     }
 
     #[test]

@@ -1,5 +1,7 @@
 # Codex Speak Plugin 设计
 
+> Legacy note: 这份文档记录早期 Plugin/MCP side-channel 技术设计，已不再作为成长模式 MVP 的默认路线。当前默认路线是 Tauri App 安装 Stop Hook、AGENTS hint、Skill 和文件播放队列；详见 [Architecture](architecture.md) 与 [Legacy Plugin Product Design](legacy-plugin-product-design.md)。
+
 ## 插件定位
 
 Codex Speak Plugin 不替代 Hook，也不替代 Rust CLI。它负责把 Codex 的理解结果交给本地朗读系统：

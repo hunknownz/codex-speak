@@ -1,7 +1,7 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Command;
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -14,6 +14,18 @@ use crate::bundled;
 use crate::config::{self, Config};
 
 const PLUGIN_NAME: &str = "codex-speak";
+const AGENTS_BLOCK_START: &str = "<!-- BEGIN CODEX SPEAK GROWTH MODE -->";
+const AGENTS_BLOCK_END: &str = "<!-- END CODEX SPEAK GROWTH MODE -->";
+const AGENTS_BLOCK: &str = r#"<!-- BEGIN CODEX SPEAK GROWTH MODE -->
+## Codex Speak Growth Mode
+
+When answering, write in a gentle growth-mode style suitable for a child to read and hear. Keep the visible final answer concise, warm, concrete, and naturally speakable.
+
+Put the most important result first. Avoid long code blocks, raw logs, long paths, and command dumps unless the user specifically needs them. When technical detail is necessary, keep a short child-friendly summary before the detail so the local speech hook can read the answer naturally.
+
+Do not add hidden protocol blocks, HTML speech blocks, or separate "朗读导览" sections for normal replies.
+<!-- END CODEX SPEAK GROWTH MODE -->
+"#;
 
 struct DownloadAsset {
     url: &'static str,
@@ -66,13 +78,13 @@ pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
     install_self_binary()?;
     install_release_manifest()?;
     install_skill()?;
-    install_plugin()?;
-    install_codex_plugin();
+    remove_global_mcp_config()?;
     install_hook()?;
-
-    let previous = install_notify()?;
+    install_stop_hook()?;
+    install_agents_block()?;
+    remove_notify_if_codex_speak()?;
     let mut cfg = Config::load_or_default()?;
-    cfg.previous_notify = previous;
+    cfg.previous_notify = None;
     cfg.save()?;
 
     if !skip_tts_download {
@@ -87,12 +99,18 @@ pub fn install(skip_tts_download: bool, no_summary: bool) -> Result<()> {
 }
 
 pub fn uninstall(remove_models: bool) -> Result<()> {
-    restore_notify()?;
-    uninstall_codex_plugin();
+    remove_notify_if_codex_speak()?;
+    remove_stop_hook()?;
+    remove_agents_block()?;
+    remove_global_mcp_config()?;
     let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify"));
     let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-notify.ps1"));
+    let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-stop-hook"));
+    let _ = fs::remove_file(config::codex_home()?.join("hooks/codex-speak-stop-hook.ps1"));
     let _ = fs::remove_dir_all(config::codex_home()?.join("skills/codex-speak"));
-    let _ = uninstall_plugin();
+    let _ = cleanup_legacy_plugin_files();
+    let _ = fs::remove_dir_all(config::queue_pending_dir()?);
+    let _ = fs::remove_dir_all(config::queue_running_dir()?);
     if remove_models {
         let _ = fs::remove_dir_all(config::models_dir()?);
     }
@@ -110,11 +128,13 @@ fn create_dirs() -> Result<()> {
         config::cache_dir()?,
         config::logs_dir()?,
         config::state_dir()?,
+        config::queue_pending_dir()?,
+        config::queue_running_dir()?,
+        config::queue_done_dir()?,
+        config::queue_failed_dir()?,
         config::app_home()?.join("backups"),
         config::codex_home()?.join("hooks"),
         config::codex_home()?.join("skills"),
-        config::personal_plugins_root()?,
-        config::personal_plugin_sources_root()?,
     ] {
         fs::create_dir_all(dir)?;
     }
@@ -230,181 +250,28 @@ fn install_skill() -> Result<()> {
     Ok(())
 }
 
-fn install_plugin() -> Result<()> {
-    let root = config::installed_plugin_dir()?;
-    let _ = fs::remove_dir_all(&root);
-    fs::create_dir_all(root.join(".codex-plugin"))?;
-    fs::create_dir_all(root.join("skills/codex-speak"))?;
-    fs::create_dir_all(root.join("scripts"))?;
+#[allow(dead_code)]
+fn install_global_mcp_config() -> Result<()> {
+    let codex_config = config::codex_home()?.join("config.toml");
+    let existing = fs::read_to_string(&codex_config).unwrap_or_default();
+    backup_codex_config(&codex_config, &existing)?;
 
-    fs::write(
-        root.join(".codex-plugin/plugin.json"),
-        bundled::PLUGIN_MANIFEST,
-    )?;
-    fs::write(
-        root.join(".mcp.json"),
-        bundled::plugin_mcp_config(&config::bin_dir()?.join(binary_name())),
-    )?;
-    fs::write(root.join("README.md"), bundled::PLUGIN_README)?;
-    fs::write(
-        root.join("skills/codex-speak/SKILL.md"),
-        bundled::PLUGIN_SKILL,
-    )?;
-    fs::write(
-        root.join("skills/codex-speak/speech-style-examples.jsonl"),
-        bundled::PLUGIN_SPEECH_STYLE_EXAMPLES,
-    )?;
-
-    let script = root.join("scripts/codex-speak-mcp");
-    fs::write(&script, bundled::PLUGIN_MCP_SCRIPT_UNIX)?;
-    make_executable(&script)?;
-    fs::write(
-        root.join("scripts/codex-speak-mcp.ps1"),
-        bundled::PLUGIN_MCP_SCRIPT_WINDOWS,
-    )?;
-
-    upsert_personal_marketplace_entry()?;
-    cleanup_legacy_plugin_dir()?;
+    let cli_path = config::bin_dir()?.join(binary_name());
+    let table = format_global_mcp_table(&cli_path);
+    let updated = upsert_global_mcp_table(&existing, &table);
+    fs::write(&codex_config, updated)?;
     Ok(())
 }
 
-fn install_codex_plugin() {
-    if let Err(err) = install_codex_plugin_inner() {
-        eprintln!(
-            "Codex Speak plugin auto-install skipped: {err:#}. You can install it later with `codex plugin add codex-speak@personal`."
-        );
-    }
+fn remove_global_mcp_config() -> Result<()> {
+    let codex_config = config::codex_home()?.join("config.toml");
+    let existing = fs::read_to_string(&codex_config).unwrap_or_default();
+    let updated = remove_global_mcp_table(&existing);
+    fs::write(&codex_config, updated)?;
+    Ok(())
 }
 
-fn install_codex_plugin_inner() -> Result<()> {
-    let cli = find_codex_plugin_cli().context("Codex plugin CLI was not found")?;
-    let output = run_codex_plugin_command(&cli, &["plugin", "add", "codex-speak@personal"])?;
-    if output.status.success() {
-        eprintln!("Codex Speak plugin installed/enabled through Codex.");
-        return Ok(());
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if stderr.contains("service_tier") || stderr.contains("failed to load configuration") {
-        let retry = run_codex_plugin_command(
-            &cli,
-            &[
-                "-c",
-                "service_tier=\"fast\"",
-                "plugin",
-                "add",
-                "codex-speak@personal",
-            ],
-        )?;
-        if retry.status.success() {
-            eprintln!("Codex Speak plugin installed/enabled through Codex.");
-            return Ok(());
-        }
-        anyhow::bail!(
-            "Codex plugin add failed after config retry: {}",
-            command_output_summary(&retry)
-        );
-    }
-
-    anyhow::bail!(
-        "Codex plugin add failed: {}",
-        command_output_summary(&output)
-    )
-}
-
-fn uninstall_codex_plugin() {
-    if let Err(err) = uninstall_codex_plugin_inner() {
-        eprintln!("Codex Speak plugin auto-remove skipped: {err:#}.");
-    }
-}
-
-fn uninstall_codex_plugin_inner() -> Result<()> {
-    let cli = find_codex_plugin_cli().context("Codex plugin CLI was not found")?;
-    let output = run_codex_plugin_command(&cli, &["plugin", "remove", "codex-speak@personal"])?;
-    if output.status.success() {
-        return Ok(());
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if stderr.contains("service_tier") || stderr.contains("failed to load configuration") {
-        let retry = run_codex_plugin_command(
-            &cli,
-            &[
-                "-c",
-                "service_tier=\"fast\"",
-                "plugin",
-                "remove",
-                "codex-speak@personal",
-            ],
-        )?;
-        if retry.status.success() {
-            return Ok(());
-        }
-        anyhow::bail!(
-            "Codex plugin remove failed after config retry: {}",
-            command_output_summary(&retry)
-        );
-    }
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if stderr.contains("not installed") || stderr.contains("not found") {
-        return Ok(());
-    }
-
-    anyhow::bail!(
-        "Codex plugin remove failed: {}",
-        command_output_summary(&output)
-    )
-}
-
-fn find_codex_plugin_cli() -> Option<PathBuf> {
-    let mut candidates = Vec::new();
-    if let Ok(path) = std::env::var("CODEX_CLI_PATH") {
-        if !path.trim().is_empty() {
-            candidates.push(PathBuf::from(path));
-        }
-    }
-    if cfg!(target_os = "macos") {
-        candidates.push(PathBuf::from(
-            "/Applications/Codex.app/Contents/Resources/codex",
-        ));
-    }
-    candidates.push(PathBuf::from(if cfg!(windows) {
-        "codex.exe"
-    } else {
-        "codex"
-    }));
-
-    candidates
-        .into_iter()
-        .find(|candidate| codex_cli_supports_plugin_add(candidate))
-}
-
-fn codex_cli_supports_plugin_add(candidate: &Path) -> bool {
-    run_codex_plugin_command(candidate, &["plugin", "add", "--help"])
-        .is_ok_and(|output| output.status.success())
-}
-
-fn run_codex_plugin_command(cli: &Path, args: &[&str]) -> Result<Output> {
-    Command::new(cli)
-        .args(args)
-        .output()
-        .with_context(|| format!("failed to run {} {}", cli.display(), args.join(" ")))
-}
-
-fn command_output_summary(output: &Output) -> String {
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if !stderr.is_empty() {
-        stderr
-    } else if !stdout.is_empty() {
-        stdout
-    } else {
-        format!("exit status {}", output.status)
-    }
-}
-
-fn uninstall_plugin() -> Result<()> {
+fn cleanup_legacy_plugin_files() -> Result<()> {
     let _ = fs::remove_dir_all(config::installed_plugin_dir()?);
     let _ = fs::remove_dir_all(legacy_installed_plugin_dir()?);
     remove_personal_marketplace_entry()
@@ -418,6 +285,164 @@ fn install_hook() -> Result<()> {
     Ok(())
 }
 
+fn install_stop_hook() -> Result<()> {
+    let path = hooks_json_path()?;
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let mut root = read_hooks_json(&existing);
+    remove_codex_speak_hooks_from_value(&mut root);
+
+    let hooks = root
+        .as_object_mut()
+        .expect("hooks root is object")
+        .entry("hooks")
+        .or_insert_with(|| json!({}));
+    let hooks_obj = hooks.as_object_mut().context("hooks must be an object")?;
+    let stop = hooks_obj.entry("Stop").or_insert_with(|| json!([]));
+    let stop_arr = stop.as_array_mut().context("hooks.Stop must be an array")?;
+    stop_arr.push(json!({
+        "hooks": [{
+            "type": "command",
+            "command": stop_hook_command(&hook_path()?),
+            "timeout": 5,
+            "statusMessage": "Queueing Codex Speak growth-mode audio"
+        }]
+    }));
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&path, serde_json::to_string_pretty(&root)?)?;
+    Ok(())
+}
+
+fn remove_stop_hook() -> Result<()> {
+    let path = hooks_json_path()?;
+    if !path.exists() {
+        return Ok(());
+    }
+    let existing = fs::read_to_string(&path)?;
+    let mut root = read_hooks_json(&existing);
+    remove_codex_speak_hooks_from_value(&mut root);
+    fs::write(&path, serde_json::to_string_pretty(&root)?)?;
+    Ok(())
+}
+
+fn install_agents_block() -> Result<()> {
+    let path = agents_path()?;
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let cleaned = remove_agents_block_from_text(&existing);
+    let mut updated = cleaned.trim_end().to_string();
+    if !updated.is_empty() {
+        updated.push_str("\n\n");
+    }
+    updated.push_str(AGENTS_BLOCK);
+    fs::write(path, updated)?;
+    Ok(())
+}
+
+fn remove_agents_block() -> Result<()> {
+    let path = agents_path()?;
+    if !path.exists() {
+        return Ok(());
+    }
+    let existing = fs::read_to_string(&path)?;
+    let updated = remove_agents_block_from_text(&existing);
+    fs::write(path, updated)?;
+    Ok(())
+}
+
+pub(crate) fn agents_block_present(raw: &str) -> bool {
+    raw.contains(AGENTS_BLOCK_START) && raw.contains(AGENTS_BLOCK_END)
+}
+
+fn remove_agents_block_from_text(raw: &str) -> String {
+    let Some(start) = raw.find(AGENTS_BLOCK_START) else {
+        return raw.to_string();
+    };
+    let Some(end_rel) = raw[start..].find(AGENTS_BLOCK_END) else {
+        return raw.to_string();
+    };
+    let end = start + end_rel + AGENTS_BLOCK_END.len();
+    let mut out = String::new();
+    out.push_str(raw[..start].trim_end());
+    let tail = raw[end..].trim_start_matches(['\r', '\n']);
+    if !out.is_empty() && !tail.is_empty() {
+        out.push_str("\n\n");
+    }
+    out.push_str(tail);
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+fn hooks_json_path() -> Result<PathBuf> {
+    Ok(config::codex_home()?.join("hooks.json"))
+}
+
+fn agents_path() -> Result<PathBuf> {
+    Ok(config::codex_home()?.join("AGENTS.md"))
+}
+
+fn read_hooks_json(raw: &str) -> Value {
+    let value = serde_json::from_str(raw).unwrap_or_else(|_| json!({ "hooks": {} }));
+    if value.is_object() {
+        value
+    } else {
+        json!({ "hooks": {} })
+    }
+}
+
+fn remove_codex_speak_hooks_from_value(root: &mut Value) {
+    let Some(hooks) = root.get_mut("hooks").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for groups in hooks.values_mut() {
+        let Some(groups) = groups.as_array_mut() else {
+            continue;
+        };
+        for group in groups.iter_mut() {
+            let Some(commands) = group.get_mut("hooks").and_then(Value::as_array_mut) else {
+                continue;
+            };
+            commands.retain(|item| {
+                !item
+                    .get("command")
+                    .and_then(Value::as_str)
+                    .is_some_and(is_codex_speak_hook_command)
+            });
+        }
+        groups.retain(|group| {
+            group
+                .get("hooks")
+                .and_then(Value::as_array)
+                .is_none_or(|commands| !commands.is_empty())
+        });
+    }
+}
+
+fn is_codex_speak_hook_command(command: &str) -> bool {
+    command.contains("codex-speak-notify")
+        || command.contains("codex-speak-stop-hook")
+        || (command.contains("codex-speak") && command.contains("hook --stdin"))
+}
+
+fn stop_hook_command(hook: &Path) -> String {
+    if cfg!(windows) {
+        format!(
+            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"{}\"",
+            shell_escape(hook)
+        )
+    } else {
+        format!("\"{}\"", shell_escape(hook))
+    }
+}
+
+fn shell_escape(path: &Path) -> String {
+    path.display().to_string().replace('"', "\\\"")
+}
+
+#[allow(dead_code)]
 fn install_notify() -> Result<Option<Vec<String>>> {
     let codex_config = config::codex_home()?.join("config.toml");
     let existing = fs::read_to_string(&codex_config).unwrap_or_default();
@@ -438,6 +463,15 @@ fn install_notify() -> Result<Option<Vec<String>>> {
     let updated = replace_notify_line(&existing, &notify_line);
     fs::write(&codex_config, updated)?;
     Ok(previous)
+}
+
+fn remove_notify_if_codex_speak() -> Result<()> {
+    let codex_config = config::codex_home()?.join("config.toml");
+    let existing = fs::read_to_string(&codex_config).unwrap_or_default();
+    if notify_already_routes_to_codex_speak(&existing) {
+        restore_notify()?;
+    }
+    Ok(())
 }
 
 fn restore_notify() -> Result<()> {
@@ -472,6 +506,7 @@ fn restore_notify() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn backup_codex_config(path: &Path, content: &str) -> Result<()> {
     let ts = Local::now().format("%Y%m%d-%H%M%S");
     let backup = config::app_home()?
@@ -480,17 +515,6 @@ fn backup_codex_config(path: &Path, content: &str) -> Result<()> {
     if path.exists() {
         fs::write(backup, content)?;
     }
-    Ok(())
-}
-
-fn upsert_personal_marketplace_entry() -> Result<()> {
-    let path = config::personal_marketplace_path()?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let marketplace = read_marketplace_json(&path)?;
-    let updated = upsert_plugin_entry(marketplace);
-    fs::write(&path, serde_json::to_string_pretty(&updated)?)?;
     Ok(())
 }
 
@@ -522,27 +546,6 @@ fn seed_marketplace() -> Value {
         },
         "plugins": []
     })
-}
-
-fn upsert_plugin_entry(value: Value) -> Value {
-    let mut marketplace = normalize_marketplace(value);
-    let entry = plugin_marketplace_entry();
-    let plugins = marketplace
-        .as_object_mut()
-        .expect("marketplace is normalized object")
-        .get_mut("plugins")
-        .and_then(Value::as_array_mut)
-        .expect("marketplace plugins is normalized array");
-
-    if let Some(existing) = plugins
-        .iter_mut()
-        .find(|item| item.get("name").and_then(Value::as_str) == Some(PLUGIN_NAME))
-    {
-        *existing = entry;
-    } else {
-        plugins.push(entry);
-    }
-    marketplace
 }
 
 fn remove_plugin_entry(value: Value) -> Value {
@@ -580,45 +583,22 @@ fn normalize_marketplace(value: Value) -> Value {
     marketplace
 }
 
-fn plugin_marketplace_entry() -> Value {
-    json!({
-        "name": PLUGIN_NAME,
-        "source": {
-            "source": "local",
-            "path": "./plugins/codex-speak"
-        },
-        "policy": {
-            "installation": "AVAILABLE",
-            "authentication": "ON_INSTALL"
-        },
-        "category": "Productivity"
-    })
-}
-
 fn legacy_installed_plugin_dir() -> Result<PathBuf> {
     Ok(config::personal_plugins_root()?
         .join("plugins")
         .join(PLUGIN_NAME))
 }
 
-fn cleanup_legacy_plugin_dir() -> Result<()> {
-    let legacy = legacy_installed_plugin_dir()?;
-    let current = config::installed_plugin_dir()?;
-    if legacy != current {
-        let _ = fs::remove_dir_all(legacy);
-    }
-    Ok(())
-}
-
 fn hook_path() -> Result<PathBuf> {
     let name = if cfg!(windows) {
-        "codex-speak-notify.ps1"
+        "codex-speak-stop-hook.ps1"
     } else {
-        "codex-speak-notify"
+        "codex-speak-stop-hook"
     };
     Ok(config::codex_home()?.join("hooks").join(name))
 }
 
+#[allow(dead_code)]
 fn notify_command(hook: &Path) -> Vec<String> {
     if cfg!(windows) {
         vec![
@@ -685,6 +665,7 @@ fn notify_already_routes_to_codex_speak(config_text: &str) -> bool {
         .is_some_and(|line| line.contains("codex-speak-notify"))
 }
 
+#[allow(dead_code)]
 fn read_saved_previous_notify() -> Option<Vec<String>> {
     let path = config::state_dir().ok()?.join("previous-notify.json");
     let raw = fs::read_to_string(path).ok()?;
@@ -709,6 +690,64 @@ fn replace_notify_line(existing: &str, notify_line: &str) -> String {
     }
     let mut out = lines.join("\n");
     out.push('\n');
+    out
+}
+
+fn format_global_mcp_table(cli_path: &Path) -> String {
+    format!(
+        "[mcp_servers.codex_speak]\nargs = [\"mcp\"]\ncommand = \"{}\"\nstartup_timeout_sec = 120\n",
+        toml_escape(&cli_path.display().to_string())
+    )
+}
+
+fn upsert_global_mcp_table(existing: &str, table: &str) -> String {
+    let without_existing = remove_global_mcp_table(existing);
+    let mut lines: Vec<String> = without_existing.lines().map(ToString::to_string).collect();
+    let insert_at = lines
+        .iter()
+        .position(|line| line.trim() == "[mcp_servers.node_repl]")
+        .unwrap_or(lines.len());
+
+    let mut table_lines = table.lines().map(ToString::to_string).collect::<Vec<_>>();
+    if insert_at > 0 && !lines[insert_at.saturating_sub(1)].trim().is_empty() {
+        table_lines.insert(0, String::new());
+    }
+    if insert_at < lines.len()
+        && !table_lines
+            .last()
+            .is_some_and(|line| line.trim().is_empty())
+    {
+        table_lines.push(String::new());
+    }
+    lines.splice(insert_at..insert_at, table_lines);
+
+    let mut out = lines.join("\n");
+    out.push('\n');
+    out
+}
+
+fn remove_global_mcp_table(existing: &str) -> String {
+    let mut lines = Vec::new();
+    let mut skipping = false;
+
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if trimmed == "[mcp_servers.codex_speak]" {
+            skipping = true;
+            continue;
+        }
+        if skipping && trimmed.starts_with('[') {
+            skipping = false;
+        }
+        if !skipping {
+            lines.push(line.to_string());
+        }
+    }
+
+    let mut out = lines.join("\n");
+    if !out.is_empty() {
+        out.push('\n');
+    }
     out
 }
 
@@ -1157,6 +1196,43 @@ notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old
     }
 
     #[test]
+    fn upserts_global_mcp_before_existing_mcp_servers() {
+        let table = format_global_mcp_table(Path::new("/tmp/codex-speak"));
+        let out = upsert_global_mcp_table(
+            "model = \"x\"\n\n[mcp_servers.node_repl]\ncommand = \"node\"\n",
+            &table,
+        );
+        assert!(out.contains("[mcp_servers.codex_speak]\nargs = [\"mcp\"]"));
+        assert!(out.contains("command = \"/tmp/codex-speak\""));
+        assert!(
+            out.find("[mcp_servers.codex_speak]").unwrap()
+                < out.find("[mcp_servers.node_repl]").unwrap()
+        );
+    }
+
+    #[test]
+    fn replaces_existing_global_mcp_without_touching_others() {
+        let table = format_global_mcp_table(Path::new("/new/codex-speak"));
+        let out = upsert_global_mcp_table(
+            "[mcp_servers.codex_speak]\nargs = [\"old\"]\ncommand = \"/old\"\n\n[mcp_servers.node_repl]\ncommand = \"node\"\n",
+            &table,
+        );
+        assert!(out.contains("command = \"/new/codex-speak\""));
+        assert!(!out.contains("command = \"/old\""));
+        assert!(out.contains("[mcp_servers.node_repl]\ncommand = \"node\""));
+    }
+
+    #[test]
+    fn removes_global_mcp_table_only() {
+        let out = remove_global_mcp_table(
+            "model = \"x\"\n\n[mcp_servers.codex_speak]\nargs = [\"mcp\"]\ncommand = \"/tmp/codex-speak\"\n\n[mcp_servers.node_repl]\ncommand = \"node\"\n",
+        );
+        assert!(!out.contains("[mcp_servers.codex_speak]"));
+        assert!(out.contains("[mcp_servers.node_repl]"));
+        assert!(out.contains("model = \"x\""));
+    }
+
+    #[test]
     fn verifies_download_checksum() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("asset.txt");
@@ -1198,10 +1274,16 @@ notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old
     }
 
     #[test]
-    fn upserts_marketplace_entry_without_removing_others() {
+    fn removes_only_codex_speak_marketplace_entry() {
         let marketplace = json!({
             "name": "personal",
             "plugins": [
+                {
+                    "name": "codex-speak",
+                    "source": { "source": "local", "path": "./plugins/codex-speak" },
+                    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+                    "category": "Productivity"
+                },
                 {
                     "name": "other",
                     "source": { "source": "local", "path": "./plugins/other" },
@@ -1210,30 +1292,6 @@ notify = ["/a/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"/old
                 }
             ]
         });
-        let updated = upsert_plugin_entry(marketplace);
-        let plugins = updated.get("plugins").and_then(Value::as_array).unwrap();
-        assert_eq!(plugins.len(), 2);
-        assert!(plugins
-            .iter()
-            .any(|item| item.get("name").and_then(Value::as_str) == Some(PLUGIN_NAME)));
-        assert!(plugins
-            .iter()
-            .any(|item| item.get("name").and_then(Value::as_str) == Some("other")));
-    }
-
-    #[test]
-    fn removes_only_codex_speak_marketplace_entry() {
-        let marketplace = upsert_plugin_entry(json!({
-            "name": "personal",
-            "plugins": [
-                {
-                    "name": "other",
-                    "source": { "source": "local", "path": "./plugins/other" },
-                    "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-                    "category": "Productivity"
-                }
-            ]
-        }));
         let updated = remove_plugin_entry(marketplace);
         let plugins = updated.get("plugins").and_then(Value::as_array).unwrap();
         assert_eq!(plugins.len(), 1);

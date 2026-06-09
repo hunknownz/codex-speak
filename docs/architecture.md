@@ -2,92 +2,140 @@
 
 ## 一句话
 
-Codex Speak 把 Codex 的复杂输出变成适合听的中文导览，再用本地免费 TTS 在 macOS 或 Windows 上播放。
+Codex Speak 的成长模式把 Codex 最终回答变成适合孩子听的中文朗读，并用本地 TTS 播放。MVP 主路径是 Hook-first：不要求 Codex 每轮调用 MCP，也不再把隐藏协议块或单独的“朗读导览”塞进可见回答。
 
 ## 当前主路径
 
-```text
-Codex Skill
-  -> 让 Codex 理解完整回复，并按儿童/成人模式生成可听导览和必要的可视化支架
-Codex Plugin / MCP
-  -> codex_speak_prepare 写入 side-channel
-Codex Hook
-  -> 回复结束后触发本地 CLI
-Rust CLI
-  -> Hook 主路径只消费 side-channel；缺失时播放“插件导览未到达”提示，不猜 final answer
-Codex plugin install
-  -> codex plugin add codex-speak@personal，把插件安装/启用到 Codex cache
-本地 TTS
-  -> 默认 Sherpa-ONNX + MeloTTS，经过播放队列后播放到系统播放器
-Tauri 控制面板
-  -> 控制总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、音色和引擎
+```mermaid
+flowchart TD
+  A["Codex 生成最终回答"] --> B["Codex Stop Hook"]
+  B --> C["codex-speak hook --stdin"]
+  C --> D{"Hook payload 有 last_assistant_message?"}
+  D -- "是" --> E["提取最终回答"]
+  D -- "否" --> F["读取 payload.transcript_path"]
+  F --> E
+  E --> G["清洗成适合朗读的文本"]
+  G --> H["写入文件队列 pending"]
+  H --> I["立即返回给 Codex"]
+  H --> J["queue-worker"]
+  J --> K["pending -> running"]
+  K --> L["本地 TTS"]
+  L --> M{"播放成功?"}
+  M -- "是" --> N["running -> done"]
+  M -- "失败, 首次" --> O["重试 1 次"]
+  O --> H
+  M -- "失败, 已重试" --> P["running -> failed"]
 ```
 
-## 两种朗读时机
+Hook 的主职责是“在正确的会话、正确的回合拿到最终回答并入队”，不是长时间等待 TTS。TTS 的串行播放由文件队列和 worker 负责。
 
-| 通道 | 触发 | 用途 |
+## 职责边界
+
+| 组件 | 主路径职责 | 不再承担 |
 | --- | --- | --- |
-| 过程提示 | MCP `codex_speak_speak_text(background=true)` | 长任务中播放少量短句 |
-| 最终导览 | MCP `codex_speak_prepare` + Hook | 回复结束后播放完整行动导览 |
+| AGENTS/Skill hint | 让 Codex 的可见 final 默认适合孩子读和听 | 不强制调用 MCP；不输出隐藏协议或单独朗读章节 |
+| Stop Hook | 接收 Codex turn-ended/Stop payload，识别当前 session 的最终回答 | 不猜全局 newest session；不直接播放；不长时间等锁 |
+| `hook --stdin` | 从 stdin 解析 payload，按固定优先级提取文本，清洗并写入 queue job | 不消费 `spool/latest.json` 作为主路径 |
+| 文件队列 | 用 `pending/running/done/failed` 串行化多个 session 的朗读 | 不依赖单槽全局 `latest.json` |
+| queue worker | FIFO 取 job，调用本地 TTS，成功/失败后移动 job | 不阻塞 Codex session 完成 |
+| TTS/播放器 | 本地生成和播放声音，使用播放锁避免音频重叠 | 不理解 Codex 任务上下文 |
+| MCP side-channel | legacy/debug/future optional | 不作为成长模式 MVP 默认链路 |
 
-不做默认逐字流式朗读。过程提示只负责“我正在做什么”；最终导览才负责“做了什么、结果如何、下一步怎么办”。
+## 朗读内容生成流程
 
-## 插件通道原则
+成长模式 MVP 不再生成一份“屏幕外”的朗读稿。朗读内容默认来自可见 final answer，所以内容生成发生在 Codex 正常回答阶段：
 
-当 side-channel 不可用时，责任不转移给本地规则。本地 Rust 不应该假装理解完整 final answer；它只播放一个明确的缺失提示，告诉用户没有收到插件准备好的朗读导览。
-
-默认 Hook 不再读取普通 final answer，不再读取用户输入，也不再要求 Skill 在 Chat Session 中写 `**朗读导览**`。这能避免把代码说明、命令、长路径、测试清单、提示词片段或用户原始输入误读出来。
-
-历史 HTML、隐藏注释和 Markdown `朗读导览` 解析能力保留给 `extract`、fixture、旧会话和排障样例；它们不再是 Hook 的默认产品路径。
-
-缺失提示示例：
-
-```text
-我没有收到本地插件准备好的朗读导览。这次先不乱读屏幕内容。
-请新开一个 Codex 会话，或者运行自检看看插件有没有加载。
+```mermaid
+flowchart TD
+  A["AGENTS/Skill: 成长模式提示"] --> B["Codex 写可见 final"]
+  B --> C["final 本身短、温和、具体、可朗读"]
+  C --> D["Hook 收到 Stop payload"]
+  D --> E["优先 last_assistant_message"]
+  E --> F["缺失时读取 transcript_path 的当前 final"]
+  F --> G["extract::clean_for_speech"]
+  G --> H["跳过代码块、日志、长路径、URL、表格"]
+  H --> I["技术词和英文缩写转成中文可听表达"]
+  I --> J["按 max_read_chars 截断"]
+  J --> K["queue job.text"]
 ```
 
-## 播放队列
+算法顺序：
 
-TTS 生成和系统播放器共享一把本地播放锁，避免多个 `codex-speak speak` 进程同时写 `last.wav` 或互相停止：
+1. Codex 在最终回答里直接写适合孩子阅读和收听的内容。
+2. Stop Hook 只处理 `Stop` / `SubagentStop` 事件。
+3. 文本来源顺序固定为 `last_assistant_message`，然后是 `transcript_path` 中当前 session 的最后 final answer。
+4. 没有有效 final、final 为空、或不是 Stop 事件时静默退出。
+5. 清洗层删除或压缩不适合朗读的内容：代码块、diff、日志、表格、长链接、长路径、命令清单和 markdown 噪声。
+6. 发音归一化把 `MCP`、`JSON`、`CLI`、文件名、脚本名和常见英文技术词转换成中文听感更自然的表达。
+7. 生成 job id。优先使用 `session_id + turn_id`，字段缺失时使用 `transcript_path + final message hash` 兜底。
+8. 同一 id 只入队一次；pending 最多 5 条，超限时丢弃最旧普通 job。
 
-- Hook 最终导览使用排队策略：等当前朗读结束后完整播放。
-- MCP 过程提示使用忙时跳过策略：如果最终导览或另一句提示正在播放，就跳过这句短提示。
-- 手动试听和停止按钮仍可打断当前朗读。
-- 停止按钮会释放播放锁，并让正在等待队列的旧任务退出，避免停止后又继续播旧内容。
+这个设计的核心取舍是：屏幕内容和朗读内容默认一致。为了孩子，final 本身就应该更清楚、更短、更自然；Hook 只做“清洗和播放”，不做第二个模型级总结。
 
-## 朗读风格
+## 并发与去重
 
-朗读风格遵循 [朗读风格指南](speech-style-guide.md)：
+多个 Codex chat session 同时结束时，Hook 会分别收到各自 payload。主路径禁止用 `newest_session_file()` 猜全局最新会话，避免 A 会话触发却读到 B 会话的 final。
 
-- 儿童模式直接对孩子说话，不朗读“要生成儿童能听懂的内容”这类元说明。
-- 儿童模式可以融入隐性教学：每次最多带一个自然贴合成果的小知识点，帮助孩子学会观察、测试、比较和排障。
-- 儿童模式可以使用 [儿童可视化学习](visual-learning.md)：用 Mermaid、简单 HTML 或可选生成图片帮助孩子理解架构、流程和抽象概念；朗读只讲图意，不读图表源码。
-- 是否教学、是否画图由 Codex 自动判断；默认克制，只有明显帮助理解或推进项目时才加入。
-- 成人模式提供节省时间的简洁摘要，保留变更、验证、风险和下一步。
+队列目录：
 
-如果后续启用本地风格 RAG，向量数据库统一使用 [Qdrant](qdrant-style-rag.md)，只检索经过清洗验证的表达样例，不检索事实知识。
+```text
+~/.codex/codex-speak/queue/pending/
+~/.codex/codex-speak/queue/running/
+~/.codex/codex-speak/queue/done/
+~/.codex/codex-speak/queue/failed/
+```
 
-## 当前 macOS 验证状态
+每个 job 是独立 JSON 文件。worker 用 `queue/worker.lock` 保证同一时间只有一个 worker 消费队列。job 从 `pending` 原子移动到 `running` 后才播放，成功进入 `done`，失败重试一次后进入 `failed`。
 
-本机已验证：
+## 缺失内容策略
 
-- `doctor --json` 通过：CLI、Hook、Skill、Plugin、MCP、控制面板、Pet helper、MeloTTS 模型和播放器均可用。
-- `codex plugin list` 显示 `codex-speak@personal installed, enabled`；插件 cache 已生成。
-- `verify-codex --json` 通过：side-channel、Hook 消费、缺失导览提示、混合英文归一化和发音词典链路可用。
-- `verify-controls --json` 通过：总朗读、最终导览、过程提示、小伙伴显示、儿童模式、语速、最大朗读长度、音色和 TTS 引擎可写入并恢复。
-- 真实 `speak --text` 已播放成功，`last_spoken` 记录为清洗后的中文导览。
+Hook-first 主路径的缺失策略是静默：
 
-## 发布前不变门槛
+- 非 Stop 事件：静默退出。
+- payload 没有 final，也没有可读 transcript：静默退出。
+- 清洗后文本为空：静默退出。
+- duplicate job：静默退出。
 
-- macOS 和 Windows 都要有真实安装/朗读/停止/自检证据。
-- `cargo test`、控制面板构建、MCP stdio 检查和 release readiness 必须通过。
-- 如果验证发现架构描述和实际行为不一致，先修架构文档，再决定修实现还是换方向。
+这和旧 MCP 架构不同。旧架构在没有 `latest.json` 时曾播放缺失导览提示，但成长模式 MVP 直接读 final，不再把“没有收到插件导览”当成用户需要听到的产品状态。
 
-## 朗读文本生产契约
+## Installer / Doctor
 
-1. Codex/Skill 负责理解任务，并生成“可听”的导览。
-2. MCP 可用时，Codex 调用 `codex_speak_prepare` 写入 side-channel。
-3. MCP 不可用时，Codex 不在 Chat Session 中补协议；Hook 播放缺失导览提示。
-4. Hook/Rust 负责传输、选择、清洗和播放，不负责深度理解。
-5. 没有结构化导览时，Hook 明示缺失，不能乱读。
+`codex-speak install` 默认做这些事：
+
+- 安装 CLI、模型 manifest、Skill。
+- 写入 `~/.codex/hooks.json` 的 Stop hook。
+- 写入成长模式 AGENTS block。
+- 创建 queue 目录。
+- 移除旧 notify hook 配置。
+- 移除旧全局 `mcp_servers.codex_speak` 配置，避免新 session 因 MCP 启动问题卡住。
+
+`doctor/status` 的主检查改为：
+
+- Stop hook 是否安装且脚本内容当前。
+- 成长模式 AGENTS hint 是否存在。
+- queue 目录是否可写。
+- legacy MCP / plugin 是否仍残留。残留是 warning，不再是 required fail。
+
+## Legacy MCP Side-Channel
+
+旧主路径是：
+
+```text
+AGENTS/Skill -> codex_speak_prepare -> spool/latest.json -> Hook -> TTS
+```
+
+这条链路保留在代码中，用于调试、历史 fixture、未来需要屏幕内容和朗读内容分离的高级能力。它不再是成长模式 MVP 默认路径。旧架构细节、已修问题和踩坑记录见 [Legacy MCP Side-Channel](legacy-mcp-side-channel.md)。
+
+## 当前验证状态
+
+本地已覆盖：
+
+- Hook payload 直接提取 `last_assistant_message`。
+- 缺少直接消息时从 `transcript_path` 提取当前 final。
+- 非 Stop / 空消息静默退出。
+- `session_id + turn_id` 去重。
+- 缺字段时 hash fallback 去重。
+- queue FIFO、重复 id 跳过、pending 上限、dry-run worker。
+- `cargo test` 全量通过。
+
+发布前还需要真实 Codex Stop payload 烟测、两个 chat session 并发结束的手动验证，以及 Windows 真机安装/播放验证。

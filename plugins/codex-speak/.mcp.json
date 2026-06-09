@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "codex-speak": {
-      "command": "./scripts/codex-speak-mcp",
-      "args": [],
-      "cwd": "."
-    }
-  }
-}

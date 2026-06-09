@@ -11,8 +11,8 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 必须具备：
 
 - Codex 结束回复后自动朗读。
-- Codex 可以通过 Skill/MCP 生成适合朗读的儿童友好导览。
-- Hook 可以优先消费 side-channel；没有 side-channel 时明示缺失，不兜底猜普通回复。
+- Codex 的可见 final 本身适合孩子阅读和收听。
+- Stop Hook 可以从当前 session payload 或 transcript 提取 final，写入文件播放队列，不猜全局最新 session。
 - 本地 TTS 至少有一个默认中文方案可用，并有系统语音兜底。
 - Tauri App 可以切换总朗读、最终导览、过程提示、儿童模式、语速、音色档位、TTS 引擎，能试听和停止。
 - 桌面 Pet 可以浮在桌面上，展示待命、待朗读、朗读中、完成、错误状态。
@@ -29,10 +29,10 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 
 - Rust CLI。
 - 配置文件。
-- Hook wrapper。
+- Stop Hook wrapper。
 - Skill。
-- MCP side-channel。
-- HTML 协议 fallback。
+- session-aware final 提取。
+- 文件播放队列。
 - 文本清洗。
 - 本地 TTS Provider 切换。
 
@@ -40,7 +40,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 
 - 更完整的 Windows 安装逻辑。
 - 更清楚的错误提示。
-- 更多自动化测试覆盖 side-channel、配置和状态输出。
+- 更多自动化测试覆盖 Stop hook payload、队列、配置和状态输出。
 
 ### P1：桌面 Pet 和控制台
 
@@ -66,8 +66,9 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 
 目标：
 
-- macOS 安装脚本负责 CLI、Hook、Skill、Plugin、Tauri App。
-- Windows 安装脚本负责 CLI、Hook、Skill、Plugin、Tauri App。
+- Tauri App 是普通用户主入口，调用 Rust installer 安装核心能力。
+- macOS 安装脚本负责 CLI、Stop Hook、AGENTS hint、Skill、Tauri App。
+- Windows 安装脚本负责 CLI、Stop Hook、AGENTS hint、Skill、Tauri App。
 - 模型安装支持跳过、修复、单独安装。
 - GitHub Actions 构建 macOS 和 Windows 包。
 - 发布物包含校验说明和最小系统要求。
@@ -75,7 +76,7 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 本轮已推进：
 
 - Windows 安装脚本不再只是占位，会构建 Rust CLI 并调用安装命令。
-- Rust 安装器会安装个人 Codex Plugin marketplace 条目。
+- Rust 安装器不再安装个人 Codex Plugin marketplace 条目；旧 plugin/MCP 设计归档到 `docs/legacy-plugin-product-design.md` 和 `docs/legacy-mcp-side-channel.md`。
 - 重复安装会保留已有用户配置，不会重置语速、Provider 或儿童模式。
 - CI 已覆盖 macOS 和 Windows 的 Rust 核心、Tauri 后端和前端构建。
 - Release workflow 会在 tag 或手动触发时构建 CLI、macOS `.app` 和 Windows 桌面包。macOS DMG 等签名/公证稳定后再打开。
@@ -88,21 +89,21 @@ Codex Speak 是一个本地、免费、中文优先的 Codex 朗读助手：让�
 - 发布 readiness 检查已补为脚本 `scripts/check-release-readiness.mjs`，人工验收清单已沉淀到 `docs/release-qa.md`。
 - 发布 readiness 已支持 `--require-manual-qa`，可以把 macOS/Windows 真机 QA 输出目录作为正式发布门禁，并校验回传 manifest 的 git commit 是否匹配当前 HEAD。
 - `doctor --json` 已补齐机器可读自检结果，控制面板健康状态也会检查播放器可用性，方便 Windows 真机和外部用户反馈问题。
-- `doctor --json` 和控制面板健康状态已进一步覆盖 Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本，避免外部机器上出现“插件看起来安装了，但 side-channel/MCP 实际不可用”的隐性问题。
-- `doctor` 和 `status` 已加入集成文件一致性检查：Codex Speak Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本必须与当前 CLI 内置版本一致，旧文件会提示重新运行 `codex-speak install` 刷新。
-- `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、插件、Hook 或播放器问题。
+- `doctor --json` 和控制面板健康状态已进一步覆盖 Stop Hook、AGENTS hint、Codex Speak Skill、文件播放队列和 legacy MCP/plugin 残留 warning。
+- `doctor` 和 `status` 已加入集成文件一致性检查：Codex Speak Skill、Stop Hook wrapper 必须与当前 CLI 内置版本一致，旧文件会提示重新运行 `codex-speak install` 或在 App 中点击“修复 Hook”。
+- `doctor` 的文本和 JSON 输出会给失败/警告项附带可执行修复提示，方便外部用户把自检结果发回来后快速定位安装、模型、Hook、旧残留或播放器问题。
 - `support-bundle` 命令已补齐，会把 doctor/status/models、环境信息和最近日志写入本地目录，并默认脱敏 home 路径和最近朗读文本；macOS/Windows release smoke 已覆盖该命令。
 - `check-manual-qa-report.mjs` 已加入支持包隐私门禁，会验证默认支持包声明已脱敏、未开启 `includePrivate`，并扫描支持包中是否残留本机 home 路径或未脱敏的最近朗读文本。
 - 安装器完成控制面板和桌面组件复制后会打印自检、打开控制面板、生成支持包和补装默认中文模型的下一步命令，降低外部用户安装后的迷路成本。
 - CLI 已支持 `--version`，`doctor --json` 和 `status` 会输出版本、系统和 CPU 架构信息，方便远程判断用户反馈对应哪个构建和平台。
 - `verify-install` 已补齐为安装后验收命令；release smoke 会用 `--allow-missing-models` 验证跳过模型下载时核心安装链路仍然通过。
-- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 MCP side-channel 写入、Hook 风格消费、缺失导览提示和常见英文技术缩写归一化链路。
+- `verify-codex` 已补齐为 Codex 集成预检命令；release smoke 和手工 QA 收集脚本会验证 Stop Hook payload、session-aware final 提取、队列入队和常见英文技术缩写归一化链路。
 - `verify-controls` 已补齐为控制项验收命令；release smoke 和手工 QA 收集脚本会验证总朗读开关、最终导览开关、过程提示开关、儿童模式、语速、最大朗读字数、声音档位和 TTS 引擎能写入、重新读取，并恢复原配置。
-- 英文朗读已补齐第一层兜底：常见技术缩写会在进入 TTS 前变成中文可懂词，混在中文导览里的未知英文词、短语、英文名称和英文编号会先变成中文提示，系统语音兜底会按中英文分段选择系统声音，减少英文单词逐字母读的问题。
+- 英文朗读已补齐第一层兜底：常见技术缩写会在进入 TTS 前变成中文可懂词，普通未知英文词和短语会保留原文交给中英混读模型朗读，系统语音兜底会按中英文分段选择系统声音，减少英文单词逐字母读的问题。
 - 本地发音词典已补齐：用户和 Codex MCP 都可以把项目名、英文工具名或缩写写入 `pronunciation.toml`，朗读前优先使用这些规则，`verify-codex` 会验证发音词典写入、应用、列出和删除链路。
 - 控制面板已接入本地发音词典：普通用户不用命令行也可以添加、预览、删除发音规则，状态区会显示词典数量或解析问题。
 - 外部 QA 脚本和交付说明已把控制面板发音词典列为人工验收项，测试者需要确认能新增、预览并删除一条发音规则。
-- 手工 QA 和外部 QA 交付说明已加入混合中英文验收：自动检查提取文本是否把 `OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`CLI`、`build failed because timeout`、`ProjectAlpha42` 等归一化为中文说法，交互式测试还会让测试者实际听一次混合中英文样例；release readiness 会静态检查 macOS/Windows QA 脚本没有退回旧样例。
+- 手工 QA 和外部 QA 交付说明已加入混合中英文验收：自动检查提取文本是否把 `OpenRouter`、`OAuth`、`M C P`、`J.S.O.N`、`CLI`、`build failed because timeout` 等高风险技术 token 归一化为中文说法，同时保留 `ProjectAlpha42` 等普通英文名称，交互式测试还会让测试者实际听一次混合中英文样例；release readiness 会静态检查 macOS/Windows QA 脚本没有退回旧样例。
 - macOS release 包已包含 `scripts/manual-qa-macos.sh` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - Windows release 包已包含 `scripts/manual-qa-windows.ps1` 真机 QA 收集脚本；CI 会用非交互模式验证它可运行，人工验收时它会生成 `qa-report.json` 和支持包。
 - `check-manual-qa-report.mjs` 已补齐为 QA 报告校验器；release smoke 会校验非交互报告，外部真机回传后可用它判断 release 包 manifest、自检、支持包和人工确认项是否通过。

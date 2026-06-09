@@ -14,6 +14,7 @@ Small Tauri control app for Codex Speak.
 - Maximum spoken characters.
 - Stop current playback.
 - Play a local sample sentence.
+- Install or repair the Stop Hook, AGENTS hint, Skill, and local queue.
 - Run `doctor` checks.
 - Write a local support bundle for troubleshooting.
 - Launch the native macOS desktop pet that reflects the current speech state.
@@ -24,7 +25,7 @@ The app does not duplicate TTS logic. It calls the installed Rust CLI at:
 ~/.codex/codex-speak/bin/codex-speak
 ```
 
-That keeps the Tauri app, Plugin MCP tools, Hook, and command line on the same configuration and playback path.
+That keeps the Tauri app, Stop Hook, local queue, and command line on the same configuration and playback path.
 
 ## Desktop Pet
 

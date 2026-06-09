@@ -4,7 +4,7 @@
 
 ## 一句话介绍
 
-Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，优先朗读通过插件通道准备好的“朗读导览”，让小朋友听懂 Codex 刚才做了什么、结果是什么、下一步怎么继续。
+Codex Speak 是一个本地化、中文优先的 Codex 朗读助手：Codex 回复完成后，通过 Stop Hook 读取当前 session 的最终回答，清洗成适合孩子听的内容，再用本地 TTS 播放。
 
 ## 为什么做
 
@@ -14,13 +14,13 @@ Codex 的原始回复常常包含代码、命令、路径和技术词，直接�
 
 ```text
 Codex Skill
-  -> 让 Codex 生成儿童/初学者友好的朗读导览
-Codex Speak Plugin / MCP
-  -> 写入 side-channel，也可触发少量后台进度朗读
+  -> 让 Codex 的可见最终回答适合孩子阅读和收听
 Codex Hook
-  -> 回复结束后自动触发最终导览朗读
+  -> 回复结束后接收 Stop payload
 speak-engine
-  -> Hook 消费 side-channel、手动调试时提取历史协议、管理播放队列
+  -> session-aware 提取 final、清洗、写入文件队列
+queue-worker
+  -> FIFO 串行播放，避免多个 session 同时出声
 本地 TTS
   -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
 Tauri App / Native Desktop Pet
@@ -44,8 +44,8 @@ Tauri App / Native Desktop Pet
 - Codex Hook wrapper
 - macOS 安装/卸载脚本
 - Sherpa-ONNX + MeloTTS 中文模型接入
-- Codex Speak Protocol v1：MCP side-channel 主路径，HTML 微格式 fallback
-- Codex Speak Plugin 第一版：Skill、MCP 工具、side-channel 写入和消费链路、非阻塞进度朗读
+- Hook-first 成长模式主路径：Stop Hook、session-aware final 提取、文件播放队列
+- Legacy Plugin / MCP side-channel 设计归档：保留旧决策、已修问题和踩坑记录，不再作为成长模式 MVP 主产品形态
 - Tauri 控制面板第一版：自动朗读、儿童模式、语速、声音档位、TTS 引擎切换、试听、停止、自检
 - 桌面 Pet 第一版：macOS 原生透明浮窗，按 lil-agents 的 `NSWindow + AVPlayerLayer + 1080x1920 HEVC-with-alpha .mov + CVDisplayLink` 方式显示角色，沿 Dock 区域行走，支持待命/待朗读/朗读中/完成/错误状态、拖动、点击停止、双击打开控制面板
 - 原创 Pet 透明动画素材：由 `scripts/generate-pet-assets.swift` 生成，不再依赖 lil-agents 参考角色素材
@@ -94,6 +94,9 @@ macOS:
 ```bash
 codex-speak extract
 codex-speak speak
+codex-speak hook --stdin
+codex-speak queue-worker --once
+codex-speak queue-worker --daemon
 codex-speak stop
 codex-speak doctor
 codex-speak doctor --json
@@ -166,7 +169,7 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
-`doctor` 会检查 Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本是否与当前 CLI 内置版本一致。看到这些项提示“需刷新”或 `differs from current CLI bundle` 时，重新运行 `codex-speak install` 即可同步本地集成文件。
+`doctor` 会检查 Stop Hook、Hook wrapper、成长模式 AGENTS hint、Skill、queue 目录、模型和播放器是否可用。legacy MCP 或旧插件残留会显示为 warning，不再作为成长模式主路径的 required fail。
 
 如果是刚装完、想快速确认安装链路是否可交付，可以运行：
 
@@ -174,7 +177,7 @@ codex-speak uninstall
 ~/.codex/codex-speak/bin/codex-speak verify-install
 ```
 
-release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺失，但仍然要求 CLI、Hook、Plugin、控制面板和播放器这些核心项通过：
+release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺失，但仍然要求 CLI、Stop Hook、队列、控制面板和播放器这些核心项通过：
 
 ```bash
 ~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
@@ -186,7 +189,7 @@ release 包烟测或跳过模型下载的安装，可以允许模型项暂时缺
 ~/.codex/codex-speak/bin/codex-speak verify-codex
 ```
 
-它会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查缺失导览提示、常见英文技术缩写和本地发音词典链路。
+它当前仍覆盖 legacy MCP side-channel 和英文技术缩写归一化，用于确认旧调试链路没有断。成长模式主路径请优先看 `hook`、`queue` 和 `doctor` 检查。
 
 验证控制项能安全切换并恢复：
 
@@ -252,28 +255,25 @@ node scripts/check-release-readiness.mjs --tag v0.1.0 --require-signing-env --re
 
 - [需求文档](docs/requirements.md)
 - [技术文档](docs/technical-design.md)
+- [Legacy MCP Side-Channel](docs/legacy-mcp-side-channel.md)
 - [商业价值分析](docs/business-value.md)
 - [产品完成计划](docs/product-completion-plan.md)
 - [安装与分发](docs/installation.md)
 - [发布 QA](docs/release-qa.md)
+- [问题记录](docs/issue-log.md)
 - [签名与公证](docs/signing.md)
 - [Codex Speak Protocol v1](docs/protocol-v1.md)
-- [Plugin 设计](docs/plugin-design.md)
+- [Legacy Plugin 产品设计](docs/legacy-plugin-product-design.md)
+- [Legacy Plugin 技术设计](docs/plugin-design.md)
 - [Tauri 控制面板](docs/tauri-control-app.md)
 
-## Plugin
+## Legacy Plugin / MCP
 
-第一版插件在 [plugins/codex-speak](/Users/sherry/Documents/啦啦啦%202/codex-speak/plugins/codex-speak)。
+早期产品形态曾计划用 Codex Plugin 分发 Skill 和 MCP side-channel：Codex 调用 `codex_speak_prepare` 写入 `spool/latest.json`，回复结束后由 Hook 播放。这个方案已经归档到 [Legacy Plugin 产品设计](docs/legacy-plugin-product-design.md) 和 [Legacy MCP Side-Channel](docs/legacy-mcp-side-channel.md)。
 
-它提供：
+当前成长模式 MVP 不再安装插件包，也不再要求 Codex 每轮调用 MCP。App/installer 会部署 Stop Hook、AGENTS 提示、Skill、文件播放队列和本地 TTS；Hook 直接读取当前 session 的可见 final。
 
-- Codex Speak Skill。
-- MCP 工具：状态、提取预览、停止、试听、后台进度朗读、开关、儿童模式、语速、声音档位、side-channel 写入。
-- `codex_speak_prepare`：让 Codex 把儿童友好的朗读导览写到本地 `spool/latest.json`，Hook 会优先朗读这段内容，成功读取后移动为 `last-consumed.json`。
-- `codex_speak_speak_text background=true`：让 Codex 在长任务中播放一句简短进度提示，并马上继续工作。
-- 安装器会把插件复制到个人插件目录，并写入个人 marketplace，方便 Codex 发现和启用。
-
-当前 Codex Plugin 规范没有稳定的“隐藏或折叠已渲染 Chat 消息”能力。需要减少可见协议内容时，优先使用 MCP side-channel；可折叠 HTML `details` 只作为渲染器支持时的渐进增强。
+当前成长模式直接朗读可见 final，不再需要隐藏协议块、HTML 朗读块或单独的 `朗读导览` 章节。
 
 ## Tauri 控制面板
 

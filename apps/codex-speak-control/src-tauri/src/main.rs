@@ -13,6 +13,7 @@ struct SettingsPatch {
     final_guide_enabled: Option<bool>,
     progress_prompts_enabled: Option<bool>,
     pet_enabled: Option<bool>,
+    missing_guide_policy: Option<String>,
     child_mode: Option<bool>,
     provider: Option<String>,
     speed: Option<f32>,
@@ -46,6 +47,10 @@ fn update_settings(patch: SettingsPatch) -> Result<Value, String> {
     if let Some(pet_enabled) = patch.pet_enabled {
         args.push("--pet-enabled".to_string());
         args.push(pet_enabled.to_string());
+    }
+    if let Some(missing_guide_policy) = patch.missing_guide_policy {
+        args.push("--missing-guide-policy".to_string());
+        args.push(missing_guide_policy);
     }
     if let Some(child_mode) = patch.child_mode {
         args.push("--child-mode".to_string());
@@ -99,6 +104,33 @@ fn speak_sample() -> Result<(), String> {
 fn install_current_model() -> Result<Value, String> {
     run_cli(["models", "install"])?;
     load_status()
+}
+
+#[tauri::command]
+fn install_core(skip_tts_download: Option<bool>) -> Result<Value, String> {
+    let mut args = vec!["install", "--no-summary"];
+    if skip_tts_download.unwrap_or(true) {
+        args.push("--skip-tts-download");
+    }
+    run_cli(args)?;
+    sync_pet_visibility()?;
+    load_status()
+}
+
+#[tauri::command]
+fn repair_hooks() -> Result<Value, String> {
+    run_cli(["install", "--no-summary", "--skip-tts-download"])?;
+    sync_pet_visibility()?;
+    load_status()
+}
+
+#[tauri::command]
+fn uninstall_core(remove_models: Option<bool>) -> Result<String, String> {
+    let mut args = vec!["uninstall"];
+    if remove_models.unwrap_or(false) {
+        args.push("--remove-models");
+    }
+    run_cli(args).map(|output| output.trim().to_string())
 }
 
 #[tauri::command]
@@ -319,6 +351,9 @@ fn main() {
             load_status,
             update_settings,
             speak_sample,
+            install_core,
+            repair_hooks,
+            uninstall_core,
             install_current_model,
             load_pronunciation,
             set_pronunciation,

@@ -15,7 +15,7 @@ pub fn run() -> Result<()> {
     let stdout = io::stdout();
     let mut writer = stdout.lock();
 
-    while let Some(request) = read_message(&mut reader)? {
+    while let Some((request, framing)) = read_message(&mut reader)? {
         let Some(method) = request.get("method").and_then(Value::as_str) else {
             continue;
         };
@@ -39,7 +39,7 @@ pub fn run() -> Result<()> {
                 }
             }),
         };
-        write_message(&mut writer, &response)?;
+        write_message(&mut writer, &response, framing)?;
     }
 
     Ok(())
@@ -170,6 +170,10 @@ fn tools() -> Value {
                     "final_guide_enabled": { "type": "boolean" },
                     "progress_prompts_enabled": { "type": "boolean" },
                     "pet_enabled": { "type": "boolean" },
+                    "missing_guide_policy": {
+                        "type": "string",
+                        "enum": ["silent", "brief_notice", "diagnostic_notice"]
+                    },
                     "child_mode": { "type": "boolean" },
                     "provider": {
                         "type": "string",
@@ -391,6 +395,7 @@ pub(crate) fn call_tool_by_name(name: &str, args: Value, cfg: Config) -> Result<
                     .get("progress_prompts_enabled")
                     .and_then(Value::as_bool),
                 pet_enabled: args.get("pet_enabled").and_then(Value::as_bool),
+                missing_guide_policy: optional_string(&args, "missing_guide_policy"),
                 child_mode: args.get("child_mode").and_then(Value::as_bool),
                 provider: optional_string(&args, "provider"),
                 speed: args.get("speed").and_then(Value::as_f64).map(|v| v as f32),
@@ -542,8 +547,15 @@ fn speak_text_in_background(text: &str) -> Result<()> {
     Ok(())
 }
 
-fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<Value>> {
+#[derive(Clone, Copy)]
+enum Framing {
+    Header,
+    Line,
+}
+
+fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<(Value, Framing)>> {
     let mut content_length = None;
+    let mut first_line = true;
     loop {
         let mut line = String::new();
         let bytes = reader.read_line(&mut line)?;
@@ -551,11 +563,18 @@ fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<Value>> {
             return Ok(None);
         }
         let trimmed = line.trim_end_matches(['\r', '\n']);
+        if first_line && trimmed.starts_with('{') {
+            let message = serde_json::from_str(trimmed)?;
+            return Ok(Some((message, Framing::Line)));
+        }
+        first_line = false;
         if trimmed.is_empty() {
             break;
         }
-        if let Some(value) = trimmed.strip_prefix("Content-Length:") {
-            content_length = Some(value.trim().parse::<usize>()?);
+        if let Some((name, value)) = trimmed.split_once(':') {
+            if name.eq_ignore_ascii_case("Content-Length") {
+                content_length = Some(value.trim().parse::<usize>()?);
+            }
         }
     }
 
@@ -565,13 +584,21 @@ fn read_message(reader: &mut BufReader<impl Read>) -> Result<Option<Value>> {
     let mut buffer = vec![0; length];
     reader.read_exact(&mut buffer)?;
     let message = serde_json::from_slice(&buffer)?;
-    Ok(Some(message))
+    Ok(Some((message, Framing::Header)))
 }
 
-fn write_message(writer: &mut impl Write, value: &Value) -> Result<()> {
-    let body = serde_json::to_vec(value)?;
-    write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
-    writer.write_all(&body)?;
+fn write_message(writer: &mut impl Write, value: &Value, framing: Framing) -> Result<()> {
+    match framing {
+        Framing::Header => {
+            let body = serde_json::to_vec(value)?;
+            write!(writer, "Content-Length: {}\r\n\r\n", body.len())?;
+            writer.write_all(&body)?;
+        }
+        Framing::Line => {
+            serde_json::to_writer(&mut *writer, value)?;
+            writer.write_all(b"\n")?;
+        }
+    }
     writer.flush()?;
     Ok(())
 }

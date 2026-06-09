@@ -190,7 +190,7 @@ if (
   $MixedExtract.Contains("处理器") -and
   $MixedExtract.Contains("英文缩写") -and
   $MixedExtract.Contains("构建失败，因为超时") -and
-  $MixedExtract.Contains("英文编号") -and
+  $MixedExtract.Contains("ProjectAlpha42") -and
   -not $MixedExtract.Contains("README.md") -and
   -not $MixedExtract.Contains("codex_speak_prepare") -and
   -not $MixedExtract.Contains("--provider") -and
@@ -205,8 +205,7 @@ if (
   -not $MixedExtract.Contains("XYZ") -and
   -not $MixedExtract.Contains("build") -and
   -not $MixedExtract.Contains("failed") -and
-  -not $MixedExtract.Contains("timeout") -and
-  -not $MixedExtract.Contains("ProjectAlpha42")
+  -not $MixedExtract.Contains("timeout")
 ) {
   Add-QaCheck "mixed english normalization" "pass" "technical English terms normalized for speech"
 } else {

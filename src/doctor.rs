@@ -5,7 +5,6 @@ use std::process::Command;
 use anyhow::Result;
 use chrono::Local;
 use serde::Serialize;
-use serde_json::Value;
 
 use crate::{bundled, config, pronunciation};
 
@@ -138,14 +137,16 @@ pub fn collect() -> Result<DoctorReport> {
         &config::model_dir()?.join("tokens.txt"),
         &mut checks,
     );
-    check_notify(&mut checks)?;
+    check_stop_hook(&mut checks)?;
     check_file_matches(
-        "codex_notify_hook",
-        "Codex notify hook",
+        "codex_stop_hook_script",
+        "Codex Stop hook script",
         &hook_path()?,
         &bundled::hook_content(&config::bin_dir()?.join(binary_name())),
         &mut checks,
     );
+    check_agents_hint(&mut checks)?;
+    check_queue(&mut checks)?;
     check_file_matches(
         "codex_skill",
         "Codex Speak skill",
@@ -153,36 +154,8 @@ pub fn collect() -> Result<DoctorReport> {
         bundled::CODEX_SKILL,
         &mut checks,
     );
-    check_file_matches(
-        "plugin",
-        "Codex Speak plugin",
-        &config::installed_plugin_dir()?.join(".codex-plugin/plugin.json"),
-        bundled::PLUGIN_MANIFEST,
-        &mut checks,
-    );
-    check_file_matches(
-        "plugin_skill",
-        "Codex Speak plugin skill",
-        &config::installed_plugin_dir()?.join("skills/codex-speak/SKILL.md"),
-        bundled::PLUGIN_SKILL,
-        &mut checks,
-    );
-    check_file_matches(
-        "plugin_mcp_config",
-        "Codex Speak MCP config",
-        &config::installed_plugin_dir()?.join(".mcp.json"),
-        &bundled::plugin_mcp_config(&config::bin_dir()?.join(binary_name())),
-        &mut checks,
-    );
-    check_file_matches(
-        "plugin_mcp_script",
-        "Codex Speak MCP script",
-        &config::installed_plugin_dir()?.join(mcp_script_path()),
-        expected_mcp_script(),
-        &mut checks,
-    );
-    check_marketplace(&mut checks)?;
-    check_codex_plugin_install(&mut checks)?;
+    check_legacy_mcp_config(&mut checks)?;
+    check_legacy_plugin_install(&mut checks)?;
     check_player(&mut checks);
 
     Ok(DoctorReport::new(checks))
@@ -339,23 +312,26 @@ fn hint_for(id: &str) -> Option<&'static str> {
         "sherpa_tts" | "melo_model" | "melo_lexicon" | "melo_tokens" => Some(
             "Run `codex-speak models install --provider sherpa_melo`, or switch the provider to `system` for a no-download fallback.",
         ),
-        "codex_notify" => Some(
-            "Run `codex-speak install` so the Codex notify hook points at codex-speak-notify.",
+        "codex_stop_hook" => Some(
+            "Run `codex-speak install` so Codex runs the Codex Speak Stop hook.",
         ),
-        "codex_notify_hook" => Some(
-            "Run `codex-speak install` so the notify hook wrapper matches the current CLI.",
+        "codex_stop_hook_script" => Some(
+            "Run `codex-speak install` so the Stop hook wrapper matches the current CLI.",
+        ),
+        "codex_agents_hint" => Some(
+            "Run `codex-speak install` so ~/.codex/AGENTS.md contains the growth-mode hint.",
+        ),
+        "speech_queue" => Some(
+            "Run `codex-speak install` so the local speech queue directories are created.",
         ),
         "codex_skill" => Some(
             "Run `codex-speak install` to refresh the Codex Speak skill.",
         ),
-        "plugin" | "plugin_skill" | "plugin_mcp_config" | "plugin_mcp_script" => Some(
-            "Run `codex-speak install` to refresh the local Codex Speak plugin files.",
+        "legacy_codex_global_mcp" => Some(
+            "Run `codex-speak uninstall` or remove the legacy mcp_servers.codex_speak block if you want Hook-first only.",
         ),
-        "plugin_marketplace" => {
-            Some("Run `codex-speak install` to add Codex Speak to the personal plugin marketplace.")
-        }
-        "codex_plugin_install" => Some(
-            "Run `codex-speak install`, or run `codex plugin add codex-speak@personal` and then start a new Codex thread.",
+        "legacy_codex_plugin_install" => Some(
+            "The plugin path is legacy for Hook-first mode. Remove codex-speak@personal if it still auto-loads MCP.",
         ),
         "player" => Some(
             "macOS needs /usr/bin/afplay. Windows needs powershell.exe available for SoundPlayer playback.",
@@ -364,22 +340,58 @@ fn hint_for(id: &str) -> Option<&'static str> {
     }
 }
 
-fn check_notify(checks: &mut Vec<DoctorCheck>) -> Result<()> {
-    let path = config::codex_home()?.join("config.toml");
+fn check_stop_hook(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::codex_home()?.join("hooks.json");
     let raw = fs::read_to_string(&path).unwrap_or_default();
-    if raw.contains("codex-speak-notify") {
+    if raw.contains("codex-speak-stop-hook") && raw.contains("\"Stop\"") {
         checks.push(DoctorCheck::ok(
-            "codex_notify",
-            "Codex notify",
-            "codex-speak-notify is configured",
+            "codex_stop_hook",
+            "Codex Stop hook",
+            "Codex Speak Stop hook is configured",
         ));
     } else {
         checks.push(DoctorCheck::fail(
-            "codex_notify",
-            "Codex notify",
-            format!("codex-speak-notify not found in {}", path.display()),
+            "codex_stop_hook",
+            "Codex Stop hook",
+            format!("Codex Speak Stop hook not found in {}", path.display()),
         ));
     }
+    Ok(())
+}
+
+fn check_agents_hint(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::codex_home()?.join("AGENTS.md");
+    let raw = fs::read_to_string(&path).unwrap_or_default();
+    if crate::install::agents_block_present(&raw) {
+        checks.push(DoctorCheck::ok(
+            "codex_agents_hint",
+            "Codex AGENTS hint",
+            "growth-mode hint is installed",
+        ));
+    } else {
+        checks.push(DoctorCheck::fail(
+            "codex_agents_hint",
+            "Codex AGENTS hint",
+            format!("growth-mode hint not found in {}", path.display()),
+        ));
+    }
+    Ok(())
+}
+
+fn check_queue(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    for dir in [
+        config::queue_pending_dir()?,
+        config::queue_running_dir()?,
+        config::queue_done_dir()?,
+        config::queue_failed_dir()?,
+    ] {
+        fs::create_dir_all(&dir)?;
+    }
+    checks.push(DoctorCheck::ok(
+        "speech_queue",
+        "Speech queue",
+        config::queue_dir()?.display().to_string(),
+    ));
     Ok(())
 }
 
@@ -417,27 +429,11 @@ fn binary_name() -> &'static str {
     }
 }
 
-fn mcp_script_path() -> &'static str {
-    if cfg!(windows) {
-        "scripts/codex-speak-mcp.ps1"
-    } else {
-        "scripts/codex-speak-mcp"
-    }
-}
-
-fn expected_mcp_script() -> &'static str {
-    if cfg!(windows) {
-        bundled::PLUGIN_MCP_SCRIPT_WINDOWS
-    } else {
-        bundled::PLUGIN_MCP_SCRIPT_UNIX
-    }
-}
-
 fn hook_path() -> Result<PathBuf> {
     let name = if cfg!(windows) {
-        "codex-speak-notify.ps1"
+        "codex-speak-stop-hook.ps1"
     } else {
-        "codex-speak-notify"
+        "codex-speak-stop-hook"
     };
     Ok(config::codex_home()?.join("hooks").join(name))
 }
@@ -511,73 +507,42 @@ fn check_file_matches(
     }
 }
 
-fn check_marketplace(checks: &mut Vec<DoctorCheck>) -> Result<()> {
-    let path = config::personal_marketplace_path()?;
+fn check_legacy_mcp_config(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::codex_home()?.join("config.toml");
     let raw = fs::read_to_string(&path).unwrap_or_default();
-    if raw.contains("\"codex-speak\"") {
-        checks.push(DoctorCheck::ok(
-            "plugin_marketplace",
-            "Plugin marketplace",
-            "codex-speak is configured",
+    if raw.contains("[mcp_servers.codex_speak]") {
+        checks.push(DoctorCheck::warn(
+            "legacy_codex_global_mcp",
+            "Legacy Codex global MCP",
+            "mcp_servers.codex_speak is still configured",
         ));
     } else {
-        checks.push(DoctorCheck::fail(
-            "plugin_marketplace",
-            "Plugin marketplace",
-            format!("codex-speak not found in {}", path.display()),
+        checks.push(DoctorCheck::ok(
+            "legacy_codex_global_mcp",
+            "Legacy Codex global MCP",
+            "not configured",
         ));
     }
     Ok(())
 }
 
-fn check_codex_plugin_install(checks: &mut Vec<DoctorCheck>) -> Result<()> {
-    let version = bundled_plugin_version()?;
-    let cache_dir = config::installed_plugin_cache_root()?.join(&version);
-    let manifest_path = cache_dir.join(".codex-plugin/plugin.json");
+fn check_legacy_plugin_install(checks: &mut Vec<DoctorCheck>) -> Result<()> {
     let config_path = config::codex_home()?.join("config.toml");
     let config_raw = fs::read_to_string(&config_path).unwrap_or_default();
-
-    if !plugin_enabled_in_codex_config(&config_raw) {
-        checks.push(DoctorCheck::fail(
-            "codex_plugin_install",
-            "Codex plugin install",
-            format!(
-                "codex-speak@personal is not enabled in {}; run codex plugin add codex-speak@personal",
-                config_path.display()
-            ),
+    if plugin_enabled_in_codex_config(&config_raw) {
+        checks.push(DoctorCheck::warn(
+            "legacy_codex_plugin_install",
+            "Legacy Codex plugin install",
+            "codex-speak@personal is still enabled",
         ));
-        return Ok(());
-    }
-
-    match fs::read_to_string(&manifest_path) {
-        Ok(actual) if actual == bundled::PLUGIN_MANIFEST => checks.push(DoctorCheck::ok(
-            "codex_plugin_install",
-            "Codex plugin install",
-            format!("installed and enabled at {}", cache_dir.display()),
-        )),
-        Ok(_) => checks.push(DoctorCheck::fail(
-            "codex_plugin_install",
-            "Codex plugin install",
-            format!(
-                "{} differs from current CLI bundle",
-                manifest_path.display()
-            ),
-        )),
-        Err(_) => checks.push(DoctorCheck::fail(
-            "codex_plugin_install",
-            "Codex plugin install",
-            format!("missing {}", manifest_path.display()),
-        )),
+    } else {
+        checks.push(DoctorCheck::ok(
+            "legacy_codex_plugin_install",
+            "Legacy Codex plugin install",
+            "not enabled",
+        ));
     }
     Ok(())
-}
-
-fn bundled_plugin_version() -> Result<String> {
-    let manifest: Value = serde_json::from_str(bundled::PLUGIN_MANIFEST)?;
-    let Some(version) = manifest.get("version").and_then(Value::as_str) else {
-        anyhow::bail!("bundled plugin manifest does not contain version");
-    };
-    Ok(version.to_string())
 }
 
 fn plugin_enabled_in_codex_config(config_raw: &str) -> bool {
@@ -593,6 +558,52 @@ fn plugin_enabled_in_codex_config(config_raw: &str) -> bool {
         }
     }
     false
+}
+
+#[allow(dead_code)]
+fn check_global_mcp_config(checks: &mut Vec<DoctorCheck>) -> Result<()> {
+    let path = config::codex_home()?.join("config.toml");
+    let raw = fs::read_to_string(&path).unwrap_or_default();
+    let expected_cli = config::bin_dir()?.join(binary_name()).display().to_string();
+
+    if global_mcp_config_matches(&raw, &expected_cli) {
+        checks.push(DoctorCheck::ok(
+            "codex_global_mcp",
+            "Codex global MCP",
+            "codex_speak is configured",
+        ));
+    } else {
+        checks.push(DoctorCheck::fail(
+            "codex_global_mcp",
+            "Codex global MCP",
+            format!(
+                "mcp_servers.codex_speak missing or stale in {}",
+                path.display()
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn global_mcp_config_matches(config_raw: &str, expected_cli: &str) -> bool {
+    let Ok(value) = toml::from_str::<toml::Value>(config_raw) else {
+        return false;
+    };
+    let Some(server) = value
+        .get("mcp_servers")
+        .and_then(|servers| servers.get("codex_speak"))
+    else {
+        return false;
+    };
+    let command_ok = server
+        .get("command")
+        .and_then(toml::Value::as_str)
+        .is_some_and(|command| command == expected_cli);
+    let args_ok = server
+        .get("args")
+        .and_then(toml::Value::as_array)
+        .is_some_and(|args| args.len() == 1 && args[0].as_str() == Some("mcp"));
+    command_ok && args_ok
 }
 
 fn check_player(checks: &mut Vec<DoctorCheck>) {
@@ -625,7 +636,8 @@ fn check_player(checks: &mut Vec<DoctorCheck>) {
 #[cfg(test)]
 mod tests {
     use super::{
-        blocking_failures, plugin_enabled_in_codex_config, CheckStatus, DoctorCheck, DoctorReport,
+        blocking_failures, global_mcp_config_matches, plugin_enabled_in_codex_config, CheckStatus,
+        DoctorCheck, DoctorReport,
     };
 
     #[test]
@@ -681,7 +693,7 @@ mod tests {
 
     #[test]
     fn failed_checks_include_actionable_hint() {
-        let check = DoctorCheck::fail("plugin_mcp_script", "Codex Speak MCP script", "missing");
+        let check = DoctorCheck::fail("codex_stop_hook", "Codex Stop hook", "missing");
         assert!(check.hint.is_some());
     }
 
@@ -689,13 +701,13 @@ mod tests {
     fn stale_integration_checks_include_actionable_hint() {
         let check = DoctorCheck::fail("codex_skill", "Codex Speak skill", "stale");
         assert!(check.hint.is_some());
-        let check = DoctorCheck::fail("codex_notify_hook", "Codex notify hook", "stale");
+        let check = DoctorCheck::fail("codex_stop_hook_script", "Codex Stop hook script", "stale");
         assert!(check.hint.is_some());
     }
 
     #[test]
     fn ok_checks_do_not_include_hint() {
-        let check = DoctorCheck::ok("plugin", "Codex Speak plugin", "present");
+        let check = DoctorCheck::ok("player", "Player", "present");
         assert!(check.hint.is_none());
     }
 
@@ -712,5 +724,20 @@ enabled = true
         assert!(!plugin_enabled_in_codex_config(
             "[plugins.\"codex-speak@personal\"]\nenabled = false\n"
         ));
+    }
+
+    #[test]
+    fn detects_global_mcp_server_config() {
+        let raw = r#"
+[mcp_servers.codex_speak]
+args = ["mcp"]
+command = "/Users/me/.codex/codex-speak/bin/codex-speak"
+startup_timeout_sec = 120
+"#;
+        assert!(global_mcp_config_matches(
+            raw,
+            "/Users/me/.codex/codex-speak/bin/codex-speak"
+        ));
+        assert!(!global_mcp_config_matches(raw, "/other/codex-speak"));
     }
 }

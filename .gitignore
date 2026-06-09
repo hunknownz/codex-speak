@@ -18,3 +18,7 @@ build/
 target/
 node_modules/
 apps/**/src-tauri/gen/
+
+# Local research raw materials
+_research/
+.gitmodules

@@ -21,6 +21,7 @@ pub struct Status {
     pub final_guide_enabled: bool,
     pub progress_prompts_enabled: bool,
     pub pet_enabled: bool,
+    pub missing_guide_policy: String,
     pub language: String,
     pub child_mode: bool,
     pub provider: String,
@@ -52,8 +53,9 @@ pub struct StatusPaths {
     pub pet_helper: String,
     pub model: String,
     pub spool: String,
-    pub plugin: String,
-    pub marketplace: String,
+    pub queue: String,
+    pub hooks_json: String,
+    pub agents: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -67,19 +69,15 @@ pub struct StatusChecks {
     pub pet_helper_exists: bool,
     pub model_exists: bool,
     pub sherpa_exists: bool,
-    pub notify_configured: bool,
-    pub notify_hook_current: bool,
+    pub stop_hook_configured: bool,
+    pub stop_hook_current: bool,
+    pub agents_hint_installed: bool,
+    pub queue_writable: bool,
+    pub legacy_notify_configured: bool,
     pub codex_skill_installed: bool,
     pub codex_skill_current: bool,
-    pub plugin_installed: bool,
-    pub plugin_current: bool,
-    pub plugin_skill_installed: bool,
-    pub plugin_skill_current: bool,
-    pub plugin_mcp_config_installed: bool,
-    pub plugin_mcp_config_current: bool,
-    pub plugin_mcp_script_installed: bool,
-    pub plugin_mcp_script_current: bool,
-    pub marketplace_configured: bool,
+    pub legacy_global_mcp_configured: bool,
+    pub legacy_plugin_configured: bool,
     pub player_available: bool,
 }
 
@@ -105,16 +103,14 @@ pub fn collect(cfg: &Config) -> Result<Status> {
     let pet_helper_path = config::pet_helper_path()?;
     let model_path = config::model_dir()?.join("model.onnx");
     let sherpa_path = config::sherpa_bin()?;
-    let plugin_path = config::installed_plugin_dir()?;
-    let marketplace_path = config::personal_marketplace_path()?;
     let codex_config = config::codex_home()?.join("config.toml");
     let codex_config_raw = fs::read_to_string(codex_config).unwrap_or_default();
-    let notify_hook_path = hook_path()?;
+    let hooks_json_path = config::codex_home()?.join("hooks.json");
+    let hooks_json_raw = fs::read_to_string(&hooks_json_path).unwrap_or_default();
+    let agents_path = config::codex_home()?.join("AGENTS.md");
+    let agents_raw = fs::read_to_string(&agents_path).unwrap_or_default();
+    let stop_hook_path = hook_path()?;
     let codex_skill_path = config::codex_home()?.join("skills/codex-speak/SKILL.md");
-    let plugin_manifest_path = plugin_path.join(".codex-plugin/plugin.json");
-    let plugin_skill_path = plugin_path.join("skills/codex-speak/SKILL.md");
-    let plugin_mcp_config_path = plugin_path.join(".mcp.json");
-    let plugin_mcp_script_path = plugin_path.join(mcp_script_path());
     let last_spoken_path = config::logs_dir()?.join("last-spoken.txt");
     let last_spoken = fs::read_to_string(&last_spoken_path)
         .ok()
@@ -139,6 +135,7 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         final_guide_enabled: cfg.final_guide_enabled,
         progress_prompts_enabled: cfg.progress_prompts_enabled,
         pet_enabled: cfg.pet_enabled,
+        missing_guide_policy: cfg.missing_guide_policy.clone(),
         language: cfg.language.clone(),
         child_mode: cfg.child_mode,
         provider: cfg.provider.clone(),
@@ -160,8 +157,9 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             pet_helper: pet_helper_path.display().to_string(),
             model: model_path.display().to_string(),
             spool: config::spool_dir()?.display().to_string(),
-            plugin: plugin_path.display().to_string(),
-            marketplace: marketplace_path.display().to_string(),
+            queue: config::queue_dir()?.display().to_string(),
+            hooks_json: hooks_json_path.display().to_string(),
+            agents: agents_path.display().to_string(),
         },
         checks: StatusChecks {
             config_exists: config_path.is_file(),
@@ -173,22 +171,17 @@ pub fn collect(cfg: &Config) -> Result<Status> {
             pet_helper_exists: pet_helper_path.is_file(),
             model_exists: model_path.is_file(),
             sherpa_exists: sherpa_path.is_file(),
-            notify_configured: codex_config_raw.contains("codex-speak-notify"),
-            notify_hook_current: file_matches(&notify_hook_path, &bundled::hook_content(&cli_path)),
+            stop_hook_configured: hooks_json_raw.contains("codex-speak-stop-hook")
+                && hooks_json_raw.contains("Stop"),
+            stop_hook_current: file_matches(&stop_hook_path, &bundled::hook_content(&cli_path)),
+            agents_hint_installed: crate::install::agents_block_present(&agents_raw),
+            queue_writable: queue_writable(),
+            legacy_notify_configured: codex_config_raw.contains("codex-speak-notify"),
             codex_skill_installed: codex_skill_path.is_file(),
             codex_skill_current: file_matches(&codex_skill_path, bundled::CODEX_SKILL),
-            plugin_installed: plugin_manifest_path.is_file(),
-            plugin_current: file_matches(&plugin_manifest_path, bundled::PLUGIN_MANIFEST),
-            plugin_skill_installed: plugin_skill_path.is_file(),
-            plugin_skill_current: file_matches(&plugin_skill_path, bundled::PLUGIN_SKILL),
-            plugin_mcp_config_installed: plugin_mcp_config_path.is_file(),
-            plugin_mcp_config_current: file_matches(
-                &plugin_mcp_config_path,
-                &bundled::plugin_mcp_config(&cli_path),
-            ),
-            plugin_mcp_script_installed: plugin_mcp_script_path.is_file(),
-            plugin_mcp_script_current: file_matches(&plugin_mcp_script_path, expected_mcp_script()),
-            marketplace_configured: marketplace_has_plugin(&marketplace_path),
+            legacy_global_mcp_configured: codex_config_raw.contains("[mcp_servers.codex_speak]"),
+            legacy_plugin_configured: codex_config_raw
+                .contains("[plugins.\"codex-speak@personal\"]"),
             player_available: crate::doctor::player_available(),
         },
         providers: provider_statuses()?,
@@ -196,23 +189,6 @@ pub fn collect(cfg: &Config) -> Result<Status> {
         last_spoken,
         last_spoken_at,
     })
-}
-
-fn marketplace_has_plugin(path: &Path) -> bool {
-    let Ok(raw) = fs::read_to_string(path) else {
-        return false;
-    };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-        return false;
-    };
-    value
-        .get("plugins")
-        .and_then(serde_json::Value::as_array)
-        .is_some_and(|plugins| {
-            plugins.iter().any(|plugin| {
-                plugin.get("name").and_then(serde_json::Value::as_str) == Some("codex-speak")
-            })
-        })
 }
 
 pub fn provider_statuses() -> Result<Vec<ProviderStatus>> {
@@ -326,27 +302,18 @@ fn binary_name() -> &'static str {
 
 fn hook_path() -> Result<PathBuf> {
     let name = if cfg!(windows) {
-        "codex-speak-notify.ps1"
+        "codex-speak-stop-hook.ps1"
     } else {
-        "codex-speak-notify"
+        "codex-speak-stop-hook"
     };
     Ok(config::codex_home()?.join("hooks").join(name))
 }
 
-fn mcp_script_path() -> &'static str {
-    if cfg!(windows) {
-        "scripts/codex-speak-mcp.ps1"
-    } else {
-        "scripts/codex-speak-mcp"
-    }
-}
-
-fn expected_mcp_script() -> &'static str {
-    if cfg!(windows) {
-        bundled::PLUGIN_MCP_SCRIPT_WINDOWS
-    } else {
-        bundled::PLUGIN_MCP_SCRIPT_UNIX
-    }
+fn queue_writable() -> bool {
+    let Ok(dir) = config::queue_pending_dir() else {
+        return false;
+    };
+    fs::create_dir_all(&dir).is_ok()
 }
 
 fn file_matches(path: &Path, expected: &str) -> bool {

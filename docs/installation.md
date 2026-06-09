@@ -2,13 +2,15 @@
 
 ## 普通安装目标
 
-Codex Speak 的安装要做到五件事：
+Codex Speak 的安装要做到五件事。默认用户入口是 Tauri App；App 调用同一份 Rust installer 完成部署：
 
 - 安装 Rust CLI 到 `~/.codex/codex-speak/bin`。
 - 安装 Tauri 控制面板到 `~/.codex/codex-speak/apps`，安装 macOS 原生 Pet helper 到 `~/.codex/codex-speak/bin`。
-- 配置 Codex notify Hook，让 Codex 回复结束后自动触发朗读。
-- 安装 Codex Skill 和 Codex Plugin，并通过 Codex plugin install 流程启用，让 Codex 可以生成儿童友好的朗读导览。
+- 配置 Codex Stop Hook，让 Codex 回复结束后把当前 session 的 final 放入播放队列。
+- 安装 Codex Skill 和 AGENTS hint，让成长模式的可见 final 本身适合孩子阅读和收听。
 - 安装或修复本地 TTS runtime 和默认中文模型。
+
+当前成长模式 MVP 不安装 Codex Plugin，也不把 MCP side-channel 作为默认朗读链路。旧设计保留在 [Legacy Plugin Product Design](legacy-plugin-product-design.md) 和 [Legacy MCP Side-Channel](legacy-mcp-side-channel.md)。
 
 ## macOS
 
@@ -53,7 +55,7 @@ docs/
 ./installers/install-macos.sh
 ```
 
-源码安装会在本机用 Cargo、swiftc 和 npm 构建 CLI、Pet helper 和控制面板。如果机器上已经有模型，只更新 CLI、Hook、Skill 和 Plugin：
+源码安装会在本机用 Cargo、swiftc 和 npm 构建 CLI、Pet helper 和控制面板。如果机器上已经有模型，只更新 CLI、Hook、Skill、AGENTS hint 和队列目录：
 
 ```bash
 ./installers/install-macos.sh --skip-tts-download
@@ -175,53 +177,28 @@ powershell -ExecutionPolicy Bypass -File .\installers\install-windows.ps1 -SkipT
 .\installers\uninstall-windows.ps1
 ```
 
-## Plugin 安装位置
+## App-first 安装方式
 
-安装器会把插件复制到个人 Codex Plugin marketplace：
-
-```text
-~/plugins/codex-speak
-~/.agents/plugins/marketplace.json
-```
-
-marketplace 条目使用本地路径：
-
-```text
-./plugins/codex-speak
-```
-
-默认 personal marketplace 会被 Codex 发现。用户在 Plugins 页面安装/启用后，Codex 会把插件复制到 `~/.codex/plugins/cache/personal/codex-speak/$VERSION/` 并从 cache 加载；MCP 工具也要在安装/启用并开启新 thread 后才会暴露。
-
-安装器会按当前系统生成 `.mcp.json`，让 MCP server 直接调用同一份已安装的 Rust CLI；macOS 指向 `codex-speak`，Windows 指向 `codex-speak.exe`。插件里的 MCP 脚本仍会随包保留，作为调试和兼容入口。
-
-## Plugin 正宗安装方式
-
-Codex Plugin 的正宗安装分两步：
-
-1. 把插件源目录写进 marketplace，让 Codex 能在插件目录看到它。
-2. 通过 Codex 的插件安装流程启用它。
-
-命令行入口是：
+release 包安装完成后，普通用户主要打开控制面板：
 
 ```bash
-codex plugin add codex-speak@personal
+~/.codex/codex-speak/bin/codex-speak app open
 ```
 
-也可以在 Codex App 的 Plugins 页面里选择 Personal marketplace，然后安装 Codex Speak。
+控制面板提供：
 
-Codex Speak 安装器会自动尝试执行这一步。自动安装成功后，`codex plugin list` 应显示：
+- 安装核心：部署 CLI、Stop Hook、AGENTS hint、Skill 和队列目录，不下载模型。
+- 修复 Hook：刷新 Stop Hook 和 AGENTS hint，用于 Codex 配置被覆盖后的恢复。
+- 安装模型：单独安装当前 TTS provider 所需模型。
+- 自检和支持包：运行 `doctor` 或生成排障材料。
 
-```text
-codex-speak@personal  installed, enabled
-```
-
-如果自动安装失败，通常是本机没有找到 Codex App CLI，或者当前 Codex CLI 版本太旧。此时核心 Hook/Skill/CLI 仍会安装完成，但 MCP 工具不会在新 thread 中出现；运行下面命令即可补上：
+CLI 安装命令仍可用于脚本、CI、release 包和开发机：
 
 ```bash
-codex plugin add codex-speak@personal
+~/.codex/codex-speak/bin/codex-speak install --skip-tts-download
 ```
 
-安装或重新安装插件后，需要打开一个新的 Codex thread，新的 Skill 和 MCP 工具才会进入上下文。
+卸载会移除 Codex Speak 自己写入的 Stop Hook、AGENTS block、旧 notify hook、旧全局 MCP 配置和旧 personal plugin 残留，但不会破坏其他 MCP 或其他插件。
 
 ## 自检
 
@@ -237,7 +214,7 @@ codex plugin add codex-speak@personal
 ~/.codex/codex-speak/bin/codex-speak doctor --json
 ```
 
-当某项检查失败或警告时，`doctor` 会在文本输出和 JSON 输出里给出 `hint`，告诉用户下一步应该重新安装、安装模型、刷新插件，还是检查系统播放器。它不只检查文件是否存在，也会检查 Skill、Hook wrapper、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本是否与当前 CLI 内置版本一致；如果用户更新了 CLI 但插件还是旧文件，会提示重新运行 `codex-speak install` 刷新。
+当某项检查失败或警告时，`doctor` 会在文本输出和 JSON 输出里给出 `hint`，告诉用户下一步应该重新安装、安装模型、修复 Hook，还是检查系统播放器。它不只检查文件是否存在，也会检查 Skill、Stop Hook wrapper、AGENTS hint 和队列目录是否与当前 CLI 主路径匹配；旧全局 MCP 或旧 plugin 配置只作为 warning，不再作为 required fail。
 
 `doctor --json` 和 `status` 都会包含版本、系统和 CPU 架构信息，方便远程排障时确认用户正在运行哪个构建。
 
@@ -247,7 +224,7 @@ codex plugin add codex-speak@personal
 ~/.codex/codex-speak/bin/codex-speak verify-install
 ```
 
-如果安装时跳过了默认模型下载，可以允许模型项暂时缺失，但仍然检查 CLI、Hook、Plugin、控制面板和播放器：
+如果安装时跳过了默认模型下载，可以允许模型项暂时缺失，但仍然检查 CLI、Stop Hook、AGENTS hint、Skill、队列、控制面板和播放器：
 
 ```bash
 ~/.codex/codex-speak/bin/codex-speak verify-install --allow-missing-models
@@ -259,7 +236,7 @@ codex plugin add codex-speak@personal
 ~/.codex/codex-speak/bin/codex-speak verify-codex
 ```
 
-这个命令不会播放声音，会模拟 MCP 写入儿童友好导览、Hook 优先消费 side-channel，并检查缺失导览提示和常见英文技术缩写处理链路。
+这个命令不会播放声音，会模拟 Stop Hook payload、session-aware final 提取、队列入队和常见英文技术缩写处理链路。
 
 还可以验证控制项能安全切换并恢复：
 
@@ -274,9 +251,9 @@ codex plugin add codex-speak@personal
 - CLI 已安装。
 - 控制面板 App 已安装，或显示为 WARN。
 - macOS 原生 Pet helper 已安装；Windows 当前会跳过这项原生 helper 检查。
-- Hook 已配置，并且 Hook wrapper 与当前 CLI 一致。
-- Codex Speak Skill、Plugin manifest、Plugin Skill、MCP 配置和当前平台 MCP 脚本都已安装且与当前 CLI 一致。
-- Plugin marketplace 已配置。
+- Stop Hook 已配置，并且 Hook wrapper 与当前 CLI 一致。
+- AGENTS hint、Codex Speak Skill 和文件播放队列已配置。
+- 如果存在旧 notify hook、旧全局 MCP 或旧 plugin 配置，`doctor` 会提示清理，但这些不是成长模式 MVP 的必需项。
 - Sherpa-ONNX 和默认中文模型可用。
 - 本机播放器可用。Windows 会检查 `powershell.exe`，因为系统语音和 wav 播放都走 PowerShell/.NET 播放链路。
 

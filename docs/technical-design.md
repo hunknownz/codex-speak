@@ -2,146 +2,225 @@
 
 ## 技术结论
 
-推荐架构：
+成长模式 MVP 采用 Hook-first 架构：
 
 ```text
-Codex Skill
-  -> 让 Codex 生成适合朗读的导览内容
-Codex Speak Plugin / MCP
-  -> 写入 side-channel，也可触发少量后台进度朗读
-Codex Hook
-  -> 回复结束后自动触发最终导览朗读
-speak-engine
-  -> Hook 消费 side-channel、管理播放队列、清洗手动文本、保留历史 fallback 调试能力
+AGENTS / Skill hint
+  -> 引导 Codex 把可见 final 写成孩子能读、能听的回答
+Codex Stop Hook
+  -> 回复结束后把当前 session payload 交给本地 CLI
+codex-speak hook --stdin
+  -> session-aware 提取 final，清洗，写入文件队列
+queue-worker
+  -> FIFO 串行播放，不阻塞 Codex session
 本地 TTS
-  -> MeloTTS / Kokoro / ZipVoice / Piper / 系统兜底
-播放器
-  -> macOS afplay / Windows PowerShell 播放
-installer
-  -> 安装、升级、卸载、自检
+  -> Sherpa-ONNX / Piper / system provider
+控制面板
+  -> 配置开关、语速、provider、停止、试听、模型安装
 ```
 
-当前采用：
-
-```text
-Skill + MCP side-channel + Hook + 本地 TTS + Tauri 控制面板
-```
-
-简洁版架构和当前验证状态见 [Codex Speak 架构](architecture.md)。本文保留更细的技术选型、安装和发布设计。
-
-Plugin/MCP 已经进入主路径：它负责把 Codex 理解后的朗读导览写入 side-channel，也可以在长任务中触发少量非阻塞进度朗读。Hook 仍然保留，因为它最适合在回复结束后自动播放最终导览。MCP side-channel 不可用时，Hook 不再从普通回复生成短导览，而是播放明确的“插件导览未到达”提示。
-
-朗读时机采用 [过程中少量提示、结束后完整导览](speech-timing.md) 的混合策略。当前架构不把聊天流式输出逐字送进 TTS；过程朗读只通过 MCP 后台短提示触发，最终权威内容仍由 `codex_speak_prepare` 写入 side-channel，再由 Hook 在回复结束后播放。
+MCP side-channel 仍保留在代码中，但定位改为 legacy/debug/future optional。默认安装不再写入全局 `mcp_servers.codex_speak`，也不要求 Codex 每轮调用 `codex_speak_prepare`。
 
 ## 设计原则
 
-- Codex 负责理解和表达，Hook 负责触发和执行。
-- 不调用外部大模型做二次总结，避免费用、延迟和隐私问题。
-- TTS 方案必须本地、免费、跨平台、低配置可运行。
-- 中文优先，其次英文。
-- Hook 逻辑保持薄，不把复杂改写都塞进脚本。
-- 安装部署是产品体验的一部分，必须可自动化、可恢复、可升级。
+- Codex 负责把最终回答写得清楚、温和、适合朗读。
+- Hook 负责可靠触发、定位当前 session、快速入队。
+- Worker 负责串行播放和失败处理。
+- TTS 只处理声音，不理解任务上下文。
+- 主路径不依赖 agent 记得调用工具，也不让 MCP 启动失败卡住新 session。
+- 不在可见回答中加入隐藏协议块、HTML 朗读块或单独的“朗读导览”章节。
 
-## Skill、Hook、Plugin 分工
+## 组件分工
 
-| 组件 | 是否主路径需要 | 职责 |
+| 组件 | MVP 是否主路径 | 职责 |
 | --- | --- | --- |
-| Skill | 是 | 让 Codex 理解任务上下文，并生成适合朗读的中文导览 |
-| Plugin/MCP | 是 | 写入 side-channel，控制配置，触发少量后台进度朗读 |
-| Hook | 是 | Codex 回复结束后触发最终导览朗读 |
-| 本地 TTS | 是 | 把朗读导览变成声音 |
-| Tauri 控制面板 | 是 | 给普通用户提供开关、语速、声音和停止按钮 |
+| AGENTS hint | 是 | 给所有新 session 一个很短的成长模式写作约束 |
+| Skill | 是，但轻量 | 被触发时补充更详细的成长模式写作规则 |
+| Stop Hook | 是 | 监听 Codex Stop 生命周期事件 |
+| `hook --stdin` | 是 | 从 hook payload 提取当前 final，清洗并入队 |
+| 文件队列 | 是 | 跨 session 串行化朗读任务 |
+| `queue-worker` | 是 | 消费队列并调用 TTS |
+| 本地 TTS | 是 | 生成和播放声音 |
+| MCP | 否 | legacy/debug，保留 side-channel、状态、试听、配置等能力 |
+| `spool/latest.json` | 否 | legacy side-channel 单槽，不再是默认最终朗读来源 |
 
-不再要求 Chat Session 正常显示自定义协议，也不再让 Skill 默认输出 HTML 折叠协议块。首选方式是 Codex 调用 MCP 工具：
+## Stop Hook 输入契约
 
-```text
-codex_speak_prepare
+Hook 入口：
+
+```bash
+codex-speak hook --stdin
 ```
 
-写入结构化 side-channel。MCP 不可用时，Skill 不再为了朗读在最终回答中补 `**朗读导览**`、HTML、XML 或隐藏注释。Hook 不把普通 final answer 当作朗读源；没有 side-channel 时，只播放“没有收到插件朗读导览”的缺失提示。
-
-HTML 微格式协议解析能力只保留给历史消息、排障样例和旧版本兼容，不作为新回复的默认输出形态。
-
-Hook 提取策略：
+从 stdin 读取 Codex hook payload。主路径只接受：
 
 ```text
-优先读取并消费新鲜的 MCP side-channel latest.json
-找不到 -> 播放缺失导览提示，不读取普通 final answer
-extract/fixture/manual QA -> 仍可解析历史 HTML、Markdown 和旧版调试块
+hook_event_name = "Stop" 或 "SubagentStop"
 ```
 
-## 文本处理方案
+文本来源固定顺序：
 
-### 第一层：Codex 生成朗读导览
+1. `last_assistant_message`
+2. `last_agent_message`
+3. `assistant_message`
+4. `message`
+5. `transcript_path` 指向的当前 session 文件
+6. 无有效 final 时静默退出
 
-由 Skill 约束 Codex：
+禁止主路径使用全局 newest session 作为默认来源。`newest_session_file()` 只能保留给手动调试、旧命令或测试，不用于 Stop hook 的当前会话判断。
 
-- 用中文。
-- 通常 120 到 300 字，复杂任务最多 500 字。
-- 说明做了什么、结果是什么意思、下一步可以怎么继续。
-- 不朗读代码、命令、日志、长路径，而是解释它们在解决什么问题。
-- 技术词转成更容易听懂的说法。
+## 朗读内容处理算法
 
-导览使用 [Codex Speak Protocol v1](protocol-v1.md)。主路径是 MCP side-channel；MCP 不可用时不再把短 Markdown `朗读导览` 注入 Chat Session。HTML 微格式 `aside` 只是历史兼容和排障用 fallback，`data-*` 供 Rust CLI 在兼容路径中稳定解析，Skill 不再主动把它输出到 Chat Session。
+```mermaid
+flowchart TD
+  A["Stop payload"] --> B{"Stop/SubagentStop?"}
+  B -- "否" --> X["exit 0"]
+  B -- "是" --> C{"payload 直接带 final?"}
+  C -- "是" --> D["raw_text = last_assistant_message 等字段"]
+  C -- "否" --> E{"有 transcript_path?"}
+  E -- "否" --> X
+  E -- "是" --> F["session::last_message_from_file"]
+  F --> D
+  D --> G["extract::clean_for_speech"]
+  G --> H{"文本为空?"}
+  H -- "是" --> X
+  H -- "否" --> I["计算 job id"]
+  I --> J{"id 已存在?"}
+  J -- "是" --> X
+  J -- "否" --> K["写 pending job"]
+  K --> L["spawn queue-worker --once"]
+  L --> X
+```
 
-当 Plugin MCP 工具可用时，优先让 Codex 调用 `codex_speak_prepare`，把相同结构的导览写入 `~/.codex/codex-speak/spool/latest.json`。Hook 触发后会读本地结构化内容，成功后移动为 `last-consumed.json`，Chat Session 里只需要保留自然的最终回答。
+清洗规则：
 
-长任务中如果需要让孩子知道“正在做什么”，Codex 可以调用 `codex_speak_speak_text` 并设置 `background: true`，播放一句简短进度提示。这个通道不替代 Hook，也不朗读完整回复；它只负责任务中途的少量提示。过程提示会被截短，并采用“忙时跳过”策略，不能打断最终导览。
+- 删除 fenced code、diff、表格、日志噪声和 Markdown 装饰。
+- 压缩长路径、长 URL、命令输出和 release metadata。
+- 保留最有用的自然语言结论。
+- 用发音归一化把常见技术词变成中文可听表达，例如 `MCP` -> “插件通道”、`JSON` -> “数据格式”、`CLI` -> “命令行工具”。
+- 按 `max_read_chars` 限制长度，尽量在句子边界截断。
 
-过程提示和最终导览的边界：
-
-| 通道 | 触发时机 | 内容性质 | 是否权威 | 默认用途 |
-| --- | --- | --- | --- | --- |
-| 过程提示 | 任务执行中 | 一句话进度 | 否 | 降低等待焦虑 |
-| 最终导览 | 回复结束后 | Codex 理解后的行动导览 | 是 | 告诉用户结果和下一步 |
-| 缺失提示 | MCP 不可用时 | 明确说明未收到插件导览 | 是 | 防止乱读 final answer |
-
-### 第二层：规则清洗兜底
-
-规则清洗负责：
-
-- 删除 Markdown 标记。
-- 跳过代码块、diff、日志、表格。
-- 压缩长链接和长路径。
-- 替换常见技术词。
-- 限制最大朗读字数。
-
-示例词典：
+job id：
 
 ```text
-Hook -> 自动触发器
-Plugin -> 插件
-TTS -> 朗读工具
-API -> 接口
-MCP -> 插件通道
-JSON -> 数据格式
-CLI -> 命令行工具
-config.toml -> 配置文件
-terminal -> 命令窗口
+stable_hash(session_id 或 transcript_path 或 "unknown-session")
+:
+stable_hash(turn_id 或 raw final hash)
 ```
 
-英文逐字母朗读的处理分三层：
+这样有 `session_id + turn_id` 时精确去重；缺字段时仍能对同一 transcript 和同一 final 做稳定去重。
 
-- 用户词典层：`~/.codex/codex-speak/pronunciation.toml` 可以覆盖或补充默认词表，CLI 和 MCP 都能写入。用户写入的读法会先被保护起来，再执行内置清洗，避免二次规则把用户指定的读法误改掉。
-- 文本层：`src/pronunciation.rs` 在进入 TTS 前统一替换常见技术英文、文件名、脚本名、命令参数、代码标识符和缩写，避免中文模型把 `OpenRouter`、`OAuth`、`MCP`、`M C P`、`J.S.O.N`、`CLI`、`README.md`、`codex_speak_prepare`、`--provider` 这类内容按字母或符号逐个读出来。
-- 兜底层：常见缩写会转成中文意思；未收录的全大写短缩写会转成“英文缩写”。如果中文导览里还混着未知英文词、短语、英文名称或带数字的英文编号，会分别转成“英文单词”“英文短语”“英文名称”或“英文编号”，宁可少读一点原文，也不把孩子带进无意义的拼字母里。
-- 系统兜底层：当 provider 是 `system` 时，macOS/Windows 会把中英文分段，中文段使用中文系统声音，普通英文段使用英文系统声音。这样在没有本地模型时，`hello world` 这类普通英文短语不会被中文声音逐字母拼读。
+## 文件队列
 
-长期方案仍然是优先使用中英混读能力更好的本地 provider，例如 `sherpa_melo` 或 `sherpa_kokoro`；`system` 主要用于无模型安装和故障兜底。
+目录：
 
-## TTS 调研对比
+```text
+~/.codex/codex-speak/queue/
+  pending/
+  running/
+  done/
+  failed/
+  worker.lock
+```
 
-| 方案 | 中文优先 | 跨平台 | 低配置 | 自然度 | 接入难度 | 建议定位 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Sherpa-ONNX + MeloTTS zh_en | 强 | 强 | 中 | 中高 | 中 | 默认中文方案 |
-| Sherpa-ONNX + Kokoro zh/multi-lang | 中高 | 强 | 中 | 高 | 中 | 高自然度备选 |
-| Sherpa-ONNX + ZipVoice | 中高 | 强 | 中高 | 高 | 高 | 实验性参考音频/可调声音 |
-| Piper zh_CN | 中 | 强 | 强 | 中 | 低 | 低配兜底 |
-| 系统朗读 | 中 | 强 | 强 | 低 | 低 | 最后兜底 |
-| 直接 Python MeloTTS | 强 | 中 | 中低 | 中高 | 高 | 暂不推荐默认 |
-| 直接 kokoro-onnx | 中高 | 中高 | 中 | 高 | 中 | 可实验，不做主入口 |
+job 格式：
 
-## 推荐 TTS 顺序
+```json
+{
+  "id": "session-or-transcript:turn-or-hash",
+  "session_id": "...",
+  "turn_id": "...",
+  "transcript_path": "...",
+  "created_at_ms": 0,
+  "source": "codex-stop-hook",
+  "priority": "normal",
+  "text": "...",
+  "attempts": 0
+}
+```
+
+队列策略：
+
+- 同一 `id` 只保留一条。
+- pending 最多 5 条。
+- 超过上限时丢弃最旧普通 job。
+- worker 按文件名时间戳 FIFO。
+- worker 启动后先抢 `worker.lock`，已有 worker 时直接退出。
+- 播放前 `pending -> running`。
+- 成功 `running -> done`。
+- 失败首次重试一次；第二次失败 `running -> failed`。
+- `queue-worker --once --no-play` 用于 dry-run，不生成声音。
+
+现有 `PlaybackPolicy::Queue` 仍用于 TTS 进程内播放互斥，防止音频重叠；它不再承担 Hook 等待队列职责，因为 Hook 不能为了等锁阻塞几分钟。
+
+## Installer / Uninstaller
+
+`codex-speak install` 默认：
+
+```text
+安装 CLI / release manifest / Skill
+写入 Stop hook wrapper
+更新 ~/.codex/hooks.json
+写入 ~/.codex/AGENTS.md 成长模式 block
+创建 queue 目录
+移除旧 notify hook 配置
+移除旧全局 mcp_servers.codex_speak
+安装或保留控制面板和 TTS 资产
+```
+
+不再默认：
+
+- 写入全局 MCP server。
+- 自动启用 `codex-speak@personal` 作为主路径。
+- 要求新 Codex thread 加载 MCP 工具后才能朗读。
+
+`codex-speak uninstall`：
+
+```text
+停止朗读进程
+移除 Codex Speak Stop hook
+移除 AGENTS 成长模式 block
+移除旧 notify hook
+移除旧全局 mcp_servers.codex_speak
+清理 pending/running 队列
+保留 logs/done 和模型，除非后续增加显式清理选项
+```
+
+## Doctor / Status
+
+主检查：
+
+- CLI 是否存在。
+- Stop hook 是否配置在 `~/.codex/hooks.json`。
+- Stop hook wrapper 是否与当前 CLI 内置版本一致。
+- AGENTS 成长模式 hint 是否存在。
+- queue 目录是否可写。
+- TTS 模型和播放器是否可用。
+- legacy global MCP / plugin 是否残留。残留只给 warning。
+
+`doctor --json` 应该能让排障者一眼看出：当前主链路是 Hook-first，MCP 不是 required dependency。
+
+## MCP Legacy
+
+旧路径：
+
+```text
+AGENTS/Skill -> codex_speak_prepare -> ~/.codex/codex-speak/spool/latest.json -> Hook -> TTS
+```
+
+它解决过“屏幕内容和朗读内容分离”的问题，但带来这些 MVP 成本：
+
+- Codex 需要记得每轮 final 前调用工具。
+- MCP server 启动或握手失败可能卡住 session。
+- 全局 `latest.json` 是单槽，天然不适合多 session 并发。
+- commentary / final phase 判断复杂，容易提前消费 stale latest。
+- 半卸载后残留 MCP 配置会继续影响新 session。
+
+因此成长模式 MVP 改为直接朗读 final。MCP 仅保留给调试、历史兼容、未来 ask-user/高级摘要/屏幕和朗读分离等场景。详细记录见 [Legacy MCP Side-Channel](legacy-mcp-side-channel.md)。
+
+## TTS Provider
+
+推荐顺序：
 
 ```text
 默认：Sherpa-ONNX + MeloTTS zh_en
@@ -151,255 +230,41 @@ terminal -> 命令窗口
 最后兜底：系统语音
 ```
 
-原因：
-
-- MeloTTS 中文模型明确适合中文和中英混读，符合中文优先。
-- Sherpa-ONNX 适合作为统一推理底座，降低 Windows/macOS 适配成本。
-- Kokoro 体积小、自然度潜力高，适合做更好听的备选。
-- ZipVoice 可以用参考音频控制声音风格，但模型文件和参数更多，先作为实验入口。
-- Piper 快、轻、稳定，适合低配机器。
-
-实现上把这些方案抽象为 `provider`，而不是把每个模型散落成独立按钮。这样 CLI、MCP 和 Tauri App 都只改同一个配置项：
-
-```toml
-provider = "sherpa_melo"
-voice_profile = "clear_bright"
-```
-
-支持的 Provider：
-
 | Provider | 运行方式 | 必需文件 | 失败策略 |
 | --- | --- | --- | --- |
 | `sherpa_melo` | `sherpa-onnx-offline-tts` VITS/Melo 参数 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 可按配置兜底到系统语音 |
-| `sherpa_kokoro` | `sherpa-onnx-offline-tts` Kokoro 参数 | `model.onnx`、`voices.bin`、`tokens.txt`、词典或 `espeak-ng-data` | 直接提示缺模型，方便试听排错 |
-| `sherpa_zipvoice` | `sherpa-onnx-offline-tts` ZipVoice 参数 | `encoder.onnx`、`decoder.onnx`、`vocoder.onnx`、`tokens.txt`、参考音频和文本 | 直接提示缺模型，避免误以为试听成功 |
-| `piper` | `sherpa-onnx-offline-tts` 运行 Piper/VITS 模型 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 直接提示缺模型 |
-| `system` | macOS `say` 或 Windows SpeechSynthesizer | 系统自带能力 | 用于无模型验证和最后兜底 |
+| `sherpa_kokoro` | Sherpa Kokoro 参数 | `model.onnx`、`voices.bin`、`tokens.txt`、词典或 `espeak-ng-data` | 直接提示缺模型 |
+| `sherpa_zipvoice` | Sherpa ZipVoice 参数 | `encoder.onnx`、`decoder.onnx`、`vocoder.onnx`、`tokens.txt`、参考音频和文本 | 直接提示缺模型 |
+| `piper` | Sherpa 运行 Piper/VITS 模型 | `model.onnx`、`tokens.txt`、`lexicon.txt` | 直接提示缺模型 |
+| `system` | macOS `say` 或 Windows SpeechSynthesizer | 系统能力 | 无模型验证和最后兜底 |
 
 模型安装命令：
 
 ```bash
+codex-speak models install --provider sherpa_melo
 codex-speak models install --provider sherpa_kokoro
-codex-speak models install --provider sherpa_zipvoice
 codex-speak models install --provider piper
 codex-speak models install --all
 ```
 
-Tauri App 的“安装模型”按钮调用同一个命令；Codex Plugin/MCP 的 `codex_speak_install_model` 也调用同一个 Rust 核心。
+## 控制面板
 
-## 播放队列
-
-本地播放不再依赖“新朗读开始前杀掉旧朗读”的默认行为。`codex-speak speak` 会按场景选择播放策略：
-
-| 场景 | 策略 | 目的 |
-| --- | --- | --- |
-| Hook 最终导览 | 排队等待 | 保证上一句读完，不戛然而止 |
-| MCP 过程提示 | 忙时跳过 | 不抢占最终导览，不积压短提示 |
-| 手动试听 | 打断当前朗读 | 用户主动试听时立即反馈 |
-| 停止按钮 | 停止并释放队列 | 防止停止后旧任务继续播 |
-
-实现上使用 `~/.codex/codex-speak/state/playback.lock` 保护 TTS 生成和播放器播放，避免多个进程同时写 `last.wav`。`playback.stop` 用于通知正在排队等待的旧任务退出。
-
-## 跨平台实现
-
-### macOS
-
-```text
-Hook -> speak-engine -> 本地 TTS 生成 wav -> afplay
-```
-
-系统兜底：
-
-```text
-say -v Tingting
-```
-
-发布要求：
-
-- 开发阶段可以使用 shell 安装脚本。
-- 面向普通用户分发时，建议提供签名并公证的 `.pkg` 或 `.app` 安装器。
-- 安装器应写入用户目录，尽量避免管理员权限。
-- 安装前备份 `~/.codex/config.toml`，卸载时可恢复。
-
-### Windows
-
-```text
-Hook -> speak-engine -> 本地 TTS 生成 wav -> PowerShell 播放
-```
-
-系统兜底可调用 Windows SAPI 或 PowerShell 音频播放。
-
-发布要求：
-
-- 开发阶段可以使用 PowerShell 安装脚本。
-- 面向普通用户分发时，建议提供签名的 MSIX、MSI 或 EXE 安装器。
-- 模型和二进制文件安装到用户目录，例如 `%LOCALAPPDATA%\CodexSpeak` 或 `%USERPROFILE%\.codex\codex-speak`。
-- 安装器需要处理 PowerShell 执行策略、路径空格、杀毒软件误报和 SmartScreen 提示。
-
-## 安装器架构
-
-安装器是第一阶段的核心交付物之一。
-
-```text
-bootstrap installer
-  -> 检测系统和架构
-  -> 检测 Codex 配置目录
-  -> 备份原配置
-  -> 安装 Skill
-  -> 安装 Hook wrapper
-  -> 安装 speak-engine
-  -> 下载/校验 TTS 引擎和模型
-  -> 安装 Plugin 源目录和 marketplace entry
-  -> 尝试执行 codex plugin add codex-speak@personal
-  -> 可选安装 Tauri 控制面板
-  -> 写入配置
-  -> 运行 doctor 自检
-  -> 播放测试音频
-```
-
-卸载流程：
-
-```text
-停止朗读进程
-移除 Hook
-移除 Skill
-保留或删除模型，由用户选择
-恢复 Codex 配置备份
-运行 Codex 配置检查
-```
-
-升级流程：
-
-```text
-读取已安装版本
-保留用户配置
-更新程序文件
-按需更新模型 manifest
-迁移配置
-运行 doctor 自检
-```
-
-## 安装包形态
-
-| 阶段 | macOS | Windows | 目标 |
-| --- | --- | --- | --- |
-| 内测 | shell 脚本 | PowerShell 脚本 | 快速验证 |
-| 公测 | 签名脚本 + 压缩包 | 签名脚本 + 压缩包 | 降低安装门槛 |
-| 正式版 | 签名公证 `.pkg`/`.app` | 签名 MSIX/MSI/EXE | 面向普通用户 |
-
-模型建议与程序分离：
-
-- 安装器体积更小。
-- 可以按需下载中文默认模型。
-- 后续可以单独升级声音模型。
-- 低配用户可以只下载 Piper 兜底模型。
-
-## speak-engine 形态
-
-第一阶段可以用脚本快速验证，但正式分发建议做成跨平台 CLI：
-
-```text
-codex-speak
-  speak
-  stop
-  doctor
-  verify-install
-  verify-codex
-  verify-controls
-  verify-package
-  status
-  mcp
-  config get
-  config set
-  install
-  uninstall
-```
-
-## Tauri 控制面板
-
-Tauri 控制面板是普通用户手动控制入口，不直接做 TTS 推理。它调用同一个 Rust CLI：
+Tauri 控制面板不直接做 TTS 推理，调用同一个 CLI：
 
 ```text
 Tauri UI -> Tauri backend -> codex-speak CLI -> config / stop / speak / doctor
 ```
 
-当前第一版位于：
-
-```text
-apps/codex-speak-control
-```
-
 它提供：
 
 - 总朗读开关。
-- 最终导览开关。
-- 过程提示开关。
-- 桌面 Pet 小伙伴显示开关。
-- 儿童模式开关。
-- 语速滑块。
-- 最大朗读字数滑块。
-- TTS Provider 选择。
-- 当前 Provider 模型安装按钮。
-- 声音档位选择。
-- 试听、停止、刷新、自检按钮。
+- 过程提示和最终朗读开关。
+- 成长模式提示配置。
+- 语速、最大朗读字数、provider、声音档位。
+- 模型安装、试听、停止、自检。
+- macOS desktop pet 状态展示。
 
-这样可以把“普通用户点击配置”和“Codex 通过 MCP 改配置”统一到同一份 `config.toml`。控制面板保存 `pet_enabled` 后会额外同步 macOS Pet helper：打开时启动透明桌面小伙伴，关闭时结束 helper 并清理本地 pid 文件。
-
-## 桌面 Pet
-
-macOS 桌面 Pet 不放在 Tauri WebView 里画，而是单独的原生 helper：
-
-```text
-apps/codex-speak-pet-macos/CodexSpeakPet.swift
-```
-
-实现路线对齐 lil-agents：无边框透明 `NSWindow`、`AVPlayerLayer` 播放 1080x1920 HEVC-with-alpha `.mov`、`CVDisplayLink` 驱动沿 Dock 区域行走、独立透明气泡窗口。角色素材由 `scripts/build-pet-assets-from-spritesheet.swift` 从二维 sprite sheet 生成，默认输出：
-
-```text
-codex-agent.mov
-codex-agent-source-spritesheet.png
-codex-agent-hit.png
-codex-agent-preview.png
-ASSET-NOTICE.txt
-```
-
-点击命中优先采样窗口实际 alpha 像素；如果 macOS 15 SDK 或系统环境不允许旧的窗口采样 API，就退回 `codex-agent-hit.png`。默认角色是侧身 2D walking sprite，显示主体始终是透明视频，不会回到 HTML、SVG、canvas、3D 实时渲染或白底 WebView。`scripts/generate-pet-assets.swift` 保留为纯代码 fallback 和测试素材生成器。
-
-实现语言建议：
-
-| 方案 | 优点 | 缺点 | 建议 |
-| --- | --- | --- | --- |
-| Shell + PowerShell | 快速、简单 | 跨平台维护分裂 | 原型期使用 |
-| Node.js | 开发快 | 需要打包运行时 | 可做中期方案 |
-| Go/Rust 单文件 CLI | 跨平台、部署干净 | 开发成本更高 | 正式版推荐 |
-| Python | 生态丰富 | 依赖重，用户安装麻烦 | 不推荐做安装主链路 |
-
-## 模型管理
-
-使用 manifest 管理模型：
-
-```toml
-[[models]]
-id = "melo-zh-en"
-provider = "sherpa_onnx"
-language = "zh,en"
-size_mb = 163
-url = "..."
-sha256 = "..."
-default = true
-
-[[models]]
-id = "piper-zh-cn-huayan"
-provider = "sherpa_onnx_vits"
-language = "zh"
-low_resource = true
-url = "..."
-sha256 = "..."
-```
-
-安装器必须校验下载文件，避免模型损坏或被替换。
-
-当前实现中，下载器会先写入临时文件，校验通过后再替换目标文件。已经固定校验值的资产包括 macOS/Windows Sherpa runtime、MeloTTS、Kokoro、ZipVoice、ZipVoice vocoder 和 Piper 中文轻量模型。单元测试会确认所有下载资产都有 64 位十六进制 sha256，避免新增模型时遗漏完整性校验。
+控制面板修改的是 `~/.codex/codex-speak/config.toml`。Hook 每次运行读取当前配置，所以朗读开关、语速、provider 等运行时配置可以立即影响下一次 Stop hook。AGENTS/Skill 这类 Codex prompt 侧提示通常需要新 session 或重启 Codex 才稳定生效。
 
 ## 配置示例
 
@@ -409,93 +274,48 @@ final_guide_enabled = true
 progress_prompts_enabled = true
 language = "zh"
 child_mode = true
+missing_guide_policy = "silent"
 max_read_chars = 800
 
 provider = "sherpa_melo"
-fallback_provider = "system"
-
 speed = 0.82
-num_threads = 4
-vits_noise_scale = 0.26
-vits_noise_scale_w = 0.36
-tts_silence_scale = 0.58
-voice = "default"
-skip_code_blocks = true
+voice_profile = "clear_bright"
 ```
 
-## 目录建议
+`child_mode` 当前仍保留在配置和控制面板中，但产品语义改为成长模式。后续可以迁移字段名，例如新增 `growth_mode = true` 并兼容读取旧字段。
 
-```text
-~/.codex/codex-speak/
-  config.toml
-  hooks/
-    codex-speak-notify
-  bin/
-    speak-engine
-  models/
-    melo/
-    kokoro-zh-en/
-    zipvoice-zh-en/
-    piper-zh-cn/
-  tools/
-    piper/
-  logs/
-    last-spoken.txt
-    last-error.log
+## 开发验证
+
+```bash
+cargo test hook -- --nocapture
+cargo test queue -- --nocapture
+cargo test doctor -- --nocapture
+cargo test -- --nocapture
+cargo check
+cargo build --release
 ```
 
-## 开发里程碑
+还需要补充或保留的集成验证：
 
-### M1：可用原型
-
-- Skill 生成适合朗读的中文导览。
-- Plugin/MCP 优先写入 side-channel。
-- Hook 只把 side-channel 当作高质量朗读来源；没有 side-channel 时播放缺失提示。
-- 先用系统朗读播放。
-- 提供 macOS shell 安装脚本和卸载脚本。
-
-### M2：本地 TTS
-
-- 接入 Sherpa-ONNX + MeloTTS。
-- 增加 Kokoro/ZipVoice/Piper 试听和模型安装命令。
-- 失败时自动兜底。
-- 支持 Windows PowerShell 安装脚本。
-- 增加 `doctor` 自检命令。
-
-### M3：配置和控制
-
-- 支持开关、语速、字数限制。
-- 支持停止当前朗读。
-- 记录最近一次朗读内容。
-- 支持升级和配置迁移。
-
-### M4：Plugin 或小型 UI
-
-- 可视化开关。
-- 选择声音。
-- 手动重读。
-- 查看日志和模型状态。
-- 提供正式安装包和签名发布流程。
+- 构造两个 session 的 Stop payload，确认 A/B 不串。
+- Hook 入队后快速退出，不等待 TTS。
+- `codex-speak install` 后不再写入全局 MCP。
+- `doctor --json` 对 legacy MCP 残留给 warning。
+- 真机新 Codex thread 只靠 Stop hook 播放 final。
+- Windows 真机安装、播放、卸载验证。
 
 ## 主要风险
 
-- 中文多音字和少量英文品牌名混读仍可能不自然，但常见英文技术缩写和系统语音逐字母读的问题已有规则兜底。
-- 不同 Windows 机器音频播放环境差异较大。
-- 模型许可要单独核对，尤其是后续打包分发时。
-- Skill 不是强制执行机制，所以 Hook 不能猜普通 final answer；必须依赖 MCP side-channel 或明示缺失。
-- macOS Gatekeeper 和 Windows SmartScreen 会影响普通用户安装体验。
-- 模型下载速度、校验失败和断点续传会影响首次安装体验。
+- Codex Stop payload 字段在不同 Codex 版本中可能变化，需要保持 payload fixture 更新。
+- final 直接作为朗读来源要求 Codex 回答本身更短、更自然；AGENTS hint 要足够稳定。
+- 清洗规则不能替代模型理解，过长或代码密集 final 仍可能需要用户手动重读或未来引入 optional side-channel。
+- 文件队列要定期处理 `done/failed` 目录体积，避免长期堆积。
+- Windows 音频播放和路径权限仍需真机验证。
 
 ## 参考资料
 
-- Sherpa-ONNX TTS 预训练模型：https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/index.html
-- Sherpa-ONNX Kokoro 文档：https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html
-- Sherpa-ONNX VITS/MeloTTS 文档：https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html
-- MeloTTS GitHub：https://github.com/myshell-ai/MeloTTS
-- MeloTTS 中文模型：https://huggingface.co/myshell-ai/MeloTTS-Chinese
-- Kokoro 中文 ONNX：https://huggingface.co/onnx-community/Kokoro-82M-v1.1-zh-ONNX
-- Piper 新仓库：https://github.com/OHF-Voice/piper1-gpl
-- Piper 中文声音示例：https://huggingface.co/rhasspy/piper-voices/blob/main/zh/zh_CN/huayan/x_low/MODEL_CARD
-- Apple macOS 公证说明：https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution
-- Microsoft MSIX 文档：https://learn.microsoft.com/en-us/windows/msix/
-- Windows 应用签名选项：https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options
+- [Codex Speak 架构](architecture.md)
+- [Legacy MCP Side-Channel](legacy-mcp-side-channel.md)
+- [问题记录](issue-log.md)
+- [朗读风格指南](speech-style-guide.md)
+- [Tauri 控制面板](tauri-control-app.md)

@@ -10,6 +10,7 @@ pub struct ConfigPatch {
     pub final_guide_enabled: Option<bool>,
     pub progress_prompts_enabled: Option<bool>,
     pub pet_enabled: Option<bool>,
+    pub missing_guide_policy: Option<String>,
     pub child_mode: Option<bool>,
     pub provider: Option<String>,
     pub speed: Option<f32>,
@@ -44,6 +45,11 @@ pub fn apply_patch(mut cfg: Config, patch: ConfigPatch) -> Result<ConfigUpdate> 
     if let Some(pet_enabled) = patch.pet_enabled {
         cfg.pet_enabled = pet_enabled;
         changed.push("pet_enabled".to_string());
+    }
+    if let Some(missing_guide_policy) = patch.missing_guide_policy {
+        validate_missing_guide_policy(&missing_guide_policy)?;
+        cfg.missing_guide_policy = missing_guide_policy;
+        changed.push("missing_guide_policy".to_string());
     }
     if let Some(child_mode) = patch.child_mode {
         cfg.child_mode = child_mode;
@@ -97,6 +103,17 @@ pub fn supported_providers() -> &'static [&'static str] {
 fn validate_provider(provider: &str) -> Result<()> {
     if !supported_providers().contains(&provider) {
         bail!("unsupported provider: {provider}");
+    }
+    Ok(())
+}
+
+pub fn supported_missing_guide_policies() -> &'static [&'static str] {
+    &["silent", "brief_notice", "diagnostic_notice"]
+}
+
+fn validate_missing_guide_policy(policy: &str) -> Result<()> {
+    if !supported_missing_guide_policies().contains(&policy) {
+        bail!("unsupported missing guide policy: {policy}");
     }
     Ok(())
 }

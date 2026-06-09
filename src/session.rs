@@ -8,8 +8,26 @@ use walkdir::WalkDir;
 use crate::config::{self, Config};
 use crate::{extract, side_channel};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LatestAssistantActivity {
+    Final,
+    NonFinal,
+    User,
+    Unknown,
+}
+
 pub fn missing_side_channel_notice() -> String {
-    "我没有收到本地插件准备好的朗读导览。这次先不乱读屏幕内容。请新开一个 Codex 会话，或者运行自检看看插件有没有加载。".to_string()
+    missing_side_channel_notice_for_policy("diagnostic_notice")
+}
+
+pub fn missing_side_channel_notice_for_policy(policy: &str) -> String {
+    match policy {
+        "silent" => String::new(),
+        "brief_notice" => {
+            "这次回答完成了，但当前会话没有送来朗读导览。".to_string()
+        }
+        _ => "我没有收到本地插件准备好的朗读导览。这次先不乱读屏幕内容。请新开一个 Codex 会话，或者运行自检看看插件有没有加载。".to_string(),
+    }
 }
 
 pub fn resolve_text(text: Option<String>, fixture: Option<&Path>, cfg: &Config) -> Result<String> {
@@ -35,13 +53,21 @@ fn resolve_text_with_options(
     }
 
     if fixture.is_none() {
+        if consume_side_channel
+            && latest_assistant_activity().unwrap_or(LatestAssistantActivity::Final)
+                == LatestAssistantActivity::NonFinal
+        {
+            return Ok(String::new());
+        }
         if let Some(text) =
             side_channel::read_fresh_latest(cfg.max_read_chars, consume_side_channel)?
         {
             return Ok(text);
         }
         if consume_side_channel {
-            return Ok(missing_side_channel_notice());
+            return Ok(missing_side_channel_notice_for_policy(
+                &cfg.missing_guide_policy,
+            ));
         }
     }
 
@@ -110,6 +136,60 @@ pub fn last_message_from_file(path: &Path) -> Result<String> {
         }
     }
     anyhow::bail!("no assistant message found in {}", path.display())
+}
+
+fn latest_assistant_activity() -> Result<LatestAssistantActivity> {
+    let path = newest_session_file()?;
+    latest_assistant_activity_from_file(&path)
+}
+
+fn latest_assistant_activity_from_file(path: &Path) -> Result<LatestAssistantActivity> {
+    let raw =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    let lines: Vec<&str> = raw.lines().collect();
+    for line in lines.iter().rev() {
+        let Ok(item) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        if is_user_event(&item) {
+            return Ok(LatestAssistantActivity::User);
+        }
+        if let Some(activity) = assistant_activity_from_event(&item) {
+            return Ok(activity);
+        }
+    }
+    Ok(LatestAssistantActivity::Unknown)
+}
+
+fn assistant_activity_from_event(item: &Value) -> Option<LatestAssistantActivity> {
+    let payload = item.get("payload").unwrap_or(item);
+    let payload_type = payload
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+
+    if payload_type == "task_complete" {
+        return Some(LatestAssistantActivity::Final);
+    }
+
+    if payload_type == "agent_message" {
+        return Some(activity_for_phase(payload.get("phase").and_then(Value::as_str)));
+    }
+
+    if payload_type == "message"
+        && payload.get("role").and_then(Value::as_str) == Some("assistant")
+    {
+        return Some(activity_for_phase(payload.get("phase").and_then(Value::as_str)));
+    }
+
+    None
+}
+
+fn activity_for_phase(phase: Option<&str>) -> LatestAssistantActivity {
+    match phase {
+        Some("final_answer") | None => LatestAssistantActivity::Final,
+        Some(_) => LatestAssistantActivity::NonFinal,
+    }
 }
 
 fn message_from_event(item: &Value) -> Option<String> {
@@ -245,6 +325,30 @@ mod tests {
     }
 
     #[test]
+    fn detects_latest_commentary_as_non_final_activity() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","phase":"commentary","content":[{{"type":"output_text","text":"我正在检查。"}}]}}}}"#
+        )
+        .unwrap();
+        let activity = latest_assistant_activity_from_file(file.path()).unwrap();
+        assert_eq!(activity, LatestAssistantActivity::NonFinal);
+    }
+
+    #[test]
+    fn detects_latest_final_answer_as_final_activity() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(
+            file,
+            r#"{{"type":"response_item","payload":{{"type":"message","role":"assistant","phase":"final_answer","content":[{{"type":"output_text","text":"检查完成。"}}]}}}}"#
+        )
+        .unwrap();
+        let activity = latest_assistant_activity_from_file(file.path()).unwrap();
+        assert_eq!(activity, LatestAssistantActivity::Final);
+    }
+
+    #[test]
     fn speech_fallback_is_conservative_without_explicit_guide() {
         let mut file = NamedTempFile::new().unwrap();
         writeln!(
@@ -281,6 +385,15 @@ mod tests {
         assert!(notice.contains("不乱读"));
         assert!(!notice.contains("final answer"));
         assert!(!notice.contains("代码"));
+    }
+
+    #[test]
+    fn brief_missing_side_channel_notice_is_short_and_non_technical() {
+        let notice = missing_side_channel_notice_for_policy("brief_notice");
+        assert_eq!(notice, "这次回答完成了，但当前会话没有送来朗读导览。");
+        assert!(!notice.contains("代码"));
+        assert!(!notice.contains("路径"));
+        assert!(!notice.contains("命令"));
     }
 
     #[test]

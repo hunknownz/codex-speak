@@ -13,6 +13,7 @@ pub struct Config {
     pub final_guide_enabled: bool,
     pub progress_prompts_enabled: bool,
     pub pet_enabled: bool,
+    pub missing_guide_policy: String,
     pub language: String,
     pub child_mode: bool,
     pub max_read_chars: usize,
@@ -34,6 +35,7 @@ impl Default for Config {
             final_guide_enabled: true,
             progress_prompts_enabled: true,
             pet_enabled: true,
+            missing_guide_policy: "silent".to_string(),
             language: "zh".to_string(),
             child_mode: true,
             max_read_chars: 800,
@@ -99,6 +101,7 @@ pub fn installed_plugin_dir() -> Result<PathBuf> {
     Ok(personal_plugin_sources_root()?.join(APP_DIR_NAME))
 }
 
+#[allow(dead_code)]
 pub fn installed_plugin_cache_root() -> Result<PathBuf> {
     Ok(codex_home()?
         .join("plugins")
@@ -153,6 +156,30 @@ pub fn playback_stop_signal_path() -> Result<PathBuf> {
 
 pub fn spool_dir() -> Result<PathBuf> {
     Ok(app_home()?.join("spool"))
+}
+
+pub fn queue_dir() -> Result<PathBuf> {
+    Ok(app_home()?.join("queue"))
+}
+
+pub fn queue_pending_dir() -> Result<PathBuf> {
+    Ok(queue_dir()?.join("pending"))
+}
+
+pub fn queue_running_dir() -> Result<PathBuf> {
+    Ok(queue_dir()?.join("running"))
+}
+
+pub fn queue_done_dir() -> Result<PathBuf> {
+    Ok(queue_dir()?.join("done"))
+}
+
+pub fn queue_failed_dir() -> Result<PathBuf> {
+    Ok(queue_dir()?.join("failed"))
+}
+
+pub fn queue_worker_lock_path() -> Result<PathBuf> {
+    Ok(queue_dir()?.join("worker.lock"))
 }
 
 pub fn bin_dir() -> Result<PathBuf> {

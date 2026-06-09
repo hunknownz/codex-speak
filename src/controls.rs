@@ -256,6 +256,7 @@ fn verify_status_view(checks: &mut Vec<ControlCheck>) {
                 && view.final_guide_enabled == cfg.final_guide_enabled
                 && view.progress_prompts_enabled == cfg.progress_prompts_enabled
                 && view.pet_enabled == cfg.pet_enabled
+                && view.missing_guide_policy == cfg.missing_guide_policy
                 && view.child_mode == cfg.child_mode
                 && view.provider == cfg.provider
                 && view.voice_profile == cfg.voice_profile

@@ -5,12 +5,14 @@ mod control_app;
 mod controls;
 mod doctor;
 mod extract;
+mod hook;
 mod install;
 mod mcp;
 mod model_catalog;
 mod pet_state;
 mod process;
 mod pronunciation;
+mod queue;
 mod release_manifest;
 mod session;
 mod settings;
@@ -53,6 +55,22 @@ enum Command {
         no_play: bool,
         #[arg(long, value_enum, hide = true)]
         playback: Option<PlaybackArg>,
+    },
+    /// Process a Codex Stop hook payload and enqueue final-answer speech.
+    Hook {
+        #[arg(long)]
+        stdin: bool,
+        #[arg(long)]
+        no_play: bool,
+    },
+    /// Process queued speech jobs.
+    QueueWorker {
+        #[arg(long)]
+        once: bool,
+        #[arg(long)]
+        daemon: bool,
+        #[arg(long)]
+        no_play: bool,
     },
     /// Stop current speech playback.
     Stop,
@@ -119,7 +137,7 @@ enum Command {
         #[command(subcommand)]
         command: ModelsCommand,
     },
-    /// Run the Codex Speak MCP server for the Codex plugin.
+    /// Run the legacy/debug MCP side-channel server.
     Mcp,
     /// Install Codex Speak into the current user's Codex home.
     Install {
@@ -166,6 +184,8 @@ enum ConfigCommand {
         progress_prompts_enabled: Option<bool>,
         #[arg(long)]
         pet_enabled: Option<bool>,
+        #[arg(long)]
+        missing_guide_policy: Option<String>,
         #[arg(long)]
         child_mode: Option<bool>,
         #[arg(long)]
@@ -267,9 +287,30 @@ fn main() -> Result<()> {
                         process::PlaybackPolicy::Queue
                     } else {
                         process::PlaybackPolicy::Interrupt
-                    });
+            });
             let extracted = session::resolve_text_for_speech(text, fixture.as_deref(), &cfg)?;
+            if extracted.trim().is_empty() {
+                return Ok(());
+            }
             let _ = tts::speak_with_policy(&cfg, &extracted, no_play, playback_policy)?;
+        }
+        Command::Hook { stdin, no_play } => {
+            if !stdin {
+                anyhow::bail!("hook requires --stdin");
+            }
+            let cfg = config::Config::load_or_default()?;
+            hook::run_from_stdin(&cfg, no_play)?;
+        }
+        Command::QueueWorker {
+            once,
+            daemon,
+            no_play,
+        } => {
+            if !once && !daemon {
+                anyhow::bail!("queue-worker requires --once or --daemon");
+            }
+            let cfg = config::Config::load_or_default()?;
+            queue::run_worker(&cfg, queue::WorkerOptions { daemon, no_play })?;
         }
         Command::Stop => process::stop_speech()?,
         Command::Doctor { json } => doctor::run(json)?,
@@ -313,6 +354,7 @@ fn main() -> Result<()> {
                 final_guide_enabled,
                 progress_prompts_enabled,
                 pet_enabled,
+                missing_guide_policy,
                 child_mode,
                 provider,
                 speed,
@@ -330,6 +372,7 @@ fn main() -> Result<()> {
                         final_guide_enabled,
                         progress_prompts_enabled,
                         pet_enabled,
+                        missing_guide_policy,
                         child_mode,
                         provider,
                         speed,

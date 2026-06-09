@@ -132,13 +132,10 @@ function checkRequiredFiles() {
     "scripts/check-release-readiness.mjs",
     "scripts/build-pet-assets-from-spritesheet.swift",
     "tests/fixtures/ci-artifacts.json",
-    "plugins/codex-speak/.codex-plugin/plugin.json",
-    "plugins/codex-speak/.mcp.json",
-    "plugins/codex-speak/skills/codex-speak/SKILL.md",
-    "plugins/codex-speak/scripts/codex-speak-mcp",
-    "plugins/codex-speak/scripts/codex-speak-mcp.ps1",
     "docs/architecture.md",
     "docs/installation.md",
+    "docs/legacy-plugin-product-design.md",
+    "docs/legacy-mcp-side-channel.md",
     "docs/speech-timing.md",
     "docs/release-qa.md",
     "docs/signing.md",
@@ -286,7 +283,7 @@ function checkManualQaMixedEnglishCoverage() {
     "插件通道",
     "数据格式",
     "构建失败，因为超时",
-    "英文编号"
+    "ProjectAlpha42"
   ];
   for (const file of ["scripts/manual-qa-macos.sh", "scripts/manual-qa-windows.ps1"]) {
     const content = readFileSync(file, "utf8");
@@ -302,8 +299,6 @@ function checkManualQaMixedEnglishCoverage() {
 function checkSkillFallbackPolicy() {
   const files = [
     "skills/codex-speak/SKILL.md",
-    "plugins/codex-speak/skills/codex-speak/SKILL.md",
-    "plugins/codex-speak/README.md",
     "docs/requirements.md",
     "docs/technical-design.md",
     "docs/plugin-design.md",
@@ -355,10 +350,10 @@ function checkSpeechTimingPolicy() {
       ]
     },
     {
-      file: "plugins/codex-speak/README.md",
+      file: "docs/speech-timing.md",
       terms: [
-        "progress prompts and final guides separate",
-        "does not stream every generated chat token into TTS"
+        "过程中少量进度提示，结束后完整导览",
+        "不会逐字朗读流式聊天输出"
       ]
     }
   ];

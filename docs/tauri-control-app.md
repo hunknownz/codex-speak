@@ -2,7 +2,7 @@
 
 ## 定位
 
-Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、Plugin 或 Rust CLI。
+Tauri 控制面板是普通用户的主入口：它不重新实现 Hook 或 TTS，但负责调用 Rust installer 完成安装、修复、配置和排障。
 
 它负责：
 
@@ -15,6 +15,7 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 - 选择声音档位。
 - 切换朗读引擎。
 - 安装当前朗读引擎需要的模型。
+- 安装或修复 Stop Hook、AGENTS hint、Skill 和本地队列。
 - 设置最大朗读字数。
 - 停止当前朗读。
 - 试听一句话。
@@ -23,17 +24,15 @@ Tauri 控制面板是给普通用户点按钮用的小界面，不替代 Hook、
 
 ## 为什么需要 Tauri
 
-Plugin 目前不能稳定地在 Codex 聊天窗口里增加自定义按钮。MCP 很适合让 Codex 按自然语言控制本地能力，但普通用户仍然需要一个明确可见的小界面。
+Codex Plugin/MCP 适合把能力暴露给 Agent，但它不适合作为成长模式 MVP 的主安装和控制入口：Agent 可能忘记调用、session 中途不会稳定热加载新能力，MCP 启动或 handshake 异常也会让排障变复杂。普通用户需要一个明确可见的小界面。
 
 所以产品分工是：
 
 ```text
-Codex Plugin / MCP
-  -> Codex 可以主动写入 side-channel、改配置、停止朗读
 Tauri App
-  -> 用户可以点按钮改配置、停止朗读、试听声音，并看到桌面 Pet 状态
+  -> 用户可以安装核心、修复 Hook、改配置、停止朗读、试听声音，并看到桌面 Pet 状态
 Hook
-  -> 回复结束后自动触发朗读
+  -> 回复结束后接收 Stop payload，提取当前 session final 并写入队列
 Rust CLI
   -> 唯一的本地核心：配置、解析、TTS、播放、停止
 ```
@@ -72,6 +71,8 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 
 | UI 操作 | Rust CLI |
 | --- | --- |
+| 安装核心 | `codex-speak install --no-summary --skip-tts-download` |
+| 修复 Hook | `codex-speak install --no-summary --skip-tts-download` |
 | 刷新状态 | `codex-speak status` |
 | 总朗读开关 | `codex-speak config set --enabled ...` |
 | 最终导览开关 | `codex-speak config set --final-guide-enabled ...` |
@@ -92,9 +93,9 @@ Tauri 后端不重新实现 TTS，也不直接改 Hook。它调用已安装的 C
 | 支持包 | `codex-speak support-bundle` |
 | Pet 状态 | `codex-speak pet-state` |
 
-播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮和 MCP `stop` 工具会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
+播放开始时，CLI 会把当前播放器子进程 PID 写到本地状态目录；停止按钮会优先结束这个子进程。这样 macOS 的 `afplay`/`say` 和 Windows 的 PowerShell `SoundPlayer` 都能被准确停止。
 
-控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性、发音词典是否能解析，以及 Skill、Hook wrapper、Plugin 和 MCP 脚本是否与当前 CLI 内置版本一致；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型、发音词典摘要和最近日志的本地排障目录。
+控制面板的健康状态读取 `codex-speak status`，其中会包含播放器可用性、发音词典是否能解析、Stop Hook 是否当前、AGENTS hint 是否存在、队列是否可写，以及旧 notify/MCP/plugin 残留 warning；人工排障或外部 QA 可以运行 `codex-speak doctor --json` 获取同一套结构化检查结果，运行 `codex-speak verify-controls` 确认控制项能写入并恢复，也可以点击“支持包”生成包含自检、状态、模型、发音词典摘要和最近日志的本地排障目录。
 
 “最近朗读”来自 `~/.codex/codex-speak/logs/last-spoken.txt`，并显示该文件的最近更新时间。控制面板会定时安静刷新状态；点击“试听”后也会立刻重新读取状态，避免朗读已经完成但界面仍显示旧内容。
 

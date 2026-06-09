@@ -78,14 +78,11 @@ foreach ($Id in @(
   "config",
   "cli",
   "control_app",
-  "codex_notify",
-  "codex_notify_hook",
+  "codex_stop_hook",
+  "codex_stop_hook_script",
+  "agents_hint",
+  "queue",
   "codex_skill",
-  "plugin",
-  "plugin_skill",
-  "plugin_mcp_config",
-  "plugin_mcp_script",
-  "plugin_marketplace",
   "player"
 )) {
   if (-not $Checks.ContainsKey($Id) -or $Checks[$Id].status -ne "ok") {

@@ -267,7 +267,7 @@ if grep -q "你好世界示例" "$mixed_stdout" \
   && grep -q "处理器" "$mixed_stdout" \
   && grep -q "英文缩写" "$mixed_stdout" \
   && grep -q "构建失败，因为超时" "$mixed_stdout" \
-  && grep -q "英文编号" "$mixed_stdout" \
+  && grep -q "ProjectAlpha42" "$mixed_stdout" \
   && ! grep -q "README.md" "$mixed_stdout" \
   && ! grep -q "codex_speak_prepare" "$mixed_stdout" \
   && ! grep -q -- "--provider" "$mixed_stdout" \
@@ -282,8 +282,7 @@ if grep -q "你好世界示例" "$mixed_stdout" \
   && ! grep -q "XYZ" "$mixed_stdout" \
   && ! grep -q "build" "$mixed_stdout" \
   && ! grep -q "failed" "$mixed_stdout" \
-  && ! grep -q "timeout" "$mixed_stdout" \
-  && ! grep -q "ProjectAlpha42" "$mixed_stdout"; then
+  && ! grep -q "timeout" "$mixed_stdout"; then
   add_qa_check "mixed english normalization" "pass" "technical English terms normalized for speech"
 else
   add_qa_check "mixed english normalization" "fail" "expected technical English terms to be normalized in $mixed_stdout"

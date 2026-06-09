@@ -27,8 +27,9 @@ const controls = {
   pronunciationPreviewText: $("pronunciationPreviewText"),
   pronunciationList: $("pronunciationList"),
   controlAppState: $("controlAppState"),
-  pluginState: $("pluginState"),
-  marketplaceState: $("marketplaceState"),
+  agentsState: $("agentsState"),
+  queueState: $("queueState"),
+  legacyState: $("legacyState"),
   petState: $("petState"),
   lastSpoken: $("lastSpoken"),
   lastSpokenAt: $("lastSpokenAt"),
@@ -69,25 +70,21 @@ function renderStatus(status) {
     ? `${provider.role} · ${provider.languages} · ${provider.footprint}`
     : "-";
   controls.modelState.textContent = provider?.installed ? "正常" : (provider?.reason || "缺失");
-  const hookOk = status.checks.notify_configured && status.checks.notify_hook_current;
-  controls.hookState.textContent = hookOk ? "已连接" : (status.checks.notify_configured ? "需刷新" : "未连接");
+  const hookOk = status.checks.stop_hook_configured && status.checks.stop_hook_current;
+  controls.hookState.textContent = hookOk ? "已连接" : (status.checks.stop_hook_configured ? "需刷新" : "未连接");
   controls.configState.textContent = status.checks.config_exists ? "正常" : "缺失";
   controls.pronunciationState.textContent = status.checks.pronunciation_dictionary_valid
     ? `${status.pronunciation_terms || 0} 条`
     : "需检查";
   controls.controlAppState.textContent = status.checks.control_app_exists ? "已安装" : "未安装";
-  const pluginOk = status.checks.plugin_installed
-    && status.checks.plugin_current
-    && status.checks.plugin_skill_installed
-    && status.checks.plugin_skill_current
-    && status.checks.plugin_mcp_config_installed
-    && status.checks.plugin_mcp_config_current
-    && status.checks.plugin_mcp_script_installed
-    && status.checks.plugin_mcp_script_current
-    && status.checks.codex_skill_installed
-    && status.checks.codex_skill_current;
-  controls.pluginState.textContent = pluginOk ? "已安装" : "需刷新";
-  controls.marketplaceState.textContent = status.checks.marketplace_configured ? "已连接" : "缺失";
+  const agentsOk = status.checks.agents_hint_installed;
+  const skillOk = status.checks.codex_skill_installed && status.checks.codex_skill_current;
+  const legacyConfigured = status.checks.legacy_notify_configured
+    || status.checks.legacy_global_mcp_configured
+    || status.checks.legacy_plugin_configured;
+  controls.agentsState.textContent = agentsOk && skillOk ? "已安装" : (agentsOk ? "需刷新" : "缺失");
+  controls.queueState.textContent = status.checks.queue_writable ? "可写" : "需检查";
+  controls.legacyState.textContent = legacyConfigured ? "有残留" : "干净";
   controls.petState.textContent = petStateLabel(status.pet_state?.state, status.checks);
   controls.lastSpoken.textContent = status.last_spoken || "暂无记录";
   controls.lastSpokenAt.textContent = formatTime(status.last_spoken_at);
@@ -97,11 +94,12 @@ function renderStatus(status) {
     && status.checks.pronunciation_dictionary_valid
     && Boolean(provider?.installed)
     && hookOk
+    && agentsOk
+    && skillOk
+    && status.checks.queue_writable
     && status.checks.player_available
     && status.checks.control_app_exists
-    && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists)
-    && pluginOk
-    && status.checks.marketplace_configured;
+    && (!status.checks.pet_helper_supported || status.checks.pet_helper_exists);
   controls.health.textContent = ok ? "运行正常" : "需要检查";
   controls.health.dataset.state = ok ? "ok" : "warn";
   applying = false;
@@ -319,6 +317,49 @@ $("installModel").addEventListener("click", async () => {
     const status = await invoke("install_current_model");
     renderStatus(status);
     setLog("模型已安装");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("installCore").addEventListener("click", async () => {
+  setBusy(true);
+  setLog("正在安装 Hook、AGENTS 提示和本地队列...");
+  try {
+    const status = await invoke("install_core", { skipTtsDownload: true });
+    renderStatus(status);
+    setLog("核心安装完成。朗读模型可单独安装。");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("repairHooks").addEventListener("click", async () => {
+  setBusy(true);
+  setLog("正在刷新 Stop Hook 和 AGENTS 提示...");
+  try {
+    const status = await invoke("repair_hooks");
+    renderStatus(status);
+    setLog("Hook 已刷新");
+  } catch (error) {
+    setLog(String(error));
+  } finally {
+    setBusy(false);
+  }
+});
+
+$("uninstallCore").addEventListener("click", async () => {
+  if (!window.confirm("确定移除 Codex Speak 的 Hook、AGENTS 提示和旧 MCP/Plugin 残留吗？")) {
+    return;
+  }
+  setBusy(true);
+  try {
+    const output = await invoke("uninstall_core", { removeModels: false });
+    setLog(output || "已卸载核心组件");
   } catch (error) {
     setLog(String(error));
   } finally {
