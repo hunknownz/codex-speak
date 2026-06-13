@@ -19,9 +19,9 @@ const AGENTS_BLOCK_END: &str = "<!-- END CODEX SPEAK GROWTH MODE -->";
 const AGENTS_BLOCK: &str = r#"<!-- BEGIN CODEX SPEAK GROWTH MODE -->
 ## Codex Speak 成长模式
 
-回答时使用适合孩子阅读和收听的成长模式：温和、简洁、具体，最终可见回答本身就应该适合被本地 Hook 朗读。
+回答时先把屏幕上需要看的结果讲清楚。最终回答可以保留必要细节；本地 Hook 会把它变成更短、更适合孩子听的成长模式口播总结。
 
-先说最重要的结果。除非用户明确需要，不要在最终回答里放长代码块、原始日志、长路径或大段命令输出。必须讲技术细节时，先给一句孩子能听懂的小结，再补必要细节。
+先说最重要的结果。除非用户明确需要，不要在最终回答里放长代码块、原始日志、长路径或大段命令输出。必须讲技术细节时，先给一句清楚的人话结论，再补必要细节。
 
 正常回复不要调用 legacy MCP side-channel，也不要添加隐藏协议块、HTML 朗读块或单独的“朗读导览”章节。Hook 会直接读取最终回答。
 <!-- END CODEX SPEAK GROWTH MODE -->

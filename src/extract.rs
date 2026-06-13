@@ -139,6 +139,62 @@ pub fn fallback_reply_guide(text: &str, max_chars: usize) -> String {
     )
 }
 
+pub fn growth_mode_spoken_summary(text: &str, max_chars: usize) -> String {
+    if let Some(guide) = extract_html_protocol_guide(text) {
+        return truncate_chars(&ensure_terminal_punctuation(&guide), max_chars.min(240));
+    }
+    if let Some(guide) = extract_spoken_guide(text) {
+        return truncate_chars(&ensure_terminal_punctuation(&guide), max_chars.min(240));
+    }
+    if let Some(block) = extract_speak_block(text) {
+        return truncate_chars(&ensure_terminal_punctuation(&block), max_chars.min(240));
+    }
+
+    let guide = fallback_reply_guide(text, max_chars.min(420));
+    let sentences = split_sentences(&guide);
+    if sentences.is_empty() {
+        return String::new();
+    }
+
+    let mut chosen = Vec::new();
+    if let Some(first) = sentences
+        .iter()
+        .find(|sentence| is_good_child_summary_sentence(sentence))
+    {
+        push_unique(&mut chosen, first);
+    }
+    for sentence in sentences
+        .iter()
+        .filter(|sentence| is_result_sentence(sentence) && is_good_child_summary_sentence(sentence))
+    {
+        if chosen.len() >= 2 {
+            break;
+        }
+        push_unique(&mut chosen, sentence);
+    }
+    if let Some(next) = sentences.iter().rev().find(|sentence| {
+        is_next_step_sentence(sentence) && is_good_child_summary_sentence(sentence)
+    }) {
+        push_unique(&mut chosen, next);
+    }
+    if chosen.is_empty() {
+        push_unique(&mut chosen, &sentences[0]);
+    }
+
+    let summary = chosen
+        .into_iter()
+        .take(3)
+        .map(|sentence| childify_spoken_sentence(&sentence))
+        .filter(|sentence| !sentence.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("。");
+
+    truncate_chars(
+        &ensure_terminal_punctuation(&normalize_space(&summary)),
+        max_chars.min(240),
+    )
+}
+
 pub fn extract_html_protocol_guide(text: &str) -> Option<String> {
     let aside_re =
         Regex::new(r#"(?is)<aside\b[^>]*data-codex-speak\s*=\s*["']guide["'][^>]*>(.*?)</aside>"#)
@@ -553,6 +609,88 @@ fn is_next_step_sentence(sentence: &str) -> bool {
     ["下一步", "接下来", "可以继续", "你可以", "建议"]
         .iter()
         .any(|word| sentence.contains(word))
+}
+
+fn is_result_sentence(sentence: &str) -> bool {
+    [
+        "完成", "通过", "正常", "可用", "已经", "好了", "全绿", "成功", "运行", "安装", "配置",
+        "设置", "修复",
+    ]
+    .iter()
+    .any(|word| sentence.contains(word))
+}
+
+fn is_good_child_summary_sentence(sentence: &str) -> bool {
+    let len = sentence.chars().count();
+    len >= 4
+        && len <= 110
+        && !is_too_technical_for_child_summary(sentence)
+        && !is_detail_list_sentence(sentence)
+        && !contains_speech_placeholder_noise(sentence)
+}
+
+fn is_too_technical_for_child_summary(sentence: &str) -> bool {
+    let technical_hits = [
+        "命令参数",
+        "源码",
+        "结构体",
+        "字段",
+        "函数",
+        "测试覆盖",
+        "单元测试",
+        "路径",
+        "哈希",
+        "commit",
+        "GitHub",
+        "JSON",
+        "MCP",
+        "Hook",
+        "AGENTS",
+        "Skill",
+        "Tauri",
+        "CLI",
+        "cargo",
+        "doctor",
+    ]
+    .iter()
+    .filter(|word| sentence.contains(*word))
+    .count();
+
+    technical_hits >= 3
+}
+
+fn childify_spoken_sentence(sentence: &str) -> String {
+    let mut text = sentence.trim().to_string();
+    let replacements = [
+        ("Hook-first", "自动触发"),
+        ("Hook", "自动触发器"),
+        ("Stop 自动触发器", "回答结束后的自动触发器"),
+        ("AGENTS", "成长提示"),
+        ("Skill", "成长规则"),
+        ("MCP side-channel", "旧的插件通道"),
+        ("MCP", "插件通道"),
+        ("Tauri App", "控制面板"),
+        ("Tauri", "控制面板"),
+        ("App", "应用"),
+        ("CLI", "命令行工具"),
+        ("doctor", "自检"),
+        ("queue", "播放队列"),
+        ("session", "会话"),
+        ("final", "最后回答"),
+        ("provider", "声音引擎"),
+        ("legacy", "旧版"),
+        ("JSON", "数据格式"),
+        ("全绿", "都通过了"),
+        ("配置", "设置"),
+        ("相关组件", "相关部分"),
+        ("组件", "部分"),
+        ("链路", "流程"),
+    ];
+    for (from, to) in replacements {
+        text = text.replace(from, to);
+    }
+    text.trim_matches(['。', '！', '？', '；', ' ', '\n', '\t'])
+        .to_string()
 }
 
 fn is_heading_like_sentence(sentence: &str) -> bool {
@@ -1025,6 +1163,27 @@ stopButton.addEventListener("click", () => invoke("stop_speech"));
         assert!(!guide.contains("命令参数"));
         assert!(!guide.contains("产品变化优先于本地构建步骤"));
         assert!(!guide.contains("dd2c46c"));
+    }
+
+    #[test]
+    fn growth_mode_summary_is_short_and_child_friendly() {
+        let text = r#"
+检查完了：现在本机 Mac 的 App 和相关组件都正常。
+
+- 控制面板 App 已安装并正在运行。
+- Stop Hook 已配置且是当前版本。
+- AGENTS hint、Skill、queue、MCP legacy cleanup 都已经检查。
+- `doctor --json` 是 ok。
+
+下一步可以重启 Codex，试试回答结束后会不会自动朗读。
+"#;
+        let summary = growth_mode_spoken_summary(text, 800);
+        assert!(summary.contains("检查完了"));
+        assert!(summary.contains("下一步"));
+        assert!(summary.chars().count() <= 240);
+        assert!(!summary.contains("doctor"));
+        assert!(!summary.contains("AGENTS"));
+        assert!(!summary.contains("legacy cleanup"));
     }
 
     #[test]

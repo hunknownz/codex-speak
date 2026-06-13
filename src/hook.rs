@@ -48,7 +48,7 @@ pub(crate) fn job_from_payload(payload: &Value, cfg: &Config) -> Result<Option<q
         }
     };
 
-    let text = extract::clean_for_speech(&raw_text, cfg.max_read_chars);
+    let text = extract::growth_mode_spoken_summary(&raw_text, cfg.max_read_chars);
     if text.trim().is_empty() {
         return Ok(None);
     }
@@ -178,6 +178,34 @@ mod tests {
         assert_eq!(job.turn_id.as_deref(), Some("t1"));
         assert!(job.text.contains("我已经完成"));
         assert!(!job.text.contains("fn main"));
+    }
+
+    #[test]
+    fn summarizes_final_answer_for_growth_mode() {
+        let payload = json!({
+            "hook_event_name": "Stop",
+            "session_id": "s-child",
+            "turn_id": "t-child",
+            "last_assistant_message": r#"
+检查完了：现在本机 Mac 的 App 和相关组件都正常。
+
+- 控制面板 App 已安装并正在运行。
+- Stop Hook 已配置且是当前版本。
+- AGENTS hint、Skill、queue、MCP legacy cleanup 都已经检查。
+- `doctor --json` 是 ok。
+
+下一步可以重启 Codex，试试回答结束后会不会自动朗读。
+"#
+        });
+        let job = job_from_payload(&payload, &Config::default())
+            .unwrap()
+            .unwrap();
+        assert!(job.text.contains("检查完了"));
+        assert!(job.text.contains("下一步"));
+        assert!(job.text.chars().count() <= 240);
+        assert!(!job.text.contains("doctor"));
+        assert!(!job.text.contains("AGENTS"));
+        assert!(!job.text.contains("MCP legacy cleanup"));
     }
 
     #[test]

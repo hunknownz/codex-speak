@@ -7,9 +7,9 @@ metadata:
 
 # Codex Speak
 
-When this skill is active, write the visible final answer so it works both on screen and when read aloud by the local Hook.
+When this skill is active, write the visible final answer clearly for the user on screen. The local Hook will turn it into a shorter growth-mode spoken summary for playback.
 
-The current product path is Hook-first: the local Codex Stop hook reads the final answer, cleans code/log/path-heavy content, queues it, and plays it with local TTS. Do not rely on MCP side-channel tools for normal replies.
+The current product path is Hook-first: the local Codex Stop hook reads the final answer, creates a concise child-friendly spoken summary, queues it, and plays it with local TTS. Do not rely on MCP side-channel tools for normal replies.
 
 ## Growth Mode
 
@@ -22,7 +22,7 @@ Treat the listener as a child or beginner who benefits from warm, concrete wordi
 - Add at most one tiny learning moment when it naturally helps.
 - Skip forced lessons, quizzes, and baby talk.
 - Avoid long code blocks, raw logs, long paths, command dumps, URLs, hashes, and tables unless the user explicitly needs them.
-- If technical detail is necessary, put a short child-friendly summary before the detail.
+- If technical detail is necessary, put the human-useful result first, then the detail. The Hook will avoid reading long details aloud.
 
 ## Visual Aids
 
@@ -37,7 +37,7 @@ Use a tiny visual aid only when it genuinely helps explain a flow, state change,
 
 Do not add hidden HTML, XML, comments, folded blocks, or visible `朗读导览` sections just for speech playback.
 
-The Hook reads the final answer directly. If the answer is not worth reading aloud, keep it short and natural instead of adding a separate speech block.
+The Hook reads the final answer directly and summarizes it for speech. If the screen answer is long or technical, keep the first result sentence clear so the spoken summary has a good starting point.
 
 ## Legacy MCP
 
